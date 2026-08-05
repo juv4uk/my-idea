@@ -10,4 +10,7 @@
   :test {:target :node-test
          :output-to "target/cljs-tests.js"
          :ns-regexp ".*-test$"
-         :autorun true}}}
+         :autorun true}
+  :benchmark {:target :node-script
+              :output-to "target/cljs-benchmark.js"
+              :main my-idea.benchmark/main}}}

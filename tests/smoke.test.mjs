@@ -96,6 +96,18 @@ test('active document programming language switches from the bottom status bar',
   assert.match(sourceFiles, /kanonische Dateiendung[\s\S]*`\.my`/);
 });
 
+test('CLJS and Rust benchmark the same my-lisp programs', () => {
+  const config = readFileSync('shadow-cljs.edn', 'utf8');
+  const runner = readFileSync('scripts/benchmark.mjs', 'utf8');
+  const rust = readFileSync('crates/my-lisp/examples/benchmark.rs', 'utf8');
+  for (const name of ['arithmetic', 'lists', 'recursion', 'closures', 'parser']) {
+    assert.match(readFileSync(`benchmarks/${name}.my`, 'utf8'), /·/);
+  }
+  assert.match(config, /:benchmark/);
+  assert.match(runner, /MY_LISP_BENCH_ITERATIONS/);
+  assert.match(rust, /BENCH_RESULT/);
+});
+
 test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds', () => {
   const workflow = readFileSync('.github/workflows/publish-release.yml', 'utf8');
   const portable = readFileSync('scripts/make-portable-web.mjs', 'utf8');

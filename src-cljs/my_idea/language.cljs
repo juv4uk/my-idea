@@ -81,7 +81,7 @@
 (declare evaluate)
 
 (defn- closure [parameters body environment]
-  {::closure true :parameters parameters :body body :environment environment})
+  {::closure true :parameters parameters :body body :environment (atom environment)})
 
 (defn- closure? [value] (true? (::closure value)))
 
@@ -90,7 +90,7 @@
     (when-not (= (count parameters) (count arguments))
       (throw (js/Error. (str "lambda arity mismatch · невідповідна кількість аргументів lambda · falsche Lambda-Stelligkeit: " (count arguments)))))
     (reduce (fn [[_ env out] expression] (evaluate expression env out))
-            [nil (merge environment (zipmap parameters arguments)) output]
+            [nil (merge @environment (zipmap parameters arguments)) output]
             body)))
 
 (defn- evaluate-cond [clauses environment output]
@@ -115,8 +115,12 @@
       cond (evaluate-cond (rest form) environment output)
       if (let [[condition environment output] (evaluate (second form) environment output)]
            (evaluate (if condition (nth form 2) (nth form 3 nil)) environment output))
-      def (let [[value environment output] (evaluate (nth form 2) environment output)]
-            [value (assoc environment (second form) value) output])
+      def (let [name (second form)
+                [value environment output] (evaluate (nth form 2) environment output)
+                next-environment (assoc environment name value)]
+            (when (closure? value)
+              (reset! (:environment value) next-environment))
+            [value next-environment output])
       println (let [[values environment output]
                     (reduce (fn [[values env out] expression]
                               (let [[value next-env next-out] (evaluate expression env out)]

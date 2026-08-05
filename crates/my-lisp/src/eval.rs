@@ -63,11 +63,45 @@ fn evaluate_list(
         Some("cdr") => evaluate_cdr(arguments, environment, span),
         Some("cons") => evaluate_cons(arguments, environment, span),
         Some("/") => evaluate_division(arguments, environment, span),
+        Some("+") | Some("-") | Some("*") => {
+            evaluate_arithmetic(items[0].kind.as_symbol().expect("matched symbol"), arguments, environment, span)
+        }
         _ => {
             let function = evaluate(&items[0], environment)?;
             apply(function, arguments, environment, span)
         }
     }
+}
+
+fn evaluate_arithmetic(
+    operator: &str,
+    arguments: &[Expr],
+    environment: &Environment,
+    span: Span,
+) -> Result<Value, LanguageError> {
+    if operator == "-" && arguments.is_empty() {
+        return Err(LanguageError::new(
+            ErrorKind::Arity,
+            "- expects at least one argument · - очікує щонайменше один аргумент · - erwartet mindestens ein Argument",
+            span,
+        ));
+    }
+    let values = arguments.iter().map(|argument| match evaluate(argument, environment)? {
+        Value::Number(value) => Ok(value),
+        _ => Err(LanguageError::new(
+            ErrorKind::Type,
+            "arithmetic expects numbers · арифметика очікує числа · Arithmetik erwartet Zahlen",
+            argument.span,
+        )),
+    }).collect::<Result<Vec<_>, _>>()?;
+    let result = match operator {
+        "+" => values.into_iter().sum(),
+        "*" => values.into_iter().product(),
+        "-" if values.len() == 1 => -values[0],
+        "-" => values[1..].iter().fold(values[0], |result, value| result - value),
+        _ => unreachable!("known arithmetic operator"),
+    };
+    Ok(Value::Number(result))
 }
 
 fn evaluate_definition(

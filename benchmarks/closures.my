@@ -1,0 +1,6 @@
+; Closure benchmark · Benchmark замикань · Closure-Benchmark
+(def make-pair
+  (lambda (left)
+    (lambda (right)
+      (cons left (cons right (quote ()))))))
+((make-pair (quote radio)) (quote antenna))
