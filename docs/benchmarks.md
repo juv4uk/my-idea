@@ -26,12 +26,16 @@ Dies sind Mikrobenchmarks und keine Leistungszusage für das Produkt. Parser und
 
 ## Local baseline · Локальний baseline · Lokale Ausgangsmessung
 
-Windows x86_64, 2026-08-05, release-mode Rust, 1,000 iterations. This is one development-machine run and must be reproduced before making optimization decisions. · Це один запуск на машині розробки, який слід повторювати перед рішеннями щодо оптимізації. · Dies ist ein einzelner Lauf auf dem Entwicklungsrechner und muss vor Optimierungsentscheidungen reproduziert werden.
+Windows x86_64, 2026-08-05, release-mode Rust, median of three runs with 5,000 measured iterations per case. CLJS varied more because JIT and garbage-collection activity remain part of the measurement; the median avoids presenting either the best or worst outlier as the baseline.
+
+Windows x86_64, 2026-08-05, Rust у release mode, медіана трьох прогонів по 5 000 виміряних ітерацій на випадок. CLJS коливався сильніше через JIT і garbage collection, які залишаються частиною вимірювання; медіана не видає ані найкращий, ані найгірший викид за baseline.
+
+Windows x86_64, 2026-08-05, Rust im Release-Modus, Median aus drei Läufen mit jeweils 5.000 gemessenen Iterationen pro Fall. CLJS schwankte wegen JIT- und Garbage-Collection-Aktivität stärker; der Median verwendet weder den besten noch den schlechtesten Ausreißer als Ausgangswert.
 
 | Case · Випадок · Fall | CLJS µs/op | Rust µs/op | Rust speedup · Прискорення · Beschleunigung |
 |---|---:|---:|---:|
-| parser | 90.08 | 8.99 | 10.0× |
-| arithmetic | 68.87 | 6.13 | 11.2× |
-| lists | 175.12 | 55.30 | 3.2× |
-| recursion | 186.53 | 113.15 | 1.6× |
-| closures | 52.32 | 10.59 | 4.9× |
+| parser | 62.72 | 8.60 | 7.3× |
+| arithmetic | 57.39 | 7.12 | 8.1× |
+| lists | 198.26 | 52.40 | 3.8× |
+| recursion | 194.92 | 105.36 | 1.8× |
+| closures | 48.14 | 10.36 | 4.6× |
