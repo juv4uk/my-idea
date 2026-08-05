@@ -1,7 +1,14 @@
-use my_lisp::{eval_program, parse, ErrorKind, Session, Value};
+use my_lisp::{eval_program, parse, ErrorKind, Rational, Session, Value};
 
 fn eval(source: &str) -> Value {
     eval_program(source, &mut Session::default()).unwrap().value
+}
+
+#[test]
+fn division_is_an_exact_reduced_rational() {
+    assert_eq!(eval("(/ 5 6 8 7)"), Value::Rational(Rational::new(5, 336).unwrap()));
+    assert_eq!(eval("(/ 8 4)"), Value::Number(2.0));
+    assert_eq!(eval("(/ (/ 2 3))"), Value::Rational(Rational::new(3, 2).unwrap()));
 }
 
 #[test]

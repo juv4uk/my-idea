@@ -2,6 +2,55 @@
   (:require [cljs.reader :as reader]
             [clojure.string :as str]))
 
+;; Exact fractions keep arithmetic deterministic instead of leaking JavaScript floating-point values.
+;; Точні дроби зберігають арифметику детермінованою без витоку JavaScript floating-point значень.
+;; Exakte Brüche halten die Arithmetik deterministisch, ohne JavaScript-Gleitkommawerte durchzulassen.
+(deftype Rational [numerator denominator]
+  IEquiv
+  (-equiv [_ other]
+    (and (instance? Rational other)
+         (= numerator (.-numerator ^Rational other))
+         (= denominator (.-denominator ^Rational other))))
+  IPrintWithWriter
+  (-pr-writer [_ writer _]
+    (-write writer (str numerator "/" denominator)))
+  Object
+  (toString [_] (str numerator "/" denominator)))
+
+(defn rational? [value] (instance? Rational value))
+
+(defn- gcd [left right]
+  (loop [a (js/Math.abs left) b (js/Math.abs right)]
+    (if (zero? b) a (recur b (mod a b)))))
+
+(defn- rational [numerator denominator]
+  (when-not (and (js/Number.isSafeInteger numerator) (js/Number.isSafeInteger denominator))
+    (throw (js/Error. "rational number overflow · переповнення раціонального числа · Überlauf der rationalen Zahl")))
+  (when (zero? denominator)
+    (throw (js/Error. "division by zero · ділення на нуль · Division durch null")))
+  (let [sign (if (neg? denominator) -1 1)
+        divisor (gcd numerator denominator)
+        numerator (/ (* sign numerator) divisor)
+        denominator (/ (js/Math.abs denominator) divisor)]
+    (if (= denominator 1) numerator (Rational. numerator denominator))))
+
+(defn- fraction-parts [value]
+  (cond
+    (rational? value) [(.-numerator ^Rational value) (.-denominator ^Rational value)]
+    (and (number? value) (js/Number.isSafeInteger value)) [value 1]
+    :else (throw (js/Error. "/ expects exact integers or rational numbers · / очікує точні цілі або раціональні числа · / erwartet exakte Ganz- oder rationale Zahlen"))))
+
+(defn- exact-divide
+  ([value]
+   (let [[numerator denominator] (fraction-parts value)]
+     (rational denominator numerator)))
+  ([value & divisors]
+   (reduce (fn [result divisor]
+             (let [[left-n left-d] (fraction-parts result)
+                   [right-n right-d] (fraction-parts divisor)]
+               (rational (* left-n right-d) (* left-d right-n))))
+           value divisors)))
+
 (defn- lisp-atom? [value]
   (or (not (seq? value)) (empty? value)))
 
@@ -22,7 +71,7 @@
   (= left right))
 
 (def builtins
-  {'+ +, '- -, '* *, '/ /, '= =, '< <, '> >,
+  {'+ +, '- -, '* *, '/ exact-divide, '= =, '< <, '> >,
    'str str, 'list list, 'vector vector, 'count count,
    'atom lisp-atom?, 'eq lisp-eq, 'car lisp-car, 'cdr lisp-cdr, 'cons cons})
 

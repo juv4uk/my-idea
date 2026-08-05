@@ -1,5 +1,5 @@
 use crate::{
-    parse, Closure, Environment, ErrorKind, Expr, ExprKind, LanguageError, Session, Span, Value,
+    parse, Closure, Environment, ErrorKind, Expr, ExprKind, LanguageError, Rational, Session, Span, Value,
 };
 use std::{collections::HashSet, rc::Rc};
 
@@ -61,11 +61,62 @@ fn evaluate_list(
         Some("car") => evaluate_car(arguments, environment, span),
         Some("cdr") => evaluate_cdr(arguments, environment, span),
         Some("cons") => evaluate_cons(arguments, environment, span),
+        Some("/") => evaluate_division(arguments, environment, span),
         _ => {
             let function = evaluate(&items[0], environment)?;
             apply(function, arguments, environment, span)
         }
     }
+}
+
+fn evaluate_division(
+    arguments: &[Expr],
+    environment: &Environment,
+    span: Span,
+) -> Result<Value, LanguageError> {
+    if arguments.is_empty() {
+        return Err(LanguageError::new(
+            ErrorKind::Arity,
+            "/ expects at least one argument · / очікує щонайменше один аргумент · / erwartet mindestens ein Argument",
+            span,
+        ));
+    }
+    let mut values = arguments.iter().map(|argument| {
+        let value = evaluate(argument, environment)?;
+        match value {
+            Value::Rational(value) => Ok(value),
+            Value::Number(value) if value.fract() == 0.0 && value >= i64::MIN as f64 && value <= i64::MAX as f64 => {
+                Ok(Rational::integer(value as i64))
+            }
+            _ => Err(LanguageError::new(
+                ErrorKind::Type,
+                "/ expects exact integers or rational numbers · / очікує точні цілі або раціональні числа · / erwartet exakte Ganz- oder rationale Zahlen",
+                argument.span,
+            )),
+        }
+    });
+    let first = values.next().expect("arity checked");
+    let mut result = first?;
+    if arguments.len() == 1 {
+        result = Rational::integer(1).checked_div(result).ok_or_else(|| division_error(span))?;
+    } else {
+        for divisor in values {
+            result = result.checked_div(divisor?).ok_or_else(|| division_error(span))?;
+        }
+    }
+    if result.denominator == 1 {
+        Ok(Value::Number(result.numerator as f64))
+    } else {
+        Ok(Value::Rational(result))
+    }
+}
+
+fn division_error(span: Span) -> LanguageError {
+    LanguageError::new(
+        ErrorKind::InvalidForm,
+        "division by zero or rational overflow · ділення на нуль або переповнення дробу · Division durch null oder Bruchüberlauf",
+        span,
+    )
 }
 
 trait ExprKindExt {

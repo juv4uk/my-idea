@@ -18,4 +18,4 @@ pub use error::{ErrorKind, LanguageError};
 pub use eval::{eval_program, EvalResult};
 pub use parser::parse;
 pub use syntax::{Expr, ExprKind, Span};
-pub use value::{Closure, Value};
+pub use value::{Closure, Rational, Value};
