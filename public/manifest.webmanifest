@@ -1,0 +1,29 @@
+{
+  "id": "./",
+  "name": "my-idea · Легка IDE · Leichtgewichtige IDE",
+  "short_name": "my-idea",
+  "description": "Language-development IDE · IDE для розробки мов · IDE zur Sprachentwicklung",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0b1022",
+  "theme_color": "#0b1022",
+  "categories": ["development", "education", "productivity"],
+  "icons": [
+    {
+      "src": "./icons/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

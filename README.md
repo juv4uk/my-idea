@@ -28,7 +28,7 @@ Details: [`docs/versioning.md`](docs/versioning.md)
 - local source persistence and a responsive desktop/mobile workspace;
 - embedded safe Lisp evaluator with console and parsed-form view;
 - English, Ukrainian and German interface;
-- web build plus the Tauri foundation for Windows, Linux, macOS and mobile.
+- installable offline PWA plus the Tauri foundation for Windows, Linux, macOS and mobile.
 
 ### Direction
 
@@ -62,7 +62,7 @@ npm run build
 npm run tauri dev
 ```
 
-Architecture notes live in [`docs/README.md`](docs/README.md). Contributions and practical ideas are welcome.
+Architecture notes and the platform roadmap live in [`docs/README.md`](docs/README.md). Contributions and practical ideas are welcome.
 
 ## License · Ліцензія · Lizenz
 

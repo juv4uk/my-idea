@@ -5,11 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0b1022" />
     <meta name="description" content="my-idea — a lightweight language-development IDE" />
+    <meta name="application-name" content="my-idea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/pwa-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="./icons/pwa-192.png" />
     <link rel="stylesheet" href="./styles.css" />
     <title>my-idea</title>
   </head>
   <body>
     <div id="app"><noscript>my-idea requires JavaScript.</noscript></div>
     <script src="./js/main.js"></script>
+    <script>
+      // PWA runs only on web origins; Tauri desktop/mobile protocols stay untouched.
+      // PWA працює лише на web-origin; протоколи Tauri desktop/mobile не змінюються.
+      // Die PWA läuft nur auf Web-Origins; Tauri-Desktop-/Mobile-Protokolle bleiben unberührt.
+      if ('serviceWorker' in navigator && /^(https?:)$/.test(location.protocol)) {
+        addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+      }
+    </script>
   </body>
 </html>

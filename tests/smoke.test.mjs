@@ -16,6 +16,18 @@ test('Tauri serves the compiled dist directory', () => {
   assert.equal(config.productName, 'my-idea');
 });
 
+test('web build is an installable offline PWA without affecting Tauri protocols', () => {
+  const html = readFileSync('public/index.html', 'utf8');
+  const manifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8'));
+  const worker = readFileSync('public/sw.js', 'utf8');
+  assert.match(html, /rel="manifest"/);
+  assert.match(html, /\^\(https\?:\)\$/);
+  assert.equal(manifest.display, 'standalone');
+  assert.deepEqual(manifest.icons.map(({ sizes }) => sizes), ['192x192', '512x512']);
+  assert.match(worker, /cache\.addAll\(APP_SHELL\)/);
+  assert.match(worker, /request\.mode === 'navigate'/);
+});
+
 test('CodeMirror 6 is the primary reusable editor', () => {
   const editor = readFileSync('src-cljs/my_idea/editor.cljs', 'utf8');
   assert.match(editor, /@codemirror\/view/);
