@@ -7,8 +7,8 @@
   "; CodeMirror 6 + our small Lisp laboratory\n(def greeting \"Hello · Привіт · Hallo\")\n(def power-mw 500)\n(println greeting)\n(println \"power =\" power-mw \"mW\")\n(if (< power-mw 1000) \"QRPp\" \"QRO\")")
 (defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
                       :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
-                      :root nil :tree [] :open-paths ["welcome.clj"] :active-path "welcome.clj"
-                      :documents {"welcome.clj" {:contents demo-source :saved demo-source :dirty? false :language-mode "my-lisp"}}
+                      :root nil :tree [] :open-paths ["welcome.my"] :active-path "welcome.my"
+                      :documents {"welcome.my" {:contents demo-source :saved demo-source :dirty? false :language-mode "my-lisp"}}
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
 
 (def messages

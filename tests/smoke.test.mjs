@@ -85,8 +85,11 @@ test('active document programming language switches from the bottom status bar',
   assert.match(core, /def programming-languages \["my-lisp" "clojurescript" "rust" "text"\]/);
   assert.match(core, /id='programming-language'/);
   assert.match(core, /cycle-programming-language!/);
+  assert.match(core, /welcome\.my/);
   assert.match(editor, /@codemirror\/lang-rust/);
   assert.match(editor, /language-extensions/);
+  const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
+  assert.match(workspace, /ends-with\? lower "\.my"/);
 });
 
 test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds', () => {

@@ -8,6 +8,12 @@ The language is named **my-lisp** and is independent from the IDE. Its first can
 
 Die Sprache heißt **my-lisp** und ist von der IDE unabhängig. Ihre erste kanonische Rust-Implementierung liegt in `crates/my-lisp`; während der Migration bleibt der aktuelle ClojureScript-Interpreter ein ausführbarer Prototyp.
 
+The canonical source-file extension is **`.my`** (for example, `welcome.my`). The generic `.lisp` extension remains a compatible alias.
+
+Канонічне розширення файлів початкового коду — **`.my`** (наприклад, `welcome.my`). Загальне розширення `.lisp` залишається сумісним псевдонімом.
+
+Die kanonische Dateiendung für Quellcode ist **`.my`** (zum Beispiel `welcome.my`). Die allgemeine Endung `.lisp` bleibt ein kompatibler Alias.
+
 The current product direction is a DrRacket-like language environment: a definitions editor, program execution, an interactions/REPL area, readable diagnostics, and tools for exploring parsed forms. It serves our own language rather than implementing Racket itself. The UI and the language engine remain separate components.
 
 Поточний напрям продукту — середовище мови на кшталт DrRacket: редактор визначень, запуск програми, область взаємодії/REPL, зрозумілі помилки та інструменти для дослідження розібраних форм. Воно обслуговує нашу власну мову, а не реалізує Racket. Інтерфейс і рушій мови залишаються окремими компонентами.

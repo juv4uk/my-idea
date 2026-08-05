@@ -8,6 +8,8 @@ An independent, capability-free Rust library for **my-lisp**, the small Lisp dev
 
 Eine unabhängige Rust-Bibliothek ohne Systemzugriffe für **my-lisp**, den kleinen Lisp, der zusammen mit der my-idea-IDE entwickelt wird. Der erste Meilenstein implementiert McCarthys sieben Primitive und hält Parser, Laufzeitwerte, Umgebungen, Diagnosen und Tests außerhalb der IDE-Hülle.
 
+Source files use `.my`; `.lisp` remains compatible. · Файли коду використовують `.my`; `.lisp` залишається сумісним. · Quellcodedateien verwenden `.my`; `.lisp` bleibt kompatibel.
+
 ## Contract · Контракт · Vertrag
 
 - `quote`, `atom`, `eq`, `car`, `cdr`, `cons`, `cond`

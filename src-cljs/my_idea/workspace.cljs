@@ -24,7 +24,7 @@
     (cond
       (or (str/ends-with? lower ".rs")) "rust"
       (or (str/ends-with? lower ".cljs") (str/ends-with? lower ".cljc") (str/ends-with? lower ".clj")) "clojurescript"
-      (or (str/ends-with? lower ".lisp") (str/ends-with? lower ".my")) "my-lisp"
+      (or (str/ends-with? lower ".my") (str/ends-with? lower ".lisp")) "my-lisp"
       :else "text")))
 
 (defn browser-path [file]
