@@ -65,14 +65,23 @@ test('language and eye-comfort themes use simple cycling buttons', () => {
   assert.match(styles, /data-theme=signal/);
 });
 
-test('tag releases publish desktop, ARM, Flatpak and portable Web builds', () => {
+test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds', () => {
   const workflow = readFileSync('.github/workflows/publish-release.yml', 'utf8');
   const portable = readFileSync('scripts/make-portable-web.mjs', 'utf8');
+  const androidSigning = readFileSync('scripts/setup-android-signing.ps1', 'utf8');
+  const androidGradle = readFileSync('scripts/configure-android-signing.mjs', 'utf8');
   assert.match(workflow, /build-desktop:/);
   assert.match(workflow, /build-arm-linux:/);
   assert.match(workflow, /build-flatpak:/);
   assert.match(workflow, /build-web:/);
+  assert.match(workflow, /build-android:/);
+  assert.match(workflow, /ANDROID_KEYSTORE_BASE64/);
+  assert.match(workflow, /android build -- --apk --aab --ci/);
   assert.match(workflow, /tauri-apps\/tauri-action@v0/);
-  assert.equal((workflow.match(/java-version: 21/g) ?? []).length, 4);
+  assert.equal((workflow.match(/java-version: 21/g) ?? []).length, 5);
   assert.match(portable, /Standalone Web HTML created/);
+  assert.match(androidSigning, /ANDROID_KEYSTORE_BASE64/);
+  assert.match(androidSigning, /Refusing to overwrite/);
+  assert.match(androidGradle, /signingConfigs/);
+  assert.match(androidGradle, /rootProject\.file\(\"keystore\.properties\"\)/);
 });

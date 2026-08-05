@@ -218,16 +218,76 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$RELEASE_TAG" my-idea-web.html --clobber
 
-  mobile-readiness:
-    name: Mobile readiness · Android/iOS
+  build-android:
+    name: Android · signed APK and AAB
     needs: build-desktop
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
-      - name: Explain mobile release gate
+      - name: Check signing gate · Перевірити підпис · Signatur prüfen
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo 'Android and iOS publishing is intentionally gated until Tauri mobile projects and signing secrets are configured.'
-          echo 'Android та iOS навмисно відкладені до ініціалізації Tauri mobile і налаштування signing secrets.'
-          echo 'Android und iOS bleiben bis zur Tauri-Mobile-Initialisierung und Signaturkonfiguration gesperrt.'
+          if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo 'Android release waits for all four signing secrets.'
+            echo 'Android-реліз очікує всі чотири секрети підпису.'
+            echo 'Das Android-Release wartet auf alle vier Signatur-Secrets.'
+          fi
+      - uses: actions/setup-node@v6
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          node-version: lts/*
+          cache: npm
+      - uses: actions/setup-java@v5
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: Install frontend dependencies · Встановити залежності · Abhängigkeiten installieren
+        if: steps.signing.outputs.ready == 'true'
+        run: npm ci
+      - name: Initialize Android project · Ініціалізувати Android · Android initialisieren
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          npm run tauri android init -- --ci
+          node scripts/configure-android-signing.mjs
+      - name: Configure signing · Налаштувати підпис · Signatur konfigurieren
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/my-idea-release.jks"
+          {
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/my-idea-release.jks"
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+          } > src-tauri/gen/android/keystore.properties
+      - name: Build signed Android packages · Зібрати Android · Android-Pakete bauen
+        if: steps.signing.outputs.ready == 'true'
+        run: npm run tauri android build -- --apk --aab --ci
+      - name: Upload Android packages · Завантажити Android · Android-Pakete hochladen
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p android-artifacts
+          find src-tauri/gen/android/app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} android-artifacts/ \;
+          test -n "$(find android-artifacts -type f -print -quit)"
+          gh release upload "$RELEASE_TAG" android-artifacts/* --clobber
