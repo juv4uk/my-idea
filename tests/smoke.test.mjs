@@ -91,7 +91,14 @@ test('WASM crate and ClojureScript bindings are present and correctly wired', ()
   // CLJS bindings load the module and expose ready? / evaluate
   assert.match(wasmCljs, /ready\?/);
   assert.match(wasmCljs, /load!/);
-  assert.match(wasmCljs, /\/wasm\/my_lisp_wasm\.js/);
+  // The loader uses a plain-JS shim (wasm-loader.js) to bypass Closure Compiler;
+  // js/import cannot be used directly in release builds.
+  // Завантажувач використовує plain-JS шим (wasm-loader.js) для обходу Closure Compiler;
+  // js/import не можна використовувати напряму у release-збірках.
+  assert.match(wasmCljs, /loadMyLispWasm/);
+  const wasmLoader = readFileSync('public/wasm-loader.js', 'utf8');
+  assert.match(wasmLoader, /\/wasm\/my_lisp_wasm\.js/);
+  assert.match(wasmLoader, /loadMyLispWasm/);
   // core.cljs uses the WASM module in the web branch
   assert.match(core, /my-idea.wasm/);
   assert.match(core, /wasm\/evaluate/);
