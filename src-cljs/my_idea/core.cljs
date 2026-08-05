@@ -25,7 +25,9 @@
 (def themes ["auto" "light" "dark" "sepia" "signal" "amber" "forest"])
 (def language-labels {"uk" "UA" "de" "DE" "en" "EN"})
 (def theme-icons {"auto" "◐" "light" "☀" "dark" "☾" "sepia" "◉" "signal" "⌁" "amber" "◆" "forest" "♣"})
-(defn- next-value [values current] (get values (mod (inc (.indexOf values current)) (count values))))
+(defn- next-value [values current]
+  (let [index (or (first (keep-indexed #(when (= %2 current) %1) values)) -1)]
+    (get values (mod (inc index) (count values)))))
 (defn- apply-theme! [theme]
   (set! (.. js/document -documentElement -dataset -theme) theme)
   (.setItem js/localStorage "my-idea:theme" theme))
@@ -70,7 +72,7 @@
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='pane-head'>" (t :files) "</div><div class='root'>" (esc (or root (t :web))) "</div><nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section><section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section></div></main>"
-           "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6 · v0.1.0</span></footer></div>"))
+           "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
     (when doc (editor/mount! (.getElementById js/document "editor") (:contents doc) #(swap! state workspace/update-active %)))
     (.addEventListener (.getElementById js/document "open") "click" choose-workspace!)
     (.addEventListener (.getElementById js/document "save") "click" save!)

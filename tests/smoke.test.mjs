@@ -22,6 +22,7 @@ test('CodeMirror 6 is the primary reusable editor', () => {
   assert.match(editor, /lineNumbers/);
   assert.match(editor, /autocompletion/);
   assert.match(editor, /linter/);
+  assert.match(editor, /\.\-matches/);
 });
 
 test('workspace model tracks files, tabs and dirty documents', () => {
@@ -47,6 +48,7 @@ test('language and eye-comfort themes use simple cycling buttons', () => {
   assert.match(core, /def languages \["uk" "de" "en"\]/);
   assert.match(core, /def themes \["auto" "light" "dark" "sepia" "signal" "amber" "forest"\]/);
   assert.match(core, /id='theme'/);
+  assert.match(core, /keep-indexed/);
   assert.match(core, /Hello · Привіт · Hallo/);
   assert.match(styles, /data-theme=sepia/);
   assert.match(styles, /data-theme=signal/);

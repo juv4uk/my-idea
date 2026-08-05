@@ -40,7 +40,7 @@
 (defn- editor-theme []
   (let [theme (or (.. js/document -documentElement -dataset -theme) "auto")
         dark? (or (contains? #{"dark" "signal" "amber" "forest"} theme)
-                  (and (= theme "auto") (.matches (js/window.matchMedia "(prefers-color-scheme: dark)"))))
+                  (and (= theme "auto") (.-matches (js/window.matchMedia "(prefers-color-scheme: dark)"))))
         colors (cond
                  (= theme "signal")
                  {:background "#0d1424" :text "#dbeafe" :gutter "#0b1220"
