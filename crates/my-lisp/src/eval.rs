@@ -22,18 +22,50 @@ pub fn eval_program(source: &str, session: &mut Session) -> Result<EvalResult, L
     })
 }
 
+enum EvalStep {
+    Value(Value),
+    TailCall {
+        expression: Rc<Expr>,
+        environment: Environment,
+    },
+}
+
 fn evaluate(expression: &Expr, environment: &Environment) -> Result<Value, LanguageError> {
+    let (mut owned_expression, mut owned_environment) =
+        match evaluate_step(expression, environment)? {
+            EvalStep::Value(value) => return Ok(value),
+            EvalStep::TailCall {
+                expression,
+                environment,
+            } => (expression, environment),
+        };
+
+    loop {
+        match evaluate_step(&owned_expression, &owned_environment)? {
+            EvalStep::Value(value) => return Ok(value),
+            EvalStep::TailCall {
+                expression: next,
+                environment: next_environment,
+            } => {
+                owned_expression = next;
+                owned_environment = next_environment;
+            }
+        }
+    }
+}
+
+fn evaluate_step(expression: &Expr, environment: &Environment) -> Result<EvalStep, LanguageError> {
     match &expression.kind {
-        ExprKind::Number(number) => Ok(Value::Number(*number)),
-        ExprKind::String(value) => Ok(Value::String(value.clone())),
-        ExprKind::Symbol(symbol) => environment.get(symbol).ok_or_else(|| {
+        ExprKind::Number(number) => Ok(EvalStep::Value(Value::Number(*number))),
+        ExprKind::String(value) => Ok(EvalStep::Value(Value::String(value.clone()))),
+        ExprKind::Symbol(symbol) => environment.get(symbol).map(EvalStep::Value).ok_or_else(|| {
             LanguageError::new(
                 ErrorKind::UnknownSymbol,
                 format!("unknown symbol · невідомий символ · unbekanntes Symbol: {symbol}"),
                 expression.span,
             )
         }),
-        ExprKind::List(items) if items.is_empty() => Ok(Value::Nil),
+        ExprKind::List(items) if items.is_empty() => Ok(EvalStep::Value(Value::Nil)),
         ExprKind::List(items) => evaluate_list(items, environment, expression.span),
     }
 }
@@ -42,7 +74,7 @@ fn evaluate_list(
     items: &[Expr],
     environment: &Environment,
     span: Span,
-) -> Result<Value, LanguageError> {
+) -> Result<EvalStep, LanguageError> {
     let arguments = &items[1..];
     // Special forms stay explicit because they control which arguments are evaluated.
     // Спеціальні форми лишаються явними, бо вони керують обчисленням аргументів.
@@ -50,26 +82,29 @@ fn evaluate_list(
     match items[0].kind.as_symbol() {
         Some("quote") => {
             exact_arity("quote", arguments, 1, span)?;
-            Ok(quoted(&arguments[0]))
+            Ok(EvalStep::Value(quoted(&arguments[0])))
         }
-        Some("lambda") => create_lambda(arguments, environment, span),
-        Some("def") => evaluate_definition(arguments, environment, span),
+        Some("lambda") => create_lambda(arguments, environment, span).map(EvalStep::Value),
+        Some("def") => evaluate_definition(arguments, environment, span).map(EvalStep::Value),
         Some("cond") => evaluate_cond(arguments, environment, span),
         Some("atom") => {
             exact_arity("atom", arguments, 1, span)?;
-            Ok(Value::Bool(evaluate(&arguments[0], environment)?.is_atom()))
+            Ok(EvalStep::Value(Value::Bool(
+                evaluate(&arguments[0], environment)?.is_atom(),
+            )))
         }
-        Some("eq") => evaluate_eq(arguments, environment, span),
-        Some("car") => evaluate_car(arguments, environment, span),
-        Some("cdr") => evaluate_cdr(arguments, environment, span),
-        Some("cons") => evaluate_cons(arguments, environment, span),
-        Some("/") => evaluate_division(arguments, environment, span),
+        Some("eq") => evaluate_eq(arguments, environment, span).map(EvalStep::Value),
+        Some("car") => evaluate_car(arguments, environment, span).map(EvalStep::Value),
+        Some("cdr") => evaluate_cdr(arguments, environment, span).map(EvalStep::Value),
+        Some("cons") => evaluate_cons(arguments, environment, span).map(EvalStep::Value),
+        Some("/") => evaluate_division(arguments, environment, span).map(EvalStep::Value),
         Some("+") | Some("-") | Some("*") => evaluate_arithmetic(
             items[0].kind.as_symbol().expect("matched symbol"),
             arguments,
             environment,
             span,
-        ),
+        )
+        .map(EvalStep::Value),
         _ => {
             let function = evaluate(&items[0], environment)?;
             apply(function, arguments, environment, span)
@@ -318,7 +353,7 @@ fn create_lambda(
     }
     Ok(Value::Closure(Rc::new(Closure {
         parameters,
-        body: arguments[1..].to_vec(),
+        body: arguments[1..].iter().cloned().map(Rc::new).collect(),
         environment: environment.clone(),
     })))
 }
@@ -328,7 +363,7 @@ fn apply(
     arguments: &[Expr],
     calling_environment: &Environment,
     span: Span,
-) -> Result<Value, LanguageError> {
+) -> Result<EvalStep, LanguageError> {
     let Value::Closure(closure) = function else {
         return Err(LanguageError::new(
             ErrorKind::Type,
@@ -359,11 +394,17 @@ fn apply(
     for (parameter, value) in closure.parameters.iter().zip(values) {
         local_environment.define(parameter, value);
     }
-    let mut result = Value::Nil;
-    for expression in &closure.body {
-        result = evaluate(expression, &local_environment)?;
+    let (last, leading) = closure.body.split_last().expect("lambda body validated");
+    for expression in leading {
+        evaluate(expression, &local_environment)?;
     }
-    Ok(result)
+    // Tail positions become data for the evaluator loop instead of recursive Rust calls.
+    // Хвостові позиції стають даними для циклу evaluator, а не рекурсивними викликами Rust.
+    // Tail-Positionen werden zu Daten für die Evaluator-Schleife statt zu rekursiven Rust-Aufrufen.
+    Ok(EvalStep::TailCall {
+        expression: Rc::clone(last),
+        environment: local_environment,
+    })
 }
 
 fn evaluate_eq(
@@ -431,7 +472,7 @@ fn evaluate_cond(
     clauses: &[Expr],
     environment: &Environment,
     span: Span,
-) -> Result<Value, LanguageError> {
+) -> Result<EvalStep, LanguageError> {
     for clause in clauses {
         let ExprKind::List(parts) = &clause.kind else {
             return Err(LanguageError::new(
@@ -448,7 +489,10 @@ fn evaluate_cond(
             ));
         }
         if evaluate(&parts[0], environment)?.is_truthy() {
-            return evaluate(&parts[1], environment);
+            return Ok(EvalStep::TailCall {
+                expression: Rc::new(parts[1].clone()),
+                environment: environment.clone(),
+            });
         }
     }
     if clauses.is_empty() {
@@ -457,7 +501,7 @@ fn evaluate_cond(
         // Der Bereich bleibt für eine künftige strikte Diagnose eines leeren `cond` erhalten.
         let _ = span;
     }
-    Ok(Value::Nil)
+    Ok(EvalStep::Value(Value::Nil))
 }
 
 fn exact_arity(

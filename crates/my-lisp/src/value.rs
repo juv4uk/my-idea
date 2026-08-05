@@ -90,7 +90,7 @@ fn gcd(mut left: u128, mut right: u128) -> u128 {
 #[derive(Clone, Debug)]
 pub struct Closure {
     pub(crate) parameters: Vec<String>,
-    pub(crate) body: Vec<Expr>,
+    pub(crate) body: Vec<Rc<Expr>>,
     pub(crate) environment: Environment,
 }
 

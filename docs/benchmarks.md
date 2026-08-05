@@ -6,7 +6,7 @@ The benchmark suite runs the same `.my` programs through the ClojureScript proto
 
 Run `npm run benchmark`. Set `MY_LISP_BENCH_ITERATIONS` to change the measured iteration count. Results depend on CPU, power mode, compiler version, background activity, and thermal state; compare engines from the same run instead of treating one machine's numbers as universal.
 
-These are microbenchmarks, not product-performance promises. They deliberately include parser and fresh-session allocation in every evaluation operation because that matches the current Language Lab path. Later benchmarks may separately measure persistent REPL sessions, loading `lib/core.my`, tail calls, allocation, and Android devices.
+These are microbenchmarks, not product-performance promises. They deliberately include parser and fresh-session allocation in every evaluation operation because that matches the current Language Lab path. Later benchmarks may separately measure persistent REPL sessions, loading `lib/core.my`, deep tail calls, allocation, and Android devices.
 
 ## Українська
 
@@ -14,7 +14,7 @@ These are microbenchmarks, not product-performance promises. They deliberately i
 
 Запуск: `npm run benchmark`. Змінна `MY_LISP_BENCH_ITERATIONS` задає іншу кількість виміряних ітерацій. Результати залежать від CPU, режиму живлення, версії компілятора, фонової активності й температури; порівнюйте рушії з одного запуску, а не сприймайте числа одного комп’ютера як універсальні.
 
-Це microbenchmarks, а не обіцянка швидкодії продукту. Вони навмисно включають parser і створення нової session у кожну eval-операцію, бо це відповідає поточному шляху Language Lab. Пізніше можна окремо вимірювати постійні REPL-сесії, завантаження `lib/core.my`, tail calls, allocations та Android-пристрої.
+Це microbenchmarks, а не обіцянка швидкодії продукту. Вони навмисно включають parser і створення нової session у кожну eval-операцію, бо це відповідає поточному шляху Language Lab. Пізніше можна окремо вимірювати постійні REPL-сесії, завантаження `lib/core.my`, глибокі tail calls, allocations та Android-пристрої.
 
 ## Deutsch
 
@@ -22,15 +22,21 @@ Die Benchmark-Suite führt dieselben `.my`-Programme im ClojureScript-Prototyp u
 
 Start mit `npm run benchmark`. `MY_LISP_BENCH_ITERATIONS` ändert die Anzahl gemessener Iterationen. Ergebnisse hängen von CPU, Energiemodus, Compiler-Version, Hintergrundlast und Temperatur ab; Engines sollen innerhalb desselben Laufs verglichen werden, statt Zahlen eines Rechners als universell anzusehen.
 
-Dies sind Mikrobenchmarks und keine Leistungszusage für das Produkt. Parser und neue Session-Allokation sind absichtlich Teil jeder Auswertungsoperation, da dies dem aktuellen Language-Lab-Pfad entspricht. Später können dauerhafte REPL-Sitzungen, das Laden von `lib/core.my`, Tail Calls, Allokationen und Android-Geräte getrennt gemessen werden.
+Dies sind Mikrobenchmarks und keine Leistungszusage für das Produkt. Parser und neue Session-Allokation sind absichtlich Teil jeder Auswertungsoperation, da dies dem aktuellen Language-Lab-Pfad entspricht. Später können dauerhafte REPL-Sitzungen, das Laden von `lib/core.my`, tiefe Tail Calls, Allokationen und Android-Geräte getrennt gemessen werden.
 
 ## Local baseline · Локальний baseline · Lokale Ausgangsmessung
 
 Windows x86_64, 2026-08-05, release-mode Rust, median of three runs with 5,000 measured iterations per case. CLJS varied more because JIT and garbage-collection activity remain part of the measurement; the median avoids presenting either the best or worst outlier as the baseline.
 
+This table predates the explicit trampoline and remains the comparison baseline. The trampoline is behaviorally verified with 5,000 consecutive zero-argument closure tail calls in debug mode. A new timing baseline will be recorded after persistent lists adopt structural sharing, so stack safety and list-copy optimization remain separate changes.
+
 Windows x86_64, 2026-08-05, Rust у release mode, медіана трьох прогонів по 5 000 виміряних ітерацій на випадок. CLJS коливався сильніше через JIT і garbage collection, які залишаються частиною вимірювання; медіана не видає ані найкращий, ані найгірший викид за baseline.
 
+Ця таблиця передує явному trampoline й залишається baseline для порівняння. Trampoline поведінково перевірено 5 000 послідовними хвостовими викликами нуль-аргументних closures у debug mode. Новий часовий baseline буде записано після structural sharing persistent-списків, щоб stack safety та оптимізація копіювання списків залишалися окремими змінами.
+
 Windows x86_64, 2026-08-05, Rust im Release-Modus, Median aus drei Läufen mit jeweils 5.000 gemessenen Iterationen pro Fall. CLJS schwankte wegen JIT- und Garbage-Collection-Aktivität stärker; der Median verwendet weder den besten noch den schlechtesten Ausreißer als Ausgangswert.
+
+Diese Tabelle entstand vor dem expliziten Trampolin und bleibt die Vergleichsbasis. Das Trampolin wird im Debug-Modus mit 5.000 aufeinanderfolgenden Tail Calls parameterloser Closures verhaltensbasiert geprüft. Eine neue Zeitbasis folgt nach strukturellem Teilen persistenter Listen, damit Stack-Sicherheit und Listen-Kopieroptimierung getrennte Änderungen bleiben.
 
 | Case · Випадок · Fall | CLJS µs/op | Rust µs/op | Rust speedup · Прискорення · Beschleunigung |
 |---|---:|---:|---:|

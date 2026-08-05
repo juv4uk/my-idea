@@ -84,8 +84,8 @@ The desktop and mobile Tauri shell now exposes `evaluate_my_lisp`: it loads `lib
 
 Die Tauri-Hülle für Desktop und Mobile stellt nun `evaluate_my_lisp` bereit: Der Befehl lädt `lib/core.my` und wertet den Editorcode mit dem unabhängigen Rust-Crate aus. Der portable Browser-Build behält den ClojureScript-Evaluator bewusst als sichtbaren Prototyp, bis eine portable Rust-Grenze verfügbar ist. Rust-Laufzeitfehler lösen niemals still einen Fallback auf ClojureScript aus.
 
-The next kernel step is stack-safe tail evaluation through an explicit trampoline. In parallel, shared conformance cases must keep the Rust engine and the temporary ClojureScript prototype semantically aligned until the portable boundary replaces the prototype.
+The Rust evaluator now executes the final expression of a closure and the selected `cond` branch through an explicit trampoline. Tail-recursive programs therefore use constant Rust call-stack space. Closure bodies share immutable AST nodes through `Rc`; the next performance boundary is structural sharing for persistent list values.
 
-Наступний крок ядра — stack-safe обчислення хвостових викликів через явний trampoline. Паралельно спільні conformance-випадки мають зберігати семантичну узгодженість Rust-рушія й тимчасового ClojureScript-прототипу, доки portable boundary не замінить прототип.
+Rust evaluator тепер виконує останній вираз closure та вибрану гілку `cond` через явний trampoline. Тому хвостово-рекурсивні програми використовують сталий обсяг Rust call stack. Тіла closure спільно використовують незмінні AST-вузли через `Rc`; наступна межа швидкодії — structural sharing для persistent list values.
 
-Der nächste Kernel-Schritt ist eine stack-sichere Auswertung von Tail Calls über ein explizites Trampolin. Parallel halten gemeinsame Konformitätsfälle die Rust-Engine und den vorläufigen ClojureScript-Prototyp semantisch synchron, bis die portable Grenze den Prototyp ersetzt.
+Der Rust-Evaluator führt nun den letzten Closure-Ausdruck und den gewählten `cond`-Zweig über ein explizites Trampolin aus. Tail-rekursive Programme benötigen dadurch konstanten Rust-Call-Stack. Closure-Rümpfe teilen unveränderliche AST-Knoten über `Rc`; die nächste Leistungsgrenze ist strukturelles Teilen persistenter Listenwerte.

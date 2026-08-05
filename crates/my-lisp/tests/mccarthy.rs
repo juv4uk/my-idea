@@ -40,6 +40,17 @@ fn arithmetic_promotes_exact_integers_and_preserves_inexact_numbers() {
 }
 
 #[test]
+fn tail_recursion_uses_constant_rust_stack() {
+    let depth = 5_000;
+    let mut definitions = (0..depth - 1)
+        .map(|index| format!("(def step-{index} (lambda () (step-{})))", index + 1))
+        .collect::<Vec<_>>();
+    definitions.push(format!("(def step-{} (lambda () 'done))", depth - 1));
+    let source = format!("{} (step-0)", definitions.join(" "));
+    assert_eq!(eval(&source), Value::Symbol("done".into()));
+}
+
+#[test]
 fn bootstrap_library_is_written_and_executed_in_my_lisp() {
     let mut session = Session::default();
     eval_program(include_str!("../../../lib/core.my"), &mut session).unwrap();
