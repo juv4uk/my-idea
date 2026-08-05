@@ -78,7 +78,7 @@ if ($unexpectedFiles.Count -gt 0) { throw "Unexpected changed files: $($unexpect
 
 # UTF-8 text is Base64 encoded so Windows PowerShell 5.1 can parse this BOM-less script safely.
 $commitTemplate = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('cmVsZWFzZTogdnswfSB8INCS0LjQv9GD0YHQuiB2ezB9IHwgVmVyw7ZmZmVudGxpY2h1bmcgdnswfQ=='))
-$tagTemplate = 'my-idea v{0} | Версія v{0} | Veröffentlichung v{0}'
+$tagTemplate = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('bXktaWRlYSB2ezB9IHwg0JLQtdGA0YHRltGPIHZ7MH0gfCBWZXLDtmZmZW50bGljaHVuZyB2ezB9'))
 $commitMessage = $commitTemplate -f $Version
 $tagMessage = $tagTemplate -f $Version
 
