@@ -60,5 +60,6 @@ test('tag releases publish desktop, ARM, Flatpak and portable Web builds', () =>
   assert.match(workflow, /build-flatpak:/);
   assert.match(workflow, /build-web:/);
   assert.match(workflow, /tauri-apps\/tauri-action@v0/);
+  assert.equal((workflow.match(/java-version: 21/g) ?? []).length, 4);
   assert.match(portable, /Standalone Web HTML created/);
 });

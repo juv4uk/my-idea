@@ -51,6 +51,10 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
@@ -103,6 +107,10 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
       - uses: dtolnay/rust-toolchain@stable
       - name: Install system dependencies
         run: |
@@ -134,6 +142,10 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
       - uses: dtolnay/rust-toolchain@stable
       - name: Install build dependencies
         run: |
@@ -191,6 +203,10 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
       - run: npm ci
       - run: npm run build
       - name: Create and verify standalone Web file
