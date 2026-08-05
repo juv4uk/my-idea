@@ -1,0 +1,21 @@
+[workspace]
+# Members of the Cargo workspace.
+# Члени Cargo-воркспейсу.
+# Mitglieder des Cargo-Workspace.
+members = [
+    "crates/my-lisp",
+    "crates/my-lisp-wasm",
+    "src-tauri",
+]
+
+# Use a single shared lock-file at the workspace root.
+# Використовуємо єдиний shared Cargo.lock у корені воркспейсу.
+# Einzelne gemeinsame Cargo.lock-Datei im Workspace-Root.
+resolver = "2"
+
+# Release profile for wasm-pack: optimize for binary size.
+# Профіль release для wasm-pack: оптимізація на розмір бінарника.
+# Release-Profil für wasm-pack: Größenoptimierung.
+[profile.release]
+opt-level = "z"
+lto = true

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "shadow-cljs watch app",
     "build": "node scripts/build.mjs",
+    "wasm": "wasm-pack build crates/my-lisp-wasm --target web --out-dir public/wasm --no-pack",
     "check": "shadow-cljs compile app",
     "test": "node --test tests/*.test.mjs && shadow-cljs compile test",
     "benchmark": "node scripts/benchmark.mjs",
