@@ -10,6 +10,14 @@ The main goal is comfortable everyday programming. Our own language experiments 
 
 **my-lisp** is the small independent language developed with the IDE: *a small language that grows itself · маленька мова, що вирощує себе · eine kleine Sprache, die sich selbst wachsen lässt*. Rust supplies the minimal safe semantic machinery; higher-level forms and libraries grow inside my-lisp itself.
 
+## Quick try · Швидко спробувати · Schnell ausprobieren
+
+No installation and no account: **[download the standalone Web IDE](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** and open the downloaded `.html` file in your browser. The editor, themes, programming-language switcher, and my-lisp Language Lab are contained in that one portable file and run locally.
+
+Без встановлення та облікового запису: **[завантажте автономну Web IDE](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** і відкрийте отриманий файл `.html` у браузері. Редактор, теми, перемикач мов програмування та my-lisp Language Lab містяться в одному portable-файлі й працюють локально.
+
+Ohne Installation und Benutzerkonto: **[die eigenständige Web-IDE herunterladen](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** und die geladene `.html`-Datei im Browser öffnen. Editor, Themes, Programmiersprachenumschalter und my-lisp Language Lab befinden sich in dieser einen portablen Datei und laufen lokal.
+
 ## Repository history · Історія репозиторію · Repository-Verlauf
 
 `my-idea` preserves the Git history inherited from earlier development and from its `my-ide` origin. Some old commits and release tags therefore refer to earlier project stages. We keep them intentionally for traceability and never rewrite an existing release tag; when a version number is already occupied, the next free patch version is used. The first Rust-language-core release of `my-idea` is **v0.3.2**.

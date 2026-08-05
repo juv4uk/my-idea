@@ -26,6 +26,10 @@ test('web build is an installable offline PWA without affecting Tauri protocols'
   assert.deepEqual(manifest.icons.map(({ sizes }) => sizes), ['192x192', '512x512']);
   assert.match(worker, /cache\.addAll\(APP_SHELL\)/);
   assert.match(worker, /request\.mode === 'navigate'/);
+  const readme = readFileSync('README.md', 'utf8');
+  assert.match(readme, /releases\/latest\/download\/my-idea-web\.html/);
+  assert.match(readme, /Без встановлення та облікового запису/);
+  assert.match(readme, /Ohne Installation und Benutzerkonto/);
 });
 
 test('CodeMirror 6 is the primary reusable editor', () => {
