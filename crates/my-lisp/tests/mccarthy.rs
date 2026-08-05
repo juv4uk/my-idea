@@ -1,4 +1,4 @@
-use my_idea_language::{eval_program, parse, ErrorKind, Session, Value};
+use my_lisp::{eval_program, parse, ErrorKind, Session, Value};
 
 fn eval(source: &str) -> Value {
     eval_program(source, &mut Session::default()).unwrap().value
@@ -53,9 +53,53 @@ fn reports_structured_errors_with_source_spans() {
 
 #[test]
 fn lexical_child_reads_parent_without_mutating_it() {
-    let parent = my_idea_language::Environment::root();
+    let parent = my_lisp::Environment::root();
     let child = parent.child();
     child.define("station", Value::Symbol("UR5ABC".into()));
     assert_eq!(child.get("t"), Some(Value::Bool(true)));
     assert_eq!(parent.get("station"), None);
+}
+
+#[test]
+fn lambda_captures_lexical_environment_and_keeps_parameters_local() {
+    let mut session = Session::default();
+    session
+        .environment
+        .define("station", Value::Symbol("radio".into()));
+
+    let result = eval_program(
+        "((lambda (suffix) (cons station suffix)) '(antenna))",
+        &mut session,
+    )
+    .unwrap();
+
+    assert_eq!(
+        result.value,
+        Value::list([
+            Value::Symbol("radio".into()),
+            Value::Symbol("antenna".into())
+        ])
+    );
+    assert_eq!(session.environment.get("suffix"), None);
+}
+
+#[test]
+fn lambda_is_a_first_class_value() {
+    assert_eq!(
+        eval("((lambda (apply-once) (apply-once 'radio)) (lambda (x) (cons x '())))"),
+        Value::list([Value::Symbol("radio".into())])
+    );
+}
+
+#[test]
+fn lambda_reports_invalid_parameters_and_arity() {
+    let duplicate = eval_program("(lambda (x x) x)", &mut Session::default()).unwrap_err();
+    assert_eq!(duplicate.kind, ErrorKind::InvalidForm);
+    assert!(duplicate.message.contains("повторний параметр"));
+
+    let invalid = eval_program("(lambda (1) 1)", &mut Session::default()).unwrap_err();
+    assert_eq!(invalid.kind, ErrorKind::InvalidForm);
+
+    let arity = eval_program("((lambda (x) x))", &mut Session::default()).unwrap_err();
+    assert_eq!(arity.kind, ErrorKind::Arity);
 }

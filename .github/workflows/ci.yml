@@ -22,5 +22,5 @@ jobs:
       - run: npm test
       - run: npm run check
       - run: npm run build
-      - name: Test Rust language core · Тест Rust-ядра · Rust-Sprachkern testen
-        run: cargo test --manifest-path crates/my-idea-language/Cargo.toml
+      - name: Test my-lisp Rust core · Тест Rust-ядра my-lisp · my-lisp-Rust-Kern testen
+        run: cargo test --manifest-path crates/my-lisp/Cargo.toml

@@ -8,6 +8,8 @@
 
 The main goal is comfortable everyday programming. Our own language experiments are a special built-in **Language Lab**, not a limitation of the IDE.
 
+**my-lisp** is the small independent language developed with the IDE: *a small language that grows itself · маленька мова, що вирощує себе · eine kleine Sprache, die sich selbst wachsen lässt*. Rust supplies the minimal safe semantic machinery; higher-level forms and libraries grow inside my-lisp itself.
+
 ## Repository history · Історія репозиторію · Repository-Verlauf
 
 `my-idea` preserves the Git history inherited from earlier development and from its `my-ide` origin. Some old commits and release tags therefore refer to earlier project stages. We keep them intentionally for traceability and never rewrite an existing release tag; when a version number is already occupied, the next free patch version is used. The first Rust-language-core release of `my-idea` is **v0.3.2**.

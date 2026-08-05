@@ -1,10 +1,12 @@
-# Language core · Ядро мови · Sprachkern
+# my-lisp language core · Ядро мови my-lisp · my-lisp-Sprachkern
 
-The language is independent from the IDE. Its first canonical Rust implementation now lives in `crates/my-idea-language`; the current ClojureScript evaluator remains an executable prototype during migration.
+> **A small language that grows itself. · Маленька мова, що вирощує себе. · Eine kleine Sprache, die sich selbst wachsen lässt.**
 
-Мова незалежна від IDE. Її перша канонічна реалізація на Rust тепер міститься у `crates/my-idea-language`; під час міграції поточний інтерпретатор ClojureScript залишається виконуваним прототипом.
+The language is named **my-lisp** and is independent from the IDE. Its first canonical Rust implementation lives in `crates/my-lisp`; the current ClojureScript evaluator remains an executable prototype during migration.
 
-Die Sprache ist von der IDE unabhängig. Ihre erste kanonische Rust-Implementierung liegt jetzt in `crates/my-idea-language`; während der Migration bleibt der aktuelle ClojureScript-Interpreter ein ausführbarer Prototyp.
+Мова має назву **my-lisp** і є незалежною від IDE. Її перша канонічна реалізація на Rust міститься у `crates/my-lisp`; під час міграції поточний інтерпретатор ClojureScript залишається виконуваним прототипом.
+
+Die Sprache heißt **my-lisp** und ist von der IDE unabhängig. Ihre erste kanonische Rust-Implementierung liegt in `crates/my-lisp`; während der Migration bleibt der aktuelle ClojureScript-Interpreter ein ausführbarer Prototyp.
 
 The current product direction is a DrRacket-like language environment: a definitions editor, program execution, an interactions/REPL area, readable diagnostics, and tools for exploring parsed forms. It serves our own language rather than implementing Racket itself. The UI and the language engine remain separate components.
 
@@ -35,6 +37,20 @@ The crate contains its own UTF-8 parser, value model, lexical environment frames
 Крейт має власний UTF-8-парсер, модель значень, фрейми лексичного середовища, діапазони початкового коду та структуровані помилки. Він не залежить від Tauri й не має прямого доступу до файлів, мережі чи можливостей інтерфейсу.
 
 Das Crate besitzt einen eigenen UTF-8-Parser, ein Wertmodell, lexikalische Umgebungsframes, Quellbereiche und strukturierte Fehler. Es hängt nicht von Tauri ab und hat keinen direkten Zugriff auf Dateien, Netzwerk oder UI-Funktionen.
+
+## Bootstrap boundary · Межа саморозгортання · Bootstrap-Grenze
+
+Rust provides only the mechanisms it implements particularly well: memory-safe runtime values, UTF-8 reading, lexical closures, deterministic evaluation, stack control, structured diagnostics, and an explicit capability boundary. Higher-level language features and the standard library should be written in the small Lisp itself whenever the existing core can express them.
+
+Rust надає лише ті механізми, які він виконує особливо добре: безпечні щодо пам’яті значення, читання UTF-8, лексичні замикання, детерміноване обчислення, контроль стека, структуровану діагностику та явну межу системних можливостей. Високорівневі можливості й стандартну бібліотеку слід писати самою маленькою Lisp-мовою щоразу, коли наявне ядро вже може їх виразити.
+
+Rust stellt nur die Mechanismen bereit, die es besonders gut umsetzt: speichersichere Laufzeitwerte, UTF-8-Lesen, lexikalische Closures, deterministische Auswertung, Stack-Kontrolle, strukturierte Diagnosen und eine explizite Capability-Grenze. Höhere Sprachfunktionen und die Standardbibliothek sollen in der kleinen Lisp-Sprache selbst geschrieben werden, sobald der vorhandene Kern sie ausdrücken kann.
+
+`lambda` belongs to the Rust semantic kernel because it makes user-defined functions and self-hosted libraries possible. Derived forms such as `defn`, list helpers, logical combinators, and teaching examples belong in a bootstrapped Lisp library rather than as Rust built-ins.
+
+`lambda` належить до семантичного Rust-ядра, бо робить можливими користувацькі функції та саморозгорнуті бібліотеки. Похідні форми на кшталт `defn`, допоміжні функції списків, логічні комбінатори й навчальні приклади мають жити у bootstrap-бібліотеці Lisp, а не бути вбудованими у Rust.
+
+`lambda` gehört zum semantischen Rust-Kern, weil es benutzerdefinierte Funktionen und selbst gehostete Bibliotheken ermöglicht. Abgeleitete Formen wie `defn`, Listenhilfen, logische Kombinatoren und Lernbeispiele gehören in eine gebootstrappte Lisp-Bibliothek statt in Rust-Built-ins.
 
 ## Migration path · Шлях міграції · Migrationspfad
 

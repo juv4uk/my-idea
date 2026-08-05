@@ -1,6 +1,6 @@
-//! Independent, capability-free core of the my-idea language.
-//! Незалежне ядро мови my-idea без доступу до можливостей операційної системи.
-//! Unabhängiger Sprachkern von my-idea ohne Zugriff auf Betriebssystemfunktionen.
+//! Independent, capability-free core of the my-lisp language.
+//! Незалежне ядро мови my-lisp без доступу до можливостей операційної системи.
+//! Unabhängiger Sprachkern von my-lisp ohne Zugriff auf Betriebssystemfunktionen.
 //!
 //! The crate deliberately knows nothing about Tauri, files, the network, or UI.
 //! Крейт навмисно нічого не знає про Tauri, файли, мережу чи інтерфейс.
@@ -18,4 +18,4 @@ pub use error::{ErrorKind, LanguageError};
 pub use eval::{eval_program, EvalResult};
 pub use parser::parse;
 pub use syntax::{Expr, ExprKind, Span};
-pub use value::Value;
+pub use value::{Closure, Value};

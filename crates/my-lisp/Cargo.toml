@@ -1,0 +1,11 @@
+[package]
+name = "my-lisp"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Independent my-lisp core · Незалежне ядро my-lisp · Unabhängiger my-lisp-Kern"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]

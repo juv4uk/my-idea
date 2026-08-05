@@ -1,9 +1,20 @@
-use std::fmt;
+use crate::{Environment, Expr};
+use std::{fmt, rc::Rc};
+
+/// A closure keeps executable forms together with their lexical environment.
+/// Замикання зберігає виконувані форми разом із їхнім лексичним середовищем.
+/// Eine Closure bewahrt ausführbare Formen zusammen mit ihrer lexikalischen Umgebung auf.
+#[derive(Clone, Debug)]
+pub struct Closure {
+    pub(crate) parameters: Vec<String>,
+    pub(crate) body: Vec<Expr>,
+    pub(crate) environment: Environment,
+}
 
 /// Runtime data is independent of the parser and any host representation.
 /// Дані виконання не залежать від парсера та представлення у хост-системі.
 /// Laufzeitdaten sind unabhängig vom Parser und von jeder Host-Darstellung.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Nil,
     Bool(bool),
@@ -11,6 +22,27 @@ pub enum Value {
     String(String),
     Symbol(String),
     Pair(Box<Value>, Box<Value>),
+    Closure(Rc<Closure>),
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Nil, Value::Nil) => true,
+            (Value::Bool(left), Value::Bool(right)) => left == right,
+            (Value::Number(left), Value::Number(right)) => left == right,
+            (Value::String(left), Value::String(right)) => left == right,
+            (Value::Symbol(left), Value::Symbol(right)) => left == right,
+            (Value::Pair(left_head, left_tail), Value::Pair(right_head, right_tail)) => {
+                left_head == right_head && left_tail == right_tail
+            }
+            // Functions have identity: two separately created closures are not equal.
+            // Функції мають ідентичність: два окремо створені замикання не є рівними.
+            // Funktionen besitzen Identität: Zwei getrennt erzeugte Closures sind nicht gleich.
+            (Value::Closure(left), Value::Closure(right)) => Rc::ptr_eq(left, right),
+            _ => false,
+        }
+    }
 }
 
 impl Value {
@@ -44,6 +76,7 @@ impl fmt::Display for Value {
             Value::String(value) => write!(formatter, "\"{value}\""),
             Value::Symbol(symbol) => write!(formatter, "{symbol}"),
             Value::Pair(_, _) => write_pair(formatter, self),
+            Value::Closure(_) => write!(formatter, "<lambda>"),
         }
     }
 }
