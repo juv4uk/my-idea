@@ -19,6 +19,14 @@
 
 (defn filename [path] (last (str/split path #"/")))
 
+(defn language-mode [path]
+  (let [lower (str/lower-case (or path ""))]
+    (cond
+      (or (str/ends-with? lower ".rs")) "rust"
+      (or (str/ends-with? lower ".cljs") (str/ends-with? lower ".cljc") (str/ends-with? lower ".clj")) "clojurescript"
+      (or (str/ends-with? lower ".lisp") (str/ends-with? lower ".my")) "my-lisp"
+      :else "text")))
+
 (defn browser-path [file]
   (let [relative (.-webkitRelativePath file)]
     (if (str/blank? relative) (.-name file) relative)))
@@ -50,14 +58,14 @@
 
 (defn open-document [model path contents]
   (-> model
-      (assoc-in [:documents path] {:contents contents :saved contents :dirty? false})
+      (assoc-in [:documents path] {:contents contents :saved contents :dirty? false :language-mode (language-mode path)})
       (update :open-paths #(vec (distinct (conj (or % []) path))))
       (assoc :active-path path)))
 
 (defn open-browser-workspace [model files contents]
   (let [paths (mapv browser-path files)
         documents (into {} (map (fn [path source]
-                                  [path {:contents source :saved source :dirty? false}])
+                                  [path {:contents source :saved source :dirty? false :language-mode (language-mode path)}])
                                 paths contents))
         first-path (first paths)
         root (some-> first-path (str/split #"/") first)]

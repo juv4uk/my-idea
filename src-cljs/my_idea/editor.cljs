@@ -8,6 +8,7 @@
             ["@codemirror/view" :refer [EditorView drawSelection
                                          highlightActiveLine highlightActiveLineGutter
                                          keymap lineNumbers]]
+            ["@codemirror/lang-rust" :refer [rust]]
             ["@nextjournal/lang-clojure" :refer [clojure]]))
 
 ;; One CodeMirror instance is shared by the workspace.
@@ -90,9 +91,15 @@
                                    :to (.. view -state -doc -length)
                                    :insert text}})))
 
+(defn- language-extensions [mode]
+  (case mode
+    "rust" #js [(rust)]
+    "text" #js []
+    #js [(clojure) (autocompletion #js {:override #js [completions]}) (lintGutter) (linter diagnostics)]))
+
 (defn mount!
   "Mount the programming editor. The evaluator is only one optional consumer."
-  [parent source-text on-change]
+  [parent source-text mode on-change]
   (when-let [^js old-view @view*]
     (.destroy old-view))
   (let [state (.create EditorState
@@ -101,12 +108,10 @@
                             #js [(lineNumbers) (highlightActiveLineGutter) (foldGutter)
                                  (history) (drawSelection) (indentOnInput)
                                  (bracketMatching) (highlightActiveLine)
-                                 (clojure)
+                                 (language-extensions mode)
                                  (.of keymap
                                       (.concat #js [indentWithTab]
                                                defaultKeymap historyKeymap completionKeymap))
-                                 (autocompletion #js {:override #js [completions]})
-                                 (lintGutter) (linter diagnostics)
                                  (editor-theme)
                                  (.of (.-updateListener EditorView)
                                       (fn [^js update]

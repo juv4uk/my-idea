@@ -8,7 +8,7 @@
 (defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
                       :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
                       :root nil :tree [] :open-paths ["welcome.clj"] :active-path "welcome.clj"
-                      :documents {"welcome.clj" {:contents demo-source :saved demo-source :dirty? false}}
+                      :documents {"welcome.clj" {:contents demo-source :saved demo-source :dirty? false :language-mode "my-lisp"}}
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
 
 (def messages
@@ -23,6 +23,8 @@
 (defn- active-doc [] (get-in @state [:documents (:active-path @state)]))
 (def languages ["uk" "de" "en"])
 (def themes ["auto" "light" "dark" "sepia" "signal" "amber" "forest"])
+(def programming-languages ["my-lisp" "clojurescript" "rust" "text"])
+(def programming-language-labels {"my-lisp" "my-lisp" "clojurescript" "ClojureScript" "rust" "Rust" "text" "Text"})
 (def language-labels {"uk" "UA" "de" "DE" "en" "EN"})
 (def theme-icons {"auto" "◐" "light" "☀" "dark" "☾" "sepia" "◉" "signal" "⌁" "amber" "◆" "forest" "♣"})
 (defn- next-value [values current]
@@ -69,18 +71,31 @@
     (let [contents (editor/source)]
       (if (and (workspace/native?) (:root @state))
         (-> (workspace/invoke! "save_workspace_file" {:path path :contents contents})
-            (.then #(do (swap! state assoc-in [:documents path] {:contents contents :saved contents :dirty? false}) (render!)))
+            (.then #(do (swap! state update-in [:documents path] merge {:contents contents :saved contents :dirty? false}) (render!)))
             (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
         (do (workspace/download! path contents)
-            (swap! state assoc-in [:documents path] {:contents contents :saved contents :dirty? false})
+            (swap! state update-in [:documents path] merge {:contents contents :saved contents :dirty? false})
             (render!))))))
 (defn- execute! []
-  (let [source (editor/source)]
+  (let [source (editor/source)
+        mode (or (:language-mode (active-doc)) "text")]
     (swap! state workspace/update-active source)
-    (try (let [{:keys [value output forms]} (language/run-program source)]
-           (swap! state assoc :output (conj (vec output) (str "=> " (pr-str value))) :ast (with-out-str (pprint/pprint forms)) :error? false))
-         (catch :default e (swap! state assoc :output [(.-message e)] :ast "Parse/evaluation stopped" :error? true)))
+    (if (= mode "my-lisp")
+      (try (let [{:keys [value output forms]} (language/run-program source)]
+             (swap! state assoc :output (conj (vec output) (str "=> " (pr-str value))) :ast (with-out-str (pprint/pprint forms)) :error? false))
+           (catch :default e (swap! state assoc :output [(.-message e)] :ast "Parse/evaluation stopped" :error? true)))
+      (swap! state assoc
+             :output [(str (get programming-language-labels mode)
+                           " runtime is not connected yet · runtime ще не підключено · Runtime ist noch nicht verbunden")]
+             :error? true))
     (render!)))
+
+(defn- cycle-programming-language! []
+  (when-let [path (:active-path @state)]
+    (let [current (or (get-in @state [:documents path :language-mode]) "text")
+          next-mode (next-value programming-languages current)]
+      (swap! state assoc-in [:documents path :language-mode] next-mode)
+      (render!))))
 
 (defn render! []
   (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar?]} @state app (.getElementById js/document "app") doc (active-doc)]
@@ -91,11 +106,14 @@
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='pane-head'>" (t :files) "</div><div class='root'>" (esc (or root (t :web))) "</div><nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section><section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section></div></main>"
-           "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
-    (when doc (editor/mount! (.getElementById js/document "editor") (:contents doc) #(swap! state workspace/update-active %)))
+           "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><button id='programming-language' class='status-language' title='Programming language · Мова програмування · Programmiersprache'>"
+           (get programming-language-labels (or (:language-mode doc) "text"))
+           "</button><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
+    (when doc (editor/mount! (.getElementById js/document "editor") (:contents doc) (:language-mode doc) #(swap! state workspace/update-active %)))
     (.addEventListener (.getElementById js/document "open") "click" choose-workspace!)
     (.addEventListener (.getElementById js/document "save") "click" save!)
     (.addEventListener (.getElementById js/document "run") "click" execute!)
+    (.addEventListener (.getElementById js/document "programming-language") "click" cycle-programming-language!)
     (.addEventListener (.getElementById js/document "menu") "click" #(do (swap! state update :sidebar? not) (render!)))
     (.addEventListener (.getElementById js/document "language") "click"
                        #(let [value (next-value languages (:language @state))]

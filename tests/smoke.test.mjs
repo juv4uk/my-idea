@@ -79,6 +79,16 @@ test('language and eye-comfort themes use simple cycling buttons', () => {
   assert.match(styles, /data-theme=signal/);
 });
 
+test('active document programming language switches from the bottom status bar', () => {
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const editor = readFileSync('src-cljs/my_idea/editor.cljs', 'utf8');
+  assert.match(core, /def programming-languages \["my-lisp" "clojurescript" "rust" "text"\]/);
+  assert.match(core, /id='programming-language'/);
+  assert.match(core, /cycle-programming-language!/);
+  assert.match(editor, /@codemirror\/lang-rust/);
+  assert.match(editor, /language-extensions/);
+});
+
 test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds', () => {
   const workflow = readFileSync('.github/workflows/publish-release.yml', 'utf8');
   const portable = readFileSync('scripts/make-portable-web.mjs', 'utf8');
