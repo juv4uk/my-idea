@@ -153,7 +153,18 @@ jobs:
       - name: Activate ARM64 MSVC tools · Активувати ARM64 MSVC · ARM64-MSVC aktivieren
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: arm64
+          arch: amd64_arm64
+      - name: Verify Microsoft ARM64 linker · Перевірити linker · MSVC-Linker prüfen
+        shell: pwsh
+        run: |
+          # The x64 runner must host the ARM64 cross-tools; a native ARM64 host tool cannot run here.
+          # x64 runner має запускати ARM64 cross-tools; нативний ARM64 host tool тут не виконується.
+          # Der x64-Runner muss die ARM64-Cross-Tools hosten; ein natives ARM64-Host-Tool läuft hier nicht.
+          $linker = Get-Command link.exe -CommandType Application | Select-Object -First 1
+          if (-not $linker -or $linker.Source -notmatch '[\\/]VC[\\/]Tools[\\/]MSVC[\\/]') {
+            throw "Microsoft MSVC linker is not first on PATH: $($linker.Source)"
+          }
+          Write-Host "Using ARM64 cross-linker: $($linker.Source)"
       - name: Install frontend dependencies · Встановити залежності · Abhängigkeiten installieren
         run: npm ci
       - name: Build native Windows ARM64 · Зібрати Windows ARM64 · Windows ARM64 bauen
