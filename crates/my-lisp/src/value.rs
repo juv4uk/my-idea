@@ -26,11 +26,17 @@ impl Rational {
         let divisor = gcd(numerator.unsigned_abs(), denominator as u128) as i128;
         let numerator = i64::try_from(numerator / divisor).ok()?;
         let denominator = i64::try_from(denominator / divisor).ok()?;
-        Some(Self { numerator, denominator })
+        Some(Self {
+            numerator,
+            denominator,
+        })
     }
 
     pub fn integer(value: i64) -> Self {
-        Self { numerator: value, denominator: 1 }
+        Self {
+            numerator: value,
+            denominator: 1,
+        }
     }
 
     pub fn checked_div(self, divisor: Self) -> Option<Self> {
@@ -40,6 +46,34 @@ impl Rational {
         let numerator = i128::from(self.numerator) * i128::from(divisor.denominator);
         let denominator = i128::from(self.denominator) * i128::from(divisor.numerator);
         Self::from_i128(numerator, denominator)
+    }
+
+    pub fn checked_add(self, other: Self) -> Option<Self> {
+        let numerator = i128::from(self.numerator) * i128::from(other.denominator)
+            + i128::from(other.numerator) * i128::from(self.denominator);
+        let denominator = i128::from(self.denominator) * i128::from(other.denominator);
+        Self::from_i128(numerator, denominator)
+    }
+
+    pub fn checked_sub(self, other: Self) -> Option<Self> {
+        let numerator = i128::from(self.numerator) * i128::from(other.denominator)
+            - i128::from(other.numerator) * i128::from(self.denominator);
+        let denominator = i128::from(self.denominator) * i128::from(other.denominator);
+        Self::from_i128(numerator, denominator)
+    }
+
+    pub fn checked_mul(self, other: Self) -> Option<Self> {
+        let numerator = i128::from(self.numerator) * i128::from(other.numerator);
+        let denominator = i128::from(self.denominator) * i128::from(other.denominator);
+        Self::from_i128(numerator, denominator)
+    }
+
+    pub fn checked_neg(self) -> Option<Self> {
+        Self::from_i128(-i128::from(self.numerator), i128::from(self.denominator))
+    }
+
+    pub fn as_f64(self) -> f64 {
+        self.numerator as f64 / self.denominator as f64
     }
 }
 
@@ -124,7 +158,9 @@ impl fmt::Display for Value {
             Value::Bool(true) => write!(formatter, "t"),
             Value::Bool(false) => write!(formatter, "()"),
             Value::Number(number) => write!(formatter, "{number}"),
-            Value::Rational(number) => write!(formatter, "{}/{}", number.numerator, number.denominator),
+            Value::Rational(number) => {
+                write!(formatter, "{}/{}", number.numerator, number.denominator)
+            }
             Value::String(value) => write!(formatter, "\"{value}\""),
             Value::Symbol(symbol) => write!(formatter, "{symbol}"),
             Value::Pair(_, _) => write_pair(formatter, self),

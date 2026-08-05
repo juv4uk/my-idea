@@ -6,9 +6,37 @@ fn eval(source: &str) -> Value {
 
 #[test]
 fn division_is_an_exact_reduced_rational() {
-    assert_eq!(eval("(/ 5 6 8 7)"), Value::Rational(Rational::new(5, 336).unwrap()));
+    assert_eq!(
+        eval("(/ 5 6 8 7)"),
+        Value::Rational(Rational::new(5, 336).unwrap())
+    );
     assert_eq!(eval("(/ 8 4)"), Value::Number(2.0));
-    assert_eq!(eval("(/ (/ 2 3))"), Value::Rational(Rational::new(3, 2).unwrap()));
+    assert_eq!(
+        eval("(/ (/ 2 3))"),
+        Value::Rational(Rational::new(3, 2).unwrap())
+    );
+}
+
+#[test]
+fn arithmetic_promotes_exact_integers_and_preserves_inexact_numbers() {
+    assert_eq!(
+        eval("(+ (/ 1 3) (/ 1 3))"),
+        Value::Rational(Rational::new(2, 3).unwrap())
+    );
+    assert_eq!(
+        eval("(- 1 (/ 1 3))"),
+        Value::Rational(Rational::new(2, 3).unwrap())
+    );
+    assert_eq!(
+        eval("(* (/ 2 3) (/ 9 4))"),
+        Value::Rational(Rational::new(3, 2).unwrap())
+    );
+    assert_eq!(
+        eval("(- (/ 1 3))"),
+        Value::Rational(Rational::new(-1, 3).unwrap())
+    );
+    assert_eq!(eval("(+ (/ 1 2) 0.25)"), Value::Number(0.75));
+    assert_eq!(eval("(+ (/ 1 2) (/ 1 2))"), Value::Number(1.0));
 }
 
 #[test]
@@ -16,10 +44,15 @@ fn bootstrap_library_is_written_and_executed_in_my_lisp() {
     let mut session = Session::default();
     eval_program(include_str!("../../../lib/core.my"), &mut session).unwrap();
     assert_eq!(
-        eval_program("(second '(radio antenna))", &mut session).unwrap().value,
+        eval_program("(second '(radio antenna))", &mut session)
+            .unwrap()
+            .value,
         Value::Symbol("antenna".into())
     );
-    assert_eq!(eval_program("(not '())", &mut session).unwrap().value, Value::Bool(true));
+    assert_eq!(
+        eval_program("(not '())", &mut session).unwrap().value,
+        Value::Bool(true)
+    );
 }
 
 #[test]

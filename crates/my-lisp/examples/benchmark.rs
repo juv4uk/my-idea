@@ -21,7 +21,9 @@ fn measure(iterations: usize, mut operation: impl FnMut()) -> f64 {
 
 fn main() {
     let iterations = std::env::var("MY_LISP_BENCH_ITERATIONS")
-        .ok().and_then(|value| value.parse().ok()).unwrap_or(1_000);
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(1_000);
     let parser_source = fs::read_to_string("benchmarks/parser.my").expect("read parser benchmark");
     let parser_ns = measure(iterations, || {
         black_box(parse(black_box(&parser_source)).expect("parse benchmark"));
