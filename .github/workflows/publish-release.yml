@@ -93,6 +93,7 @@ jobs:
           generateReleaseNotes: true
           releaseDraft: false
           prerelease: false
+          releaseAssetNamePattern: '[name]_[version]_[arch][setup][ext]'
           args: ${{ matrix.args }}
 
   build-arm-linux:
@@ -129,6 +130,47 @@ jobs:
           cp src-tauri/target/release/bundle/rpm/*.rpm arm64-artifacts/ 2>/dev/null || true
           test -n "$(find arm64-artifacts -type f -print -quit)"
           gh release upload "$RELEASE_TAG" arm64-artifacts/* --clobber
+
+  build-windows-arm64:
+    name: Windows ARM64 · native NSIS
+    needs: build-desktop
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+      - name: Activate ARM64 MSVC tools · Активувати ARM64 MSVC · ARM64-MSVC aktivieren
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+      - name: Install frontend dependencies · Встановити залежності · Abhängigkeiten installieren
+        run: npm ci
+      - name: Build native Windows ARM64 · Зібрати Windows ARM64 · Windows ARM64 bauen
+        run: npm run tauri build -- --target aarch64-pc-windows-msvc --bundles nsis
+      - name: Verify ARM64 PE header · Перевірити PE-заголовок · PE-Kopf prüfen
+        shell: pwsh
+        run: ./scripts/verify-windows-architecture.ps1 -Path src-tauri/target/aarch64-pc-windows-msvc/release/my-idea.exe -ExpectedMachine 0xAA64
+      - name: Upload Windows ARM64 installer · Завантажити installer · Installer hochladen
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $installer = Get-ChildItem 'src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis' -Filter '*.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Windows ARM64 NSIS installer was not produced.' }
+          $asset = "my-idea_$($env:RELEASE_TAG.TrimStart('v'))_arm64-setup.exe"
+          Copy-Item -LiteralPath $installer.FullName -Destination $asset
+          gh release upload $env:RELEASE_TAG $asset --clobber
 
   build-flatpak:
     name: Linux Flatpak · x86_64
@@ -293,6 +335,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p android-artifacts
-          find src-tauri/gen/android/app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} android-artifacts/ \;
-          test -n "$(find android-artifacts -type f -print -quit)"
+          VERSION="${RELEASE_TAG#v}"
+          APK_FILE="$(find src-tauri/gen/android/app/build/outputs -type f -name '*.apk' | head -n 1)"
+          AAB_FILE="$(find src-tauri/gen/android/app/build/outputs -type f -name '*.aab' | head -n 1)"
+          test -f "$APK_FILE"
+          test -f "$AAB_FILE"
+          cp "$APK_FILE" "android-artifacts/my-idea_${VERSION}_android.apk"
+          cp "$AAB_FILE" "android-artifacts/my-idea_${VERSION}_android.aab"
           gh release upload "$RELEASE_TAG" android-artifacts/* --clobber

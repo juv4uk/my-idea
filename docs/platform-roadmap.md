@@ -22,3 +22,11 @@ The PWA manifest provides a standalone install surface and 192/512-pixel icons. 
 PWA manifest забезпечує standalone-встановлення та іконки 192/512 пікселів. Service worker використовує network-first для ресурсів того самого origin і без мережі повертається до останньої перевіреної кешованої оболонки. Він реєструється лише для HTTP/HTTPS, тому протоколи Tauri desktop і mobile не змінюються.
 
 Das PWA-Manifest bietet eine eigenständige Installation und Symbole mit 192/512 Pixeln. Der Service Worker verwendet für Ressourcen gleichen Ursprungs eine Network-first-Strategie und greift offline auf die letzte geprüfte Cache-Hülle zurück. Er registriert sich nur für HTTP/HTTPS, sodass Tauri-Desktop- und Mobile-Protokolle unbeeinflusst bleiben.
+
+## Windows ARM64 boundary · Межа Windows ARM64 · Windows-ARM64-Grenze
+
+Release tags cross-compile `aarch64-pc-windows-msvc`, verify PE machine `0xAA64`, and publish a clearly named ARM64 NSIS installer. Details and the physical-device checklist are in [`windows-arm64.md`](windows-arm64.md).
+
+Release-теги крос-компілюють `aarch64-pc-windows-msvc`, перевіряють PE machine `0xAA64` і публікують чітко названий ARM64 NSIS installer. Подробиці й checklist фізичного пристрою містяться у [`windows-arm64.md`](windows-arm64.md).
+
+Release-Tags cross-kompilieren `aarch64-pc-windows-msvc`, prüfen die PE-Maschine `0xAA64` und veröffentlichen einen eindeutig benannten ARM64-NSIS-Installer. Details und die Prüfliste für echte Geräte stehen in [`windows-arm64.md`](windows-arm64.md).
