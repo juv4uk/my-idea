@@ -1,0 +1,9 @@
+{:source-paths ["src-cljs"]
+ :dev-http {1420 "public"}
+ :builds
+ {:app {:target :browser
+        :output-dir "public/js"
+        :asset-path "./js"
+        :modules {:main {:entries [my-idea.core]
+                         :init-fn my-idea.core/init}}
+        :devtools {:after-load my-idea.core/render!}}}}

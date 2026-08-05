@@ -1,44 +1,34 @@
-# Signal & Radio Log documentation
+# my-idea documentation · Документація · Dokumentation
 
-**[English](#english) · [Українська](#українська) · [Deutsch](#deutsch)**
+## Product boundary · Межі продукту · Produktgrenze
 
-This directory is the technical and user documentation for Signal & Radio Log. Documentation describes version **0.5.5** and distinguishes shipped features from foundations that are not yet exposed in the interface.
+`my-idea` is a general programming IDE. Editing files and projects is the product core. Language development is an advanced built-in tool called **Language Lab**.
 
-| Document | Purpose |
-|---|---|
-| [Features and user guide](features.md) | Every visible screen, workflow, supported value, Notes template, and current limitation |
-| [Architecture](architecture.md) | SvelteKit/Tauri/Rust structure, modules, runtime boundaries, and data flow |
-| [Data formats and security](data-and-security.md) | QSO model, ADIF behavior, local storage, Markdown sanitization, Radio Rules, and QSO Connect cryptography |
-| [Development, builds, and releases](development.md) | Local commands, tests, platform packages, CI, signing, and release process |
-| [Radio Rules 0.1](radio-rules.md) | Reference for the safe Lisp-like rules language |
+`my-idea` — універсальна IDE для програмування. Ядро продукту — робота з файлами та проєктами. Розробка мов є розширеним вбудованим інструментом **Language Lab**.
 
-## English
+`my-idea` ist eine allgemeine Programmier-IDE. Dateien und Projekte bilden den Kern. Sprachentwicklung ist das erweiterte integrierte Werkzeug **Language Lab**.
 
-Start with [Features and user guide](features.md) if you use the application. Contributors should then read [Architecture](architecture.md), [Data formats and security](data-and-security.md), and [Development](development.md).
+## Architecture · Архітектура · Architektur
 
-Status words used throughout the documentation:
+```mermaid
+flowchart LR
+  UI["ClojureScript UI"] --> CM["CodeMirror 6 editor"]
+  CM --> FILES["Files and projects"]
+  CM --> LAB["Language Lab"]
+  LAB --> SAFE["Embedded safe Lisp evaluator"]
+  LAB -. "optional desktop adapter" .-> GUILE["GNU Guile"]
+  UI --> TAURI["Tauri v2 / Rust shell"]
+```
 
-- **Available** — accessible in the current user interface.
-- **Foundation** — implemented and tested in code, but not yet connected to a user-facing screen.
-- **Planned** — a direction, not a promise or currently shipped feature.
+- `src-cljs/my_idea/editor.cljs` owns the reusable CodeMirror 6 integration.
+- `src-cljs/my_idea/core.cljs` renders the current workspace.
+- `src-cljs/my_idea/language.cljs` is a deliberately small capability-free Lisp evaluator.
+- `src-tauri/` is the native boundary. Future external runtimes belong behind explicit commands here.
 
-## Українська
+## Runtime policy · Політика виконання · Laufzeitrichtlinie
 
-Ця папка містить користувацьку й технічну документацію Signal & Radio Log версії **0.5.5**. Для знайомства з програмою почніть із [можливостей і посібника](features.md). Розробникам варто також прочитати [архітектуру](architecture.md), [дані та безпеку](data-and-security.md) і [розробку та релізи](development.md).
+The embedded evaluator uses only known commands and has no filesystem or network primitives. Guile support is planned as optional, detected at runtime, and restricted to an explicit workspace. Web and mobile builds keep the embedded backend.
 
-Позначення стану:
+Вбудований інтерпретатор знає лише дозволені команди й не має примітивів файлової системи або мережі. Guile буде необов’язковим, визначатиметься під час запуску та працюватиме лише з явно вибраною робочою папкою. Web і mobile використовують вбудований бекенд.
 
-- **Доступно** — функція є в поточному інтерфейсі.
-- **Основа** — код реалізовано й протестовано, але користувацького екрана ще немає.
-- **Заплановано** — напрям розвитку, а не готова функція чи обіцянка строку.
-
-## Deutsch
-
-Dieser Ordner enthält die Benutzer- und Technikdokumentation für Signal & Radio Log **0.5.5**. Benutzer beginnen mit [Funktionen und Benutzerhandbuch](features.md). Mitwirkende lesen anschließend [Architektur](architecture.md), [Daten und Sicherheit](data-and-security.md) sowie [Entwicklung und Releases](development.md).
-
-Statusbegriffe:
-
-- **Verfügbar** — in der aktuellen Oberfläche erreichbar.
-- **Grundlage** — implementiert und getestet, aber noch ohne Benutzeroberfläche.
-- **Geplant** — Entwicklungsrichtung, keine bereits ausgelieferte Funktion.
-
+Der eingebettete Interpreter kennt nur freigegebene Befehle und besitzt keine Datei- oder Netzwerkprimitive. Guile bleibt optional, wird zur Laufzeit erkannt und auf einen ausdrücklich gewählten Arbeitsbereich begrenzt. Web und Mobile verwenden das eingebettete Backend.

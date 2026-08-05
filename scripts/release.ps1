@@ -27,7 +27,7 @@ if ($LASTEXITCODE -ne 0 -or $currentBranch -ne 'main') {
 git rev-parse --verify --quiet "refs/tags/v$Version" | Out-Null
 if ($LASTEXITCODE -eq 0) { throw "Tag v$Version already exists." }
 
-Write-Host "Preparing Signal & Radio IDE v$Version" -ForegroundColor Cyan
+Write-Host "Preparing my-idea v$Version" -ForegroundColor Cyan
 
 # EN: npm keeps package.json and the root package-lock.json versions consistent.
 # UK: npm uzghodzhuie versii u package.json ta koreni package-lock.json.
@@ -78,7 +78,7 @@ if ($unexpectedFiles.Count -gt 0) { throw "Unexpected changed files: $($unexpect
 
 # UTF-8 text is Base64 encoded so Windows PowerShell 5.1 can parse this BOM-less script safely.
 $commitTemplate = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('cmVsZWFzZTogdnswfSB8INCS0LjQv9GD0YHQuiB2ezB9IHwgVmVyw7ZmZmVudGxpY2h1bmcgdnswfQ=='))
-$tagTemplate = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('U2lnbmFsICYgUmFkaW8gSURFIHZ7MH0gfCDQktC40L/Rg9GB0LogfCBWZXLDtmZmZW50bGljaHVuZw=='))
+$tagTemplate = 'my-idea v{0} | Версія v{0} | Veröffentlichung v{0}'
 $commitMessage = $commitTemplate -f $Version
 $tagMessage = $tagTemplate -f $Version
 

@@ -1997,8 +1997,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "my-ide"
-version = "0.5.5"
+name = "my-idea"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",

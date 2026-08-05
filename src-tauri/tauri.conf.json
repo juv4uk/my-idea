@@ -1,35 +1,27 @@
 {
-    "$schema":  "https://schema.tauri.app/config/2",
-    "productName":  "my-ide",
-    "version":  "0.5.5",
-    "identifier":  "com.juv4u.my-ide",
-    "build":  {
-                  "beforeDevCommand":  "npm run dev",
-                  "devUrl":  "http://localhost:1420",
-                  "beforeBuildCommand":  "npm run build",
-                  "frontendDist":  "../build"
-              },
-    "app":  {
-                "windows":  [
-                                {
-                                    "title":  "my-ide",
-                                    "width":  800,
-                                    "height":  600
-                                }
-                            ],
-                "security":  {
-                                 "csp":  null
-                             }
-            },
-    "bundle":  {
-                   "active":  true,
-                   "targets":  "all",
-                   "icon":  [
-                                "icons/32x32.png",
-                                "icons/128x128.png",
-                                "icons/128x128@2x.png",
-                                "icons/icon.icns",
-                                "icons/icon.ico"
-                            ]
-               }
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "my-idea",
+  "version": "0.1.0",
+  "identifier": "com.juv4u.my-idea",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{
+      "title": "my-idea — programming IDE",
+      "width": 1180,
+      "height": 760,
+      "minWidth": 360,
+      "minHeight": 560
+    }],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+  }
 }

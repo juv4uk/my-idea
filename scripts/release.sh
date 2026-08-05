@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Release helper for Signal & Radio IDE.
-# Помічник релізу Signal & Radio IDE.
+# Release helper for my-idea · Помічник релізу · Release-Helfer.
 # Usage / Використання: ./scripts/release.sh 0.3.0
 
 set -euo pipefail
@@ -21,7 +20,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-echo "Preparing Signal & Radio IDE v$VERSION"
+echo "Preparing my-idea v$VERSION"
 
 # Node updates JSON without fragile quote-sensitive sed expressions.
 node -e '
@@ -49,7 +48,7 @@ npm run build
 
 git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
 git commit -m "release: v$VERSION"
-git tag -a "v$VERSION" -m "Signal & Radio IDE v$VERSION"
+git tag -a "v$VERSION" -m "my-idea v$VERSION | Версія v$VERSION | Veröffentlichung v$VERSION"
 
 # Atomic push prevents a branch-only or tag-only partial release.
 git push --atomic origin main "v$VERSION"
