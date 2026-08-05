@@ -4,7 +4,7 @@
             [my-idea.workspace :as workspace]))
 
 (def demo-source
-  "; CodeMirror 6 + our small Lisp laboratory\n(def greeting \"Hello · Привіт · Hallo\")\n(def power-mw 500)\n(println greeting)\n(println \"power =\" power-mw \"mW\")\n(if (< power-mw 1000) \"QRPp\" \"QRO\")")
+  "; my-lisp · Rust/CLJS shared contract · спільний контракт · gemeinsamer Vertrag\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second '(radio antenna)) '()))")
 (defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
                       :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
                       :root nil :tree [] :open-paths ["welcome.my"] :active-path "welcome.my"
@@ -81,14 +81,27 @@
         mode (or (:language-mode (active-doc)) "text")]
     (swap! state workspace/update-active source)
     (if (= mode "my-lisp")
-      (try (let [{:keys [value output forms]} (language/run-program source)]
-             (swap! state assoc :output (conj (vec output) (str "=> " (pr-str value))) :ast (with-out-str (pprint/pprint forms)) :error? false))
-           (catch :default e (swap! state assoc :output [(.-message e)] :ast "Parse/evaluation stopped" :error? true)))
+      (if (workspace/native?)
+        (-> (workspace/invoke! "evaluate_my_lisp" {:source source})
+            (.then (fn [result]
+                     (let [{:keys [value output ast engine]} (js->clj result :keywordize-keys true)]
+                       (swap! state assoc :output (into [(str engine)] (conj (vec output) (str "=> " value)))
+                              :ast ast :error? false)
+                       (render!))))
+            (.catch (fn [error]
+                      (swap! state assoc :output [(str error)] :ast "Parse/evaluation stopped" :error? true)
+                      (render!))))
+        (try (let [{:keys [value output forms]} (language/run-program source)]
+               (swap! state assoc :output (into ["my-lisp · ClojureScript prototype"]
+                                                (conj (vec output) (str "=> " (pr-str value))))
+                      :ast (with-out-str (pprint/pprint forms)) :error? false))
+             (catch :default e (swap! state assoc :output [(.-message e)] :ast "Parse/evaluation stopped" :error? true))))
       (swap! state assoc
              :output [(str (get programming-language-labels mode)
                            " runtime is not connected yet · runtime ще не підключено · Runtime ist noch nicht verbunden")]
              :error? true))
-    (render!)))
+    (when-not (and (= mode "my-lisp") (workspace/native?))
+      (render!))))
 
 (defn- cycle-programming-language! []
   (when-let [path (:active-path @state)]

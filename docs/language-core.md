@@ -78,6 +78,14 @@ Die erste Bootstrap-Bibliothek ist `lib/core.my`. Ihre Definitionen (`identity`,
 4. Expose Rust through Tauri on desktop and a portable boundary on web/mobile.
 5. Remove the prototype only after the Rust core passes the full contract.
 
-Наступний мовний крок — додати `lambda` та лексичні замикання поверх уже наявних дочірніх фреймів середовища, а потім провести однакові conformance-тести через реалізації ClojureScript і Rust.
+The desktop and mobile Tauri shell now exposes `evaluate_my_lisp`: it loads `lib/core.my` and evaluates editor source with the independent Rust crate. The portable browser build deliberately keeps the ClojureScript evaluator as a visible prototype until a portable Rust boundary is added. Runtime errors never fall back silently from Rust to ClojureScript.
 
-Der nächste Sprachschritt ist `lambda` mit lexikalischen Closures auf Basis der vorhandenen untergeordneten Umgebungsframes. Danach werden dieselben Konformitätstests gegen die ClojureScript- und Rust-Implementierung ausgeführt.
+Оболонка Tauri для desktop і mobile тепер надає `evaluate_my_lisp`: команда завантажує `lib/core.my` та обчислює код редактора незалежним Rust-крейтом. Portable browser build свідомо зберігає ClojureScript evaluator як видимий прототип до появи portable Rust boundary. Помилки Rust ніколи не запускають тихий fallback на ClojureScript.
+
+Die Tauri-Hülle für Desktop und Mobile stellt nun `evaluate_my_lisp` bereit: Der Befehl lädt `lib/core.my` und wertet den Editorcode mit dem unabhängigen Rust-Crate aus. Der portable Browser-Build behält den ClojureScript-Evaluator bewusst als sichtbaren Prototyp, bis eine portable Rust-Grenze verfügbar ist. Rust-Laufzeitfehler lösen niemals still einen Fallback auf ClojureScript aus.
+
+The next kernel step is stack-safe tail evaluation through an explicit trampoline. In parallel, shared conformance cases must keep the Rust engine and the temporary ClojureScript prototype semantically aligned until the portable boundary replaces the prototype.
+
+Наступний крок ядра — stack-safe обчислення хвостових викликів через явний trampoline. Паралельно спільні conformance-випадки мають зберігати семантичну узгодженість Rust-рушія й тимчасового ClojureScript-прототипу, доки portable boundary не замінить прототип.
+
+Der nächste Kernel-Schritt ist eine stack-sichere Auswertung von Tail Calls über ein explizites Trampolin. Parallel halten gemeinsame Konformitätsfälle die Rust-Engine und den vorläufigen ClojureScript-Prototyp semantisch synchron, bis die portable Grenze den Prototyp ersetzt.

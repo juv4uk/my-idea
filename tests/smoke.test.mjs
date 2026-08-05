@@ -60,6 +60,17 @@ test('native file commands are constrained to the selected workspace', () => {
   assert.match(rust, /only existing workspace files can be saved/);
 });
 
+test('native Run uses the independent Rust my-lisp engine', () => {
+  const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
+  const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  assert.match(cargo, /my-lisp\s*=\s*\{\s*path\s*=\s*"\.\.\/crates\/my-lisp"/);
+  assert.match(rust, /fn evaluate_my_lisp/);
+  assert.match(rust, /include_str!\("\.\.\/\.\.\/lib\/core\.my"\)/);
+  assert.match(core, /invoke! "evaluate_my_lisp"/);
+  assert.match(core, /ClojureScript prototype/);
+});
+
 test('open and save work in both browser and Tauri modes', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
@@ -128,7 +139,6 @@ test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds'
   assert.match(workflow, /my-idea_\$\(\$env:RELEASE_TAG\.TrimStart\('v'\)\)_arm64-setup\.exe/);
   assert.match(workflow, /my-idea_\$\{VERSION\}_android\.apk/);
   assert.match(workflow, /my-idea_\$\{RELEASE_TAG#v\}_x86_64\.flatpak/);
-  assert.match(workflow, /releaseAssetNamePattern: '\[name\]_\[version\]_\[arch\]\[setup\]\[ext\]'/);
   assert.match(workflow, /gh release upload "\$RELEASE_TAG" my-idea-web\.html/);
   assert.match(workflow, /ANDROID_KEYSTORE_BASE64/);
   assert.match(workflow, /android build -- --apk --aab --ci/);

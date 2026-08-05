@@ -2000,6 +2000,7 @@ dependencies = [
 name = "my-idea"
 version = "0.3.8"
 dependencies = [
+ "my-lisp",
  "serde",
  "serde_json",
  "tauri",
@@ -2008,6 +2009,10 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-opener",
 ]
+
+[[package]]
+name = "my-lisp"
+version = "0.1.0"
 
 [[package]]
 name = "ndk"
