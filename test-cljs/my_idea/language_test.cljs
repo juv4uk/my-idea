@@ -29,3 +29,7 @@
     (is (= "3/2" (pr-str (:value (language/run-program "(/ (/ 2 3))"))))))
   (testing "division by zero is explicit and trilingual"
     (is (thrown-with-msg? js/Error #"division by zero" (language/run-program "(/ 1 0)")))))
+
+(deftest lambda-and-derived-functions
+  (is (= 'antenna (:value (language/run-program "(def second (lambda (values) (car (cdr values)))) (second (quote (radio antenna)))"))))
+  (is (= '(radio antenna) (:value (language/run-program "((lambda (left right) (cons left (cons right (quote ())))) (quote radio) (quote antenna))")))))

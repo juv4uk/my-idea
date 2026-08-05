@@ -1,0 +1,31 @@
+; my-lisp bootstrap library: derived behavior belongs in the language itself.
+; Bootstrap-бібліотека my-lisp: похідна поведінка належить самій мові.
+; my-lisp-Bootstrap-Bibliothek: Abgeleitetes Verhalten gehört in die Sprache selbst.
+
+(def identity (lambda (value) value))
+
+(def not
+  (lambda (value)
+    (cond
+      (value '())
+      (t t))))
+
+(def pair
+  (lambda (left right)
+    (cons left (cons right '()))))
+
+(def second
+  (lambda (values)
+    (car (cdr values))))
+
+(def third
+  (lambda (values)
+    (car (cdr (cdr values)))))
+
+(def caar
+  (lambda (values)
+    (car (car values))))
+
+(def cadr
+  (lambda (values)
+    (car (cdr values))))

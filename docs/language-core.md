@@ -60,9 +60,15 @@ Rust stellt nur die Mechanismen bereit, die es besonders gut umsetzt: speichersi
 
 `lambda` belongs to the Rust semantic kernel because it makes user-defined functions and self-hosted libraries possible. Derived forms such as `defn`, list helpers, logical combinators, and teaching examples belong in a bootstrapped Lisp library rather than as Rust built-ins.
 
+The first bootstrapped library is `lib/core.my`. Its definitions (`identity`, `not`, `pair`, `second`, `third`, `caar`, and `cadr`) are ordinary my-lisp code. Rust supplies only `def` and lexical binding as the mechanism needed to load persistent named definitions.
+
 `lambda` належить до семантичного Rust-ядра, бо робить можливими користувацькі функції та саморозгорнуті бібліотеки. Похідні форми на кшталт `defn`, допоміжні функції списків, логічні комбінатори й навчальні приклади мають жити у bootstrap-бібліотеці Lisp, а не бути вбудованими у Rust.
 
+Перша bootstrap-бібліотека — `lib/core.my`. Її визначення (`identity`, `not`, `pair`, `second`, `third`, `caar` і `cadr`) є звичайним кодом my-lisp. Rust надає лише `def` і лексичне зв’язування як механізм завантаження постійних іменованих визначень.
+
 `lambda` gehört zum semantischen Rust-Kern, weil es benutzerdefinierte Funktionen und selbst gehostete Bibliotheken ermöglicht. Abgeleitete Formen wie `defn`, Listenhilfen, logische Kombinatoren und Lernbeispiele gehören in eine gebootstrappte Lisp-Bibliothek statt in Rust-Built-ins.
+
+Die erste Bootstrap-Bibliothek ist `lib/core.my`. Ihre Definitionen (`identity`, `not`, `pair`, `second`, `third`, `caar` und `cadr`) sind gewöhnlicher my-lisp-Code. Rust stellt nur `def` und lexikalische Bindung als Mechanismus zum Laden dauerhafter benannter Definitionen bereit.
 
 ## Migration path · Шлях міграції · Migrationspfad
 

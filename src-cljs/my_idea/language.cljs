@@ -80,6 +80,19 @@
 
 (declare evaluate)
 
+(defn- closure [parameters body environment]
+  {::closure true :parameters parameters :body body :environment environment})
+
+(defn- closure? [value] (true? (::closure value)))
+
+(defn- apply-closure [value arguments output]
+  (let [{:keys [parameters body environment]} value]
+    (when-not (= (count parameters) (count arguments))
+      (throw (js/Error. (str "lambda arity mismatch · невідповідна кількість аргументів lambda · falsche Lambda-Stelligkeit: " (count arguments)))))
+    (reduce (fn [[_ env out] expression] (evaluate expression env out))
+            [nil (merge environment (zipmap parameters arguments)) output]
+            body)))
+
 (defn- evaluate-cond [clauses environment output]
   (if-let [clause (first clauses)]
     (do
@@ -95,6 +108,10 @@
   (let [operator (first form)]
     (case operator
       quote [(second form) environment output]
+      lambda (let [parameters (second form) body (drop 2 form)]
+               (when-not (and (sequential? parameters) (every? symbol? parameters) (seq body))
+                 (throw (js/Error. "lambda expects symbol parameters and a body · lambda очікує параметри-символи й тіло · lambda erwartet Symbolparameter und einen Rumpf")))
+               [(closure parameters body environment) environment output])
       cond (evaluate-cond (rest form) environment output)
       if (let [[condition environment output] (evaluate (second form) environment output)]
            (evaluate (if condition (nth form 2) (nth form 3 nil)) environment output))
@@ -114,9 +131,11 @@
                         [(conj values value) next-env next-out]))
                     [[] environment output]
                     (rest form))]
-        (when-not (fn? function)
+        (when-not (or (fn? function) (closure? function))
           (throw (js/Error. (str operator " is not callable"))))
-        [(apply function arguments) environment output]))))
+        (if (closure? function)
+          (apply-closure function arguments output)
+          [(apply function arguments) environment output])))))
 
 (defn evaluate [form environment output]
   (cond

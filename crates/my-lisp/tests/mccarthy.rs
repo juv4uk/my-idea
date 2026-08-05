@@ -12,6 +12,17 @@ fn division_is_an_exact_reduced_rational() {
 }
 
 #[test]
+fn bootstrap_library_is_written_and_executed_in_my_lisp() {
+    let mut session = Session::default();
+    eval_program(include_str!("../../../lib/core.my"), &mut session).unwrap();
+    assert_eq!(
+        eval_program("(second '(radio antenna))", &mut session).unwrap().value,
+        Value::Symbol("antenna".into())
+    );
+    assert_eq!(eval_program("(not '())", &mut session).unwrap().value, Value::Bool(true));
+}
+
+#[test]
 fn reader_supports_unicode_comments_and_quote_sugar() {
     let expressions = parse("; коментар\n'радіо").unwrap();
     assert_eq!(expressions.len(), 1);

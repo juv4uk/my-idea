@@ -52,6 +52,7 @@ fn evaluate_list(
             Ok(quoted(&arguments[0]))
         }
         Some("lambda") => create_lambda(arguments, environment, span),
+        Some("def") => evaluate_definition(arguments, environment, span),
         Some("cond") => evaluate_cond(arguments, environment, span),
         Some("atom") => {
             exact_arity("atom", arguments, 1, span)?;
@@ -67,6 +68,27 @@ fn evaluate_list(
             apply(function, arguments, environment, span)
         }
     }
+}
+
+fn evaluate_definition(
+    arguments: &[Expr],
+    environment: &Environment,
+    span: Span,
+) -> Result<Value, LanguageError> {
+    exact_arity("def", arguments, 2, span)?;
+    let ExprKind::Symbol(name) = &arguments[0].kind else {
+        return Err(LanguageError::new(
+            ErrorKind::InvalidForm,
+            "def expects a symbol name · def очікує назву-символ · def erwartet einen Symbolnamen",
+            arguments[0].span,
+        ));
+    };
+    let value = evaluate(&arguments[1], environment)?;
+    // The shared lexical frame makes recursive definitions visible to their closure after binding.
+    // Спільний лексичний фрейм робить рекурсивне визначення видимим замиканню після зв’язування.
+    // Der gemeinsame lexikalische Frame macht rekursive Definitionen nach der Bindung für ihre Closure sichtbar.
+    environment.define(name.clone(), value.clone());
+    Ok(value)
 }
 
 fn evaluate_division(
