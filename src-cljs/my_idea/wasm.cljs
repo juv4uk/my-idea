@@ -26,12 +26,23 @@
    Mehrfachaufrufe sind sicher; weitere Aufrufe sind no-ops, falls bereits geladen."
   [on-ready]
   (when-not (ready?)
-    (-> (js/import "/wasm/my_lisp_wasm.js")
+    ;; js/import cannot be used directly in shadow-cljs release builds because
+    ;; the Google Closure Compiler treats `import` as a reserved keyword.
+    ;; We delegate to the plain-JS shim (public/wasm-loader.js) which calls
+    ;; import() natively and exposes the result via window.loadMyLispWasm.
+    ;;
+    ;; js/import не можна використовувати напряму в release-збірці shadow-cljs,
+    ;; бо Closure Compiler вважає `import` зарезервованим словом.
+    ;; Делегуємо до plain-JS шима (public/wasm-loader.js), який викликає
+    ;; import() нативно і виставляє результат через window.loadMyLispWasm.
+    ;;
+    ;; js/import kann in shadow-cljs-Release-Builds nicht direkt verwendet werden,
+    ;; da der Closure Compiler `import` als reserviertes Schlüsselwort behandelt.
+    ;; Wir delegieren an den plain-JS-Shim (public/wasm-loader.js).
+    (-> (js/window.loadMyLispWasm)
         (.then (fn [js-module]
-                 (-> (.default js-module)
-                     (.then (fn []
-                              (reset! !module js-module)
-                              (on-ready))))))
+                 (reset! !module js-module)
+                 (on-ready)))
         (.catch (fn [err]
                   (js/console.warn
                    "my-lisp WASM failed to load – falling back to ClojureScript prototype"

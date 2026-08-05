@@ -16,6 +16,11 @@
   </head>
   <body>
     <div id="app"><noscript>my-idea requires JavaScript.</noscript></div>
+    <!-- WASM loader shim: registers window.loadMyLispWasm for ClojureScript interop.
+         Uses new Function('return import(u)') to bypass Closure Compiler keyword conflict.
+         Шим-завантажувач WASM: реєструє window.loadMyLispWasm для ClojureScript.
+         WASM-Loader-Shim: registriert window.loadMyLispWasm für ClojureScript. -->
+    <script src="./wasm-loader.js"></script>
     <script src="./js/main.js"></script>
     <script>
       // PWA runs only on web origins; Tauri desktop/mobile protocols stay untouched.
