@@ -144,6 +144,8 @@ test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds'
   assert.match(workflow, /android build -- --apk --aab --ci/);
   assert.match(workflow, /rm -rf -- "\$GITHUB_WORKSPACE\/src-tauri\/gen\/android"/);
   assert.match(workflow, /tauri-apps\/tauri-action@v0/);
+  assert.match(workflow, /assetNamePattern:\s*'\[name\]_\[version\]_\[arch\]\[setup\]\[ext\]'/);
+  assert.doesNotMatch(workflow, /releaseAssetNamePattern/);
   assert.equal((workflow.match(/java-version: 21/g) ?? []).length, 6);
   assert.match(portable, /Standalone Web HTML created/);
   assert.match(androidSigning, /ANDROID_KEYSTORE_BASE64/);

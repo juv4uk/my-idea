@@ -93,7 +93,7 @@ jobs:
           generateReleaseNotes: true
           releaseDraft: false
           prerelease: false
-          releaseAssetNamePattern: '[name]_[version]_[arch][setup][ext]'
+          assetNamePattern: '[name]_[version]_[arch][setup][ext]'
           args: ${{ matrix.args }}
 
   build-arm-linux:
