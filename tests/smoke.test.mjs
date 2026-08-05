@@ -60,7 +60,7 @@ test('native file commands are constrained to the selected workspace', () => {
   assert.match(rust, /only existing workspace files can be saved/);
 });
 
-test('native Run uses the independent Rust my-lisp engine', () => {
+test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
