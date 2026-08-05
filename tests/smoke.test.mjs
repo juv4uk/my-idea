@@ -48,6 +48,8 @@ test('workspace model tracks files, tabs and dirty documents', () => {
 test('native file commands are constrained to the selected workspace', () => {
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
   assert.match(rust, /choose_workspace/);
+  assert.match(rust, /#\[cfg\(desktop\)\][\s\S]*blocking_pick_folder/);
+  assert.match(rust, /#\[cfg\(mobile\)\][\s\S]*Storage Access Framework/);
   assert.match(rust, /read_workspace_file/);
   assert.match(rust, /save_workspace_file/);
   assert.match(rust, /starts_with\(root\)/);

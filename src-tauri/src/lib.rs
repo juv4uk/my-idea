@@ -1,6 +1,9 @@
 use serde::Serialize;
 use std::{fs, path::{Path, PathBuf}, sync::Mutex};
-use tauri::{AppHandle, State};
+use tauri::State;
+#[cfg(desktop)]
+use tauri::AppHandle;
+#[cfg(desktop)]
 use tauri_plugin_dialog::DialogExt;
 
 #[derive(Default)]
@@ -50,11 +53,25 @@ fn safe_existing(root: &Path, relative: &str) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
+#[cfg(desktop)]
 fn choose_workspace(app: AppHandle, state: State<'_, Workspace>) -> Result<Option<String>, String> {
     let Some(folder) = app.dialog().file().set_title("Open workspace").blocking_pick_folder() else { return Ok(None) };
     let path = folder.into_path().map_err(|error| error.to_string())?.canonicalize().map_err(|error| error.to_string())?;
     *state.0.lock().map_err(|_| "workspace lock is poisoned".to_string())? = Some(path.clone());
     Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// Reports the current mobile limitation without compiling desktop-only dialog APIs.
+/// Повідомляє про поточне мобільне обмеження без компіляції desktop-only API діалогів.
+/// Meldet die aktuelle Mobile-Einschränkung, ohne Desktop-Dialog-APIs zu kompilieren.
+#[tauri::command]
+#[cfg(mobile)]
+fn choose_workspace(_state: State<'_, Workspace>) -> Result<Option<String>, String> {
+    Err(concat!(
+        "Opening workspace folders on Android requires Storage Access Framework support, which is planned. ",
+        "Відкриття папок workspace на Android потребує підтримки Storage Access Framework, яку заплановано. ",
+        "Das Öffnen von Workspace-Ordnern unter Android benötigt die geplante Unterstützung des Storage Access Framework."
+    ).into())
 }
 
 #[tauri::command]

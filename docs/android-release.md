@@ -15,6 +15,8 @@ Run `powershell -ExecutionPolicy Bypass -File scripts/setup-android-signing.ps1`
 
 When all four secrets exist, every semantic-version tag builds a signed universal APK for direct testing and an AAB for a future Google Play upload. Without them, the Android job reports the signing gate and safely skips mobile artifacts without blocking desktop releases. Keep at least two encrypted backups of the JKS file and passwords in separate locations.
 
+The first Android milestone provides an installable application and the Language Lab. Opening an arbitrary workspace folder is temporarily disabled on Android until the native bridge supports Android's Storage Access Framework; desktop workspace access is unaffected.
+
 ## Українська
 
 Кожна стабільна Android-збірка повинна використовувати той самий довготривалий ключ підпису. Втрата ключа або паролів зробить майбутні APK несумісними з уже встановленими копіями. Ніколи не додавайте keystore або паролі до Git.
@@ -30,6 +32,8 @@ Release workflow очікує чотири GitHub Actions secrets:
 
 Коли всі чотири секрети наявні, кожен semver-тег збирає підписаний universal APK для прямого тестування та AAB для майбутнього Google Play. Без них Android job повідомляє про signing gate і безпечно пропускає мобільні артефакти, не блокуючи desktop-релізи. Зберігайте щонайменше дві зашифровані резервні копії JKS і паролів у різних місцях.
 
+Перший Android-етап надає програму для встановлення та Language Lab. Відкриття довільної папки workspace на Android тимчасово вимкнене, доки нативний міст не підтримуватиме Android Storage Access Framework; доступ до workspace на desktop не змінюється.
+
 ## Deutsch
 
 Jeder stabile Android-Build muss denselben langlebigen Signaturschlüssel verwenden. Der Verlust des Schlüssels oder seiner Passwörter macht zukünftige APK-Updates mit installierten Versionen inkompatibel. Keystore und Passwörter dürfen niemals in Git eingecheckt werden.
@@ -44,3 +48,5 @@ Der Release-Workflow erwartet vier GitHub-Actions-Secrets:
 Führen Sie einmal `powershell -ExecutionPolicy Bypass -File scripts/setup-android-signing.ps1` im Repository-Stamm aus. Das Skript fragt Passwörter verdeckt ab, erstellt `private/android/my-idea-release.jks` und lädt die vier Secrets hoch. Ein vorhandener Schlüssel wird nicht überschrieben.
 
 Sind alle vier Secrets vorhanden, erzeugt jedes Semver-Tag ein signiertes universelles APK zum direkten Testen und ein AAB für eine spätere Veröffentlichung bei Google Play. Ohne Secrets meldet der Android-Job die Signatursperre und überspringt mobile Artefakte sicher, ohne Desktop-Releases zu blockieren. Mindestens zwei verschlüsselte Sicherungskopien der JKS-Datei und Passwörter müssen getrennt aufbewahrt werden.
+
+Der erste Android-Meilenstein liefert eine installierbare Anwendung und das Language Lab. Das Öffnen beliebiger Workspace-Ordner ist unter Android vorübergehend deaktiviert, bis die native Brücke das Android Storage Access Framework unterstützt; der Desktop-Zugriff auf Workspaces bleibt unverändert.
