@@ -17,7 +17,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - run: npm test
       - run: npm run check
       - run: npm run build
+      - name: Test Rust language core · Тест Rust-ядра · Rust-Sprachkern testen
+        run: cargo test --manifest-path crates/my-idea-language/Cargo.toml

@@ -8,6 +8,7 @@ node_modules
 /.lsp
 /public/js
 /target
+**/target/
 .env
 .env.*
 !.env.example
