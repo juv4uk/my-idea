@@ -262,6 +262,11 @@ jobs:
       - name: Initialize Android project · Ініціалізувати Android · Android initialisieren
         if: steps.signing.outputs.ready == 'true'
         run: |
+          # Regenerate from the tagged config; inherited generated files may carry an older package identity.
+          # Перегенеровуємо з конфігурації тегу; успадковані файли можуть мати старий package identity.
+          # Aus der Tag-Konfiguration neu erzeugen; übernommene Dateien können eine alte Paketidentität tragen.
+          test "$PWD" = "$GITHUB_WORKSPACE"
+          rm -rf -- "$GITHUB_WORKSPACE/src-tauri/gen/android"
           npm run tauri android init -- --ci
           node scripts/configure-android-signing.mjs
       - name: Configure signing · Налаштувати підпис · Signatur konfigurieren
