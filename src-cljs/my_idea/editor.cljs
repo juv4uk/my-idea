@@ -38,10 +38,17 @@
                   :message (.-message error)}]))))
 
 (defn- editor-theme []
-  (let [dark? (.matches (js/window.matchMedia "(prefers-color-scheme: dark)"))
-        colors (if dark?
+  (let [theme (or (.. js/document -documentElement -dataset -theme) "auto")
+        dark? (or (= theme "dark")
+                  (and (= theme "auto") (.matches (js/window.matchMedia "(prefers-color-scheme: dark)"))))
+        colors (cond
+                 (= theme "sepia")
+                 {:background "#eee5d2" :text "#463f35" :gutter "#e3d7bf"
+                  :muted "#817565" :line "#cfc0a4" :active "#e6dbc5" :selection "#c8d6cf"}
+                 dark?
                  {:background "#151a22" :text "#d8d5cc" :gutter "#11161d"
                   :muted "#777f89" :line "#222a35" :active "#202934" :selection "#30445a"}
+                 :else
                  {:background "#f3f0e8" :text "#343a40" :gutter "#ebe7dd"
                   :muted "#7b8083" :line "#d7d2c7" :active "#e7edf0" :selection "#bfd8df"})]
     (.theme EditorView

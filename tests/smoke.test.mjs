@@ -40,3 +40,12 @@ test('native file commands are constrained to the selected workspace', () => {
   assert.match(rust, /starts_with\(root\)/);
   assert.match(rust, /only existing workspace files can be saved/);
 });
+
+test('language and eye-comfort themes use simple cycling buttons', () => {
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const styles = readFileSync('public/styles.css', 'utf8');
+  assert.match(core, /def languages \["uk" "de" "en"\]/);
+  assert.match(core, /def themes \["auto" "light" "dark" "sepia"\]/);
+  assert.match(core, /id='theme'/);
+  assert.match(styles, /data-theme=sepia/);
+});
