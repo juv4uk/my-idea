@@ -1,5 +1,8 @@
 # my-idea documentation · Документація · Dokumentation
 
+- [Versioning and inherited history · Версіонування та успадкована історія · Versionierung und übernommene Historie](versioning.md)
+- [Language core · Ядро мови · Sprachkern](language-core.md)
+
 ## Product boundary · Межі продукту · Produktgrenze
 
 `my-idea` is a general programming IDE. Editing files and projects is the product core. Language development is an advanced built-in tool called **Language Lab**.
