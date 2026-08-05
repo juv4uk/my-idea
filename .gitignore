@@ -4,6 +4,8 @@ node_modules
 /dist
 /.shadow-cljs
 /.m2-cache
+/.clj-kondo
+/.lsp
 /public/js
 .env
 .env.*
