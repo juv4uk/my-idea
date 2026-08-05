@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [{
       "title": "my-idea — programming IDE",
       "width": 1180,

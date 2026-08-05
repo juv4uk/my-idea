@@ -38,11 +38,27 @@
   (-> (workspace/invoke! "list_workspace" {})
       (.then #(do (swap! state assoc :tree (js->clj % :keywordize-keys true)) (persist!) (render!)))
       (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
+(defn- choose-browser-workspace! []
+  (let [input (.createElement js/document "input")]
+    (set! (.-type input) "file")
+    (set! (.-multiple input) true)
+    (.setAttribute input "webkitdirectory" "")
+    (.addEventListener input "change"
+      (fn [event]
+        (let [files (vec (array-seq (.. event -target -files)))]
+          (when (seq files)
+            (-> (js/Promise.all (clj->js (map #(.text %) files)))
+                (.then (fn [contents]
+                         (swap! state workspace/open-browser-workspace files (js->clj contents))
+                         (persist!)
+                         (render!)))
+                (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))))
+    (.click input)))
 (defn- choose-workspace! []
   (if (workspace/native?)
     (-> (workspace/invoke! "choose_workspace" {})
         (.then #(when % (swap! state assoc :root % :tree [] :open-paths [] :active-path nil :documents {}) (refresh-tree!))))
-    (swap! state assoc :output ["Folder access is available in the Tauri desktop app."])))
+    (choose-browser-workspace!)))
 (defn- open-file! [path]
   (if (get-in @state [:documents path]) (do (swap! state assoc :active-path path) (persist!) (render!))
     (-> (workspace/invoke! "read_workspace_file" {:path path})
@@ -50,11 +66,14 @@
         (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))
 (defn- save! []
   (when-let [path (:active-path @state)]
-    (when (and (workspace/native?) (:root @state))
-      (let [contents (editor/source)]
+    (let [contents (editor/source)]
+      (if (and (workspace/native?) (:root @state))
         (-> (workspace/invoke! "save_workspace_file" {:path path :contents contents})
             (.then #(do (swap! state assoc-in [:documents path] {:contents contents :saved contents :dirty? false}) (render!)))
-            (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))))
+            (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
+        (do (workspace/download! path contents)
+            (swap! state assoc-in [:documents path] {:contents contents :saved contents :dirty? false})
+            (render!))))))
 (defn- execute! []
   (let [source (editor/source)]
     (swap! state workspace/update-active source)

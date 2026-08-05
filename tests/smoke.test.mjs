@@ -42,6 +42,17 @@ test('native file commands are constrained to the selected workspace', () => {
   assert.match(rust, /only existing workspace files can be saved/);
 });
 
+test('open and save work in both browser and Tauri modes', () => {
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
+  const config = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+  assert.equal(config.app.withGlobalTauri, true);
+  assert.match(core, /choose-browser-workspace!/);
+  assert.match(core, /webkitdirectory/);
+  assert.match(workspace, /open-browser-workspace/);
+  assert.match(workspace, /download!/);
+});
+
 test('language and eye-comfort themes use simple cycling buttons', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   const styles = readFileSync('public/styles.css', 'utf8');
