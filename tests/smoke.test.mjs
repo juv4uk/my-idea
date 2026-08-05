@@ -146,6 +146,8 @@ test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds'
   assert.match(workflow, /tauri-apps\/tauri-action@v0/);
   assert.match(workflow, /assetNamePattern:\s*'\[name\]_\[version\]_\[arch\]\[setup\]\[ext\]'/);
   assert.doesNotMatch(workflow, /releaseAssetNamePattern/);
+  assert.equal((workflow.match(/Swatinem\/rust-cache@v2/g) ?? []).length, 5);
+  assert.match(workflow, /shared-key: desktop-Linux/);
   assert.equal((workflow.match(/java-version: 21/g) ?? []).length, 6);
   assert.match(portable, /Standalone Web HTML created/);
   assert.match(androidSigning, /ANDROID_KEYSTORE_BASE64/);
