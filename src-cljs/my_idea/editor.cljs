@@ -37,18 +37,24 @@
                   :severity "error"
                   :message (.-message error)}]))))
 
-(def theme
-  (.theme EditorView
-          #js {"&" #js {:height "100%" :backgroundColor "#0d1424" :color "#dbeafe"}
+(defn- editor-theme []
+  (let [dark? (.matches (js/window.matchMedia "(prefers-color-scheme: dark)"))
+        colors (if dark?
+                 {:background "#151a22" :text "#d8d5cc" :gutter "#11161d"
+                  :muted "#777f89" :line "#222a35" :active "#202934" :selection "#30445a"}
+                 {:background "#f3f0e8" :text "#343a40" :gutter "#ebe7dd"
+                  :muted "#7b8083" :line "#d7d2c7" :active "#e7edf0" :selection "#bfd8df"})]
+    (.theme EditorView
+          #js {"&" #js {:height "100%" :backgroundColor (:background colors) :color (:text colors)}
                ".cm-scroller" #js {:fontFamily "Cascadia Code, Fira Code, monospace"
                                     :fontSize "15px" :lineHeight "1.65"}
-               ".cm-content" #js {:padding "14px 0" :caretColor "#38bdf8"}
-               ".cm-gutters" #js {:backgroundColor "#0b1220" :color "#64748b"
-                                   :borderRight "1px solid #243047"}
-               ".cm-activeLine, .cm-activeLineGutter" #js {:backgroundColor "#1e293b80"}
-               ".cm-selectionBackground, &.cm-focused .cm-selectionBackground" #js {:backgroundColor "#334b78"}
+               ".cm-content" #js {:padding "14px 0" :caretColor "#3b8998"}
+               ".cm-gutters" #js {:backgroundColor (:gutter colors) :color (:muted colors)
+                                   :borderRight (str "1px solid " (:line colors))}
+               ".cm-activeLine, .cm-activeLineGutter" #js {:backgroundColor (:active colors)}
+               ".cm-selectionBackground, &.cm-focused .cm-selectionBackground" #js {:backgroundColor (:selection colors)}
                "&.cm-focused" #js {:outline "none"}}
-          #js {:dark true}))
+          #js {:dark dark?})))
 
 (defn source []
   (if-let [view @view*]
@@ -79,7 +85,7 @@
                                                defaultKeymap historyKeymap completionKeymap))
                                  (autocompletion #js {:override #js [completions]})
                                  (lintGutter) (linter diagnostics)
-                                 theme
+                                 (editor-theme)
                                  (.of (.-updateListener EditorView)
                                       (fn [^js update]
                                         (when (.-docChanged update)

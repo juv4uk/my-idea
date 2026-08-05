@@ -23,3 +23,20 @@ test('CodeMirror 6 is the primary reusable editor', () => {
   assert.match(editor, /autocompletion/);
   assert.match(editor, /linter/);
 });
+
+test('workspace model tracks files, tabs and dirty documents', () => {
+  const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
+  assert.match(workspace, /open-document/);
+  assert.match(workspace, /close-document/);
+  assert.match(workspace, /dirty\?/);
+  assert.match(workspace, /my-idea:workspace/);
+});
+
+test('native file commands are constrained to the selected workspace', () => {
+  const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
+  assert.match(rust, /choose_workspace/);
+  assert.match(rust, /read_workspace_file/);
+  assert.match(rust, /save_workspace_file/);
+  assert.match(rust, /starts_with\(root\)/);
+  assert.match(rust, /only existing workspace files can be saved/);
+});
