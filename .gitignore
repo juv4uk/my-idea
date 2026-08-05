@@ -7,6 +7,7 @@ node_modules
 /.clj-kondo
 /.lsp
 /public/js
+/target
 .env
 .env.*
 !.env.example

@@ -21,6 +21,12 @@
         #js {:label "if" :type "keyword" :detail "Conditional expression"}
         #js {:label "println" :type "function" :detail "Print to the IDE console"}
         #js {:label "quote" :type "keyword"}
+        #js {:label "cond" :type "keyword" :detail "McCarthy conditional"}
+        #js {:label "atom" :type "function" :detail "Test whether a value is an atom"}
+        #js {:label "eq" :type "function" :detail "Compare two atoms"}
+        #js {:label "car" :type "function" :detail "First item of a list"}
+        #js {:label "cdr" :type "function" :detail "Rest of a list"}
+        #js {:label "cons" :type "function" :detail "Prepend an item to a list"}
         #js {:label "list" :type "function"}
         #js {:label "vector" :type "function"}
         #js {:label "count" :type "function"}

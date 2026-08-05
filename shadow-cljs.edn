@@ -1,4 +1,4 @@
-{:source-paths ["src-cljs"]
+{:source-paths ["src-cljs" "test-cljs"]
  :dev-http {1420 "public"}
  :builds
  {:app {:target :browser
@@ -6,4 +6,8 @@
         :asset-path "./js"
         :modules {:main {:entries [my-idea.core]
                          :init-fn my-idea.core/init}}
-        :devtools {:after-load my-idea.core/render!}}}}
+        :devtools {:after-load my-idea.core/render!}}
+  :test {:target :node-test
+         :output-to "target/cljs-tests.js"
+         :ns-regexp ".*-test$"
+         :autorun true}}}
