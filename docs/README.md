@@ -1,6 +1,7 @@
 # my-idea documentation · Документація · Dokumentation
 
 - [Versioning and inherited history · Версіонування та успадкована історія · Versionierung und übernommene Historie](versioning.md)
+- [my-lisp source files · Файли my-lisp · my-lisp-Quelldateien](source-files.md)
 - [Language core · Ядро мови · Sprachkern](language-core.md)
 - [Android releases · Android-релізи · Android-Releases](android-release.md)
 - [Platform roadmap · Дорожня карта платформ · Plattform-Roadmap](platform-roadmap.md)

@@ -20,6 +20,8 @@ The main goal is comfortable everyday programming. Our own language experiments 
 
 Details: [`docs/versioning.md`](docs/versioning.md)
 
+my-lisp source files use the canonical `.my` extension; see the [trilingual source-file contract](docs/source-files.md).
+
 ## English
 
 ### What already works

@@ -90,6 +90,10 @@ test('active document programming language switches from the bottom status bar',
   assert.match(editor, /language-extensions/);
   const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
   assert.match(workspace, /ends-with\? lower "\.my"/);
+  const sourceFiles = readFileSync('docs/source-files.md', 'utf8');
+  assert.match(sourceFiles, /canonical file extension[\s\S]*`\.my`/);
+  assert.match(sourceFiles, /Канонічне розширення[\s\S]*`\.my`/);
+  assert.match(sourceFiles, /kanonische Dateiendung[\s\S]*`\.my`/);
 });
 
 test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds', () => {
