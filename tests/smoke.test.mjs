@@ -51,3 +51,14 @@ test('language and eye-comfort themes use simple cycling buttons', () => {
   assert.match(styles, /data-theme=sepia/);
   assert.match(styles, /data-theme=signal/);
 });
+
+test('tag releases publish desktop, ARM, Flatpak and portable Web builds', () => {
+  const workflow = readFileSync('.github/workflows/publish-release.yml', 'utf8');
+  const portable = readFileSync('scripts/make-portable-web.mjs', 'utf8');
+  assert.match(workflow, /build-desktop:/);
+  assert.match(workflow, /build-arm-linux:/);
+  assert.match(workflow, /build-flatpak:/);
+  assert.match(workflow, /build-web:/);
+  assert.match(workflow, /tauri-apps\/tauri-action@v0/);
+  assert.match(portable, /Standalone Web HTML created/);
+});

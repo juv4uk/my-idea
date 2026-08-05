@@ -1,0 +1,217 @@
+name: Publish Release · Публікація · Veröffentlichung
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag (for example v0.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  validate-release:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require an existing semantic-version tag
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
+
+  build-desktop:
+    name: Desktop · ${{ matrix.platform }}
+    needs: validate-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+          - platform: ubuntu-22.04
+            args: ''
+          - platform: windows-latest
+            args: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev patchelf pkg-config
+      - run: npm ci
+      - name: Read trilingual release notes
+        id: notes
+        shell: bash
+        run: |
+          NOTES_PATH=".github/release-notes/${RELEASE_TAG}.md"
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            if [ -f "$NOTES_PATH" ]; then
+              cat "$NOTES_PATH"
+            else
+              echo 'Release notes are generated from the changes included in this version.'
+              echo
+              echo 'Нотатки до релізу сформовано зі змін, що увійшли до цієї версії.'
+              echo
+              echo 'Die Versionshinweise werden aus den Änderungen dieser Version erstellt.'
+            fi
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: Build and publish desktop packages
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: my-idea ${{ env.RELEASE_TAG }}
+          releaseBody: ${{ steps.notes.outputs.body }}
+          generateReleaseNotes: true
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  build-arm-linux:
+    name: Linux ARM64 · Raspberry Pi
+    needs: build-desktop
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev patchelf pkg-config xdg-utils libfuse2
+      - run: npm ci
+      - run: npx tauri build
+      - name: Upload ARM64 packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          mkdir -p arm64-artifacts
+          cp src-tauri/target/release/bundle/deb/*.deb arm64-artifacts/ 2>/dev/null || true
+          cp src-tauri/target/release/bundle/appimage/*.AppImage arm64-artifacts/ 2>/dev/null || true
+          cp src-tauri/target/release/bundle/rpm/*.rpm arm64-artifacts/ 2>/dev/null || true
+          test -n "$(find arm64-artifacts -type f -print -quit)"
+          gh release upload "$RELEASE_TAG" arm64-artifacts/* --clobber
+
+  build-flatpak:
+    name: Linux Flatpak · x86_64
+    needs: build-desktop
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev patchelf pkg-config flatpak flatpak-builder
+      - run: npm ci
+      - run: npx tauri build
+      - name: Build Flatpak bundle
+        run: |
+          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+          DEB_FILE="$(find src-tauri/target/release/bundle/deb -name '*.deb' | head -n 1)"
+          test -f "$DEB_FILE"
+          cp "$DEB_FILE" my-idea.deb
+          cat > com.juv4u.my-idea.yml <<'EOF'
+          app-id: com.juv4u.my-idea
+          runtime: org.freedesktop.Platform
+          runtime-version: '23.08'
+          sdk: org.freedesktop.Sdk
+          command: my-idea
+          finish-args:
+            - --socket=wayland
+            - --socket=fallback-x11
+            - --share=ipc
+            - --filesystem=home
+            - --device=dri
+          modules:
+            - name: my-idea
+              buildsystem: simple
+              build-commands:
+                - ar x my-idea.deb
+                - tar -xf data.tar.*
+                - install -D usr/bin/my-idea /app/bin/my-idea
+                - cp -r usr/share /app/share
+              sources:
+                - type: file
+                  path: my-idea.deb
+          EOF
+          flatpak-builder --repo=repo --force-clean flatpak-build com.juv4u.my-idea.yml
+          flatpak build-bundle repo "my-idea_${RELEASE_TAG#v}_x86_64.flatpak" com.juv4u.my-idea
+      - name: Upload Flatpak
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" "my-idea_${RELEASE_TAG#v}_x86_64.flatpak" --clobber
+
+  build-web:
+    name: Portable Web · single HTML
+    needs: build-desktop
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Create and verify standalone Web file
+        run: |
+          node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+          test -s my-idea-web.html
+      - name: Upload portable Web file
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$RELEASE_TAG" my-idea-web.html --clobber
+
+  mobile-readiness:
+    name: Mobile readiness · Android/iOS
+    needs: build-desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Explain mobile release gate
+        run: |
+          echo 'Android and iOS publishing is intentionally gated until Tauri mobile projects and signing secrets are configured.'
+          echo 'Android та iOS навмисно відкладені до ініціалізації Tauri mobile і налаштування signing secrets.'
+          echo 'Android und iOS bleiben bis zur Tauri-Mobile-Initialisierung und Signaturkonfiguration gesperrt.'
