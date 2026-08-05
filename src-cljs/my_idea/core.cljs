@@ -3,7 +3,8 @@
             [my-idea.editor :as editor] [my-idea.language :as language]
             [my-idea.workspace :as workspace]))
 
-(def demo-source "; my-idea Language Lab\n(def radius 7)\n(def area (* pi radius radius))\n(println \"area =\" area)\narea")
+(def demo-source
+  "; CodeMirror 6 + our small Lisp laboratory\n(def greeting \"Hello · Привіт · Hallo\")\n(def power-mw 500)\n(println greeting)\n(println \"power =\" power-mw \"mW\")\n(if (< power-mw 1000) \"QRPp\" \"QRO\")")
 (defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
                       :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
                       :root nil :tree [] :open-paths ["welcome.clj"] :active-path "welcome.clj"
@@ -12,18 +13,18 @@
 
 (def messages
   {"en" {:open "Open folder" :save "Save" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :web "Web demo"
-         :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia"}}
+         :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
    "uk" {:open "Відкрити папку" :save "Зберегти" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :web "Веб-демо"
-         :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія"}}
+         :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія" "signal" "Сигнал" "amber" "Бурштин" "forest" "Ліс"}}
    "de" {:open "Ordner öffnen" :save "Speichern" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :web "Web-Demo"
-         :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia"}}})
+         :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia" "signal" "Signal" "amber" "Bernstein" "forest" "Wald"}}})
 (defn- t [key] (get-in messages [(:language @state) key]))
 (defn- esc [x] (-> (str x) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
 (defn- active-doc [] (get-in @state [:documents (:active-path @state)]))
 (def languages ["uk" "de" "en"])
-(def themes ["auto" "light" "dark" "sepia"])
+(def themes ["auto" "light" "dark" "sepia" "signal" "amber" "forest"])
 (def language-labels {"uk" "UA" "de" "DE" "en" "EN"})
-(def theme-icons {"auto" "◐" "light" "☀" "dark" "☾" "sepia" "◉"})
+(def theme-icons {"auto" "◐" "light" "☀" "dark" "☾" "sepia" "◉" "signal" "⌁" "amber" "◆" "forest" "♣"})
 (defn- next-value [values current] (get values (mod (inc (.indexOf values current)) (count values))))
 (defn- apply-theme! [theme]
   (set! (.. js/document -documentElement -dataset -theme) theme)

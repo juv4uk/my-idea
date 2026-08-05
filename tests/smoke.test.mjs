@@ -45,7 +45,9 @@ test('language and eye-comfort themes use simple cycling buttons', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   const styles = readFileSync('public/styles.css', 'utf8');
   assert.match(core, /def languages \["uk" "de" "en"\]/);
-  assert.match(core, /def themes \["auto" "light" "dark" "sepia"\]/);
+  assert.match(core, /def themes \["auto" "light" "dark" "sepia" "signal" "amber" "forest"\]/);
   assert.match(core, /id='theme'/);
+  assert.match(core, /Hello · Привіт · Hallo/);
   assert.match(styles, /data-theme=sepia/);
+  assert.match(styles, /data-theme=signal/);
 });
