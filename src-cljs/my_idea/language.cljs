@@ -1,3 +1,14 @@
+;; @deprecated — In the web/PWA build this interpreter is used only as a temporary
+;; fallback while the canonical WASM engine (my-idea.wasm) loads asynchronously.
+;; Do not add new language features here; implement them in crates/my-lisp instead.
+;;
+;; @deprecated — У веб/PWA збірці цей інтерпретатор використовується лише як тимчасовий
+;; fallback доки канонічний WASM-рушій (my-idea.wasm) завантажується асинхронно.
+;; Не додавати нові можливості мови тут; реалізовувати їх у crates/my-lisp.
+;;
+;; @deprecated — Im Web/PWA-Build wird dieser Interpreter nur als temporärer Fallback
+;; verwendet, während die kanonische WASM-Engine (my-idea.wasm) asynchron lädt.
+;; Keine neuen Sprachfeatures hier hinzufügen; in crates/my-lisp implementieren.
 (ns my-idea.language
   (:require [cljs.reader :as reader]
             [clojure.string :as str]))

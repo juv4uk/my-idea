@@ -68,7 +68,37 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
   assert.match(rust, /fn evaluate_my_lisp/);
   assert.match(rust, /include_str!\("\.\.\/\.\.\/lib\/core\.my"\)/);
   assert.match(core, /invoke! "evaluate_my_lisp"/);
-  assert.match(core, /ClojureScript prototype/);
+  // ClojureScript prototype is now a fallback — WASM is the primary web engine
+  // ClojureScript-прототип тепер є fallback — WASM є основним веб-рушієм
+  assert.match(core, /loading WASM/);
+  assert.match(core, /wasm\/ready\?/);
+});
+
+test('WASM crate and ClojureScript bindings are present and correctly wired', () => {
+  const wasmCargo = readFileSync('crates/my-lisp-wasm/Cargo.toml', 'utf8');
+  const wasmLib = readFileSync('crates/my-lisp-wasm/src/lib.rs', 'utf8');
+  const wasmCljs = readFileSync('src-cljs/my_idea/wasm.cljs', 'utf8');
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  // Crate is a cdylib that depends on my-lisp and wasm-bindgen
+  assert.match(wasmCargo, /cdylib/);
+  assert.match(wasmCargo, /wasm-bindgen/);
+  assert.match(wasmCargo, /my-lisp\s*=/);
+  // The evaluate function mirrors Tauri contract
+  assert.match(wasmLib, /#\[wasm_bindgen\]/);
+  assert.match(wasmLib, /pub fn evaluate/);
+  assert.match(wasmLib, /my-lisp · WASM/);
+  assert.match(wasmLib, /include_str!/);
+  // CLJS bindings load the module and expose ready? / evaluate
+  assert.match(wasmCljs, /ready\?/);
+  assert.match(wasmCljs, /load!/);
+  assert.match(wasmCljs, /\/wasm\/my_lisp_wasm\.js/);
+  // core.cljs uses the WASM module in the web branch
+  assert.match(core, /my-idea.wasm/);
+  assert.match(core, /wasm\/evaluate/);
+  // wasm/load! is called only in the web build (when-not native?)
+  assert.match(core, /wasm\/load!/);
+  assert.match(core, /when-not.*workspace\/native\?/s);
+
 });
 
 test('open and save work in both browser and Tauri modes', () => {

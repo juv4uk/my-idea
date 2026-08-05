@@ -1,0 +1,53 @@
+(ns my-idea.wasm)
+
+;; Single atom holding the initialised wasm-bindgen module or nil while loading.
+;; Єдиний атом, що зберігає ініціалізований wasm-bindgen модуль або nil під час завантаження.
+;; Einzelnes Atom, das das initialisierte wasm-bindgen-Modul oder nil während des Ladens enthält.
+(defonce !module (atom nil))
+
+(defn ready?
+  "Returns true once the WASM module has been loaded and initialised.
+   Повертає true після завантаження та ініціалізації WASM-модуля.
+   Gibt true zurück, sobald das WASM-Modul geladen und initialisiert wurde."
+  []
+  (some? @!module))
+
+(defn load!
+  "Asynchronously fetches and initialises the my-lisp WASM module.
+   Calls on-ready (no args) when the module is ready.
+   Safe to call multiple times; subsequent calls are no-ops if already loaded.
+
+   Асинхронно завантажує та ініціалізує WASM-модуль my-lisp.
+   Викликає on-ready (без аргументів) коли модуль готовий.
+   Безпечно викликати кілька разів; повторні виклики — no-op якщо вже завантажено.
+
+   Lädt und initialisiert das my-lisp-WASM-Modul asynchron.
+   Ruft on-ready (ohne Argumente) auf, wenn das Modul bereit ist.
+   Mehrfachaufrufe sind sicher; weitere Aufrufe sind no-ops, falls bereits geladen."
+  [on-ready]
+  (when-not (ready?)
+    (-> (js/import "/wasm/my_lisp_wasm.js")
+        (.then (fn [js-module]
+                 (-> (.default js-module)
+                     (.then (fn []
+                              (reset! !module js-module)
+                              (on-ready))))))
+        (.catch (fn [err]
+                  (js/console.warn
+                   "my-lisp WASM failed to load – falling back to ClojureScript prototype"
+                   err))))))
+
+(defn evaluate
+  "Calls the WASM evaluate(source) function.
+   Returns a JS Promise resolving to {:value :output :ast :engine}.
+   Must only be called when (ready?) is true.
+
+   Викликає WASM-функцію evaluate(source).
+   Повертає JS Promise, що резолвиться до {:value :output :ast :engine}.
+   Викликати лише якщо (ready?) є true.
+
+   Ruft die WASM-Funktion evaluate(source) auf.
+   Gibt ein JS-Promise zurück, das zu {:value :output :ast :engine} auflöst.
+   Darf nur aufgerufen werden, wenn (ready?) true ist."
+  [source]
+  (js/Promise.resolve (.evaluate @!module source)))

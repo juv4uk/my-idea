@@ -203,6 +203,52 @@ fn save_workspace_file(
     fs::write(path, contents).map_err(|error| error.to_string())
 }
 
+/// Opens a system «Save As» dialog and writes the file to the chosen location.
+/// Відкриває системний діалог «Зберегти як» і записує файл у вибране місце.
+/// Öffnet einen «Speichern unter»-Dialog und schreibt die Datei an den gewählten Speicherort.
+#[tauri::command]
+#[cfg(desktop)]
+fn save_as_dialog(
+    app: AppHandle,
+    path: String,
+    contents: String,
+) -> Result<Option<String>, String> {
+    let file_name = PathBuf::from(&path)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "untitled".into());
+    let chosen = app
+        .dialog()
+        .file()
+        .set_title("Зберегти як · Save As · Speichern unter")
+        .set_file_name(&file_name)
+        .blocking_save_file();
+    match chosen {
+        Some(dest) => {
+            let dest_path = dest.into_path().map_err(|e| e.to_string())?;
+            fs::write(&dest_path, contents).map_err(|e| e.to_string())?;
+            Ok(Some(dest_path.to_string_lossy().into_owned()))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Mobile stub – Save As dialog is not yet available on Android/iOS.
+/// Мобільна заглушка – діалог «Зберегти як» ще не підтримується на Android/iOS.
+/// Mobile-Stub – der «Speichern unter»-Dialog ist auf Android/iOS noch nicht verfügbar.
+#[tauri::command]
+#[cfg(mobile)]
+fn save_as_dialog(
+    _path: String,
+    _contents: String,
+) -> Result<Option<String>, String> {
+    Err(concat!(
+        "Save As dialog is not yet supported on mobile. ",
+        "Діалог «Зберегти як» ще не підтримується на мобільних платформах. ",
+        "Der «Speichern unter»-Dialog ist auf mobilen Plattformen noch nicht verfügbar."
+    ).into())
+}
+
 /// Starts the native shell and exposes only workspace-scoped file operations.
 /// Запускає оболонку й надає лише файлові операції в межах workspace.
 /// Startet die Hülle mit ausschließlich arbeitsbereichsgebundenen Dateioperationen.
@@ -219,6 +265,7 @@ pub fn run() {
             list_workspace,
             read_workspace_file,
             save_workspace_file,
+            save_as_dialog,
             evaluate_my_lisp
         ])
         .run(tauri::generate_context!())
