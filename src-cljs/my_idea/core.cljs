@@ -128,7 +128,7 @@
   (let [source (editor/source)
         mode (or (:language-mode (active-doc)) "text")]
     (swap! state workspace/update-active source)
-    (if (= mode "my-lisp")
+    (if (contains? #{"my-lisp" "markdown"} mode)
       (if (workspace/native?)
         ;; Desktop (Tauri) — canonical Rust engine via IPC
         ;; Десктоп (Tauri) — канонічний Rust-рушій через IPC
@@ -156,7 +156,7 @@
              :output [(str (get programming-language-labels mode)
                            " runtime is not connected yet · runtime ще не підключено · Runtime ist noch nicht verbunden")]
              :error? true))
-    (when-not (and (= mode "my-lisp") (workspace/native?))
+    (when-not (and (contains? #{"my-lisp" "markdown"} mode) (workspace/native?))
       (render!))))
 
 (defn- cycle-programming-language! []
