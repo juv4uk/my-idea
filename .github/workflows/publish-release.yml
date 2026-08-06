@@ -141,9 +141,9 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p arm64-artifacts
-          find src-tauri/target -name "*.deb" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
-          find src-tauri/target -name "*.AppImage" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
-          find src-tauri/target -name "*.rpm" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
+          find . -name "*.deb" -not -path "*/node_modules/*" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
+          find . -name "*.AppImage" -not -path "*/node_modules/*" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
+          find . -name "*.rpm" -not -path "*/node_modules/*" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
           test -n "$(find arm64-artifacts -type f -print -quit)"
           gh release upload "$RELEASE_TAG" arm64-artifacts/* --clobber
 
@@ -195,13 +195,16 @@ jobs:
         run: npm run tauri build -- --target aarch64-pc-windows-msvc --bundles nsis
       - name: Verify ARM64 PE header · Перевірити PE-заголовок · PE-Kopf prüfen
         shell: pwsh
-        run: ./scripts/verify-windows-architecture.ps1 -Path src-tauri/target/aarch64-pc-windows-msvc/release/my-idea.exe -ExpectedMachine 0xAA64
+        run: |
+          $exe = Get-ChildItem -Path . -Filter 'my-idea.exe' -Recurse | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object -First 1
+          if (-not $exe) { throw 'my-idea.exe was not found for PE header verification.' }
+          ./scripts/verify-windows-architecture.ps1 -Path $exe.FullName -ExpectedMachine 0xAA64
       - name: Upload Windows ARM64 installer · Завантажити installer · Installer hochladen
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $installer = Get-ChildItem 'src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis' -Filter '*.exe' | Select-Object -First 1
+          $installer = Get-ChildItem -Path . -Filter '*.exe' -Recurse | Where-Object { $_.FullName -match 'nsis' -and $_.FullName -notmatch 'node_modules' } | Select-Object -First 1
           if (-not $installer) { throw 'Windows ARM64 NSIS installer was not produced.' }
           $asset = "my-idea_$($env:RELEASE_TAG.TrimStart('v'))_arm64-setup.exe"
           Copy-Item -LiteralPath $installer.FullName -Destination $asset
@@ -244,7 +247,7 @@ jobs:
         run: |
           sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           sudo flatpak install -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
-          DEB_FILE="$(find src-tauri/target/release/bundle/deb -name '*.deb' | head -n 1)"
+          DEB_FILE="$(find . -name '*.deb' -not -path '*/node_modules/*' | head -n 1)"
           test -f "$DEB_FILE"
           cp "$DEB_FILE" my-idea.deb
           cat > com.juv4u.my-idea.yml <<'EOF'
