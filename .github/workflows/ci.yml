@@ -23,8 +23,9 @@ jobs:
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - run: npm ci
+      - run: npm run build
+      - run: node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
       - run: npm test
       - run: npm run check
-      - run: npm run build
       - name: Test my-lisp Rust core · Тест Rust-ядра my-lisp · my-lisp-Rust-Kern testen
         run: cargo test --manifest-path crates/my-lisp/Cargo.toml

@@ -12,7 +12,7 @@ const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 test('Conformance alignment tests', async (t) => {
     // Wait for WASM engine to initialize. Read the WASM bytes manually since we're in Node.
     const wasmBytes = fs.readFileSync(path.resolve('public/wasm/my_lisp_wasm_bg.wasm'));
-    await init(wasmBytes);
+    await init({ module_or_path: wasmBytes });
     
     for (const { expr, expected } of fixture) {
         await t.test(`Evaluating: ${expr}`, () => {
