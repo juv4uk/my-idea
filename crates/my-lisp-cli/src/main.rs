@@ -16,8 +16,24 @@ fn main() {
     }
 
     if args.len() > 1 {
+        let arg = &args[1];
+        
+        if arg == "--version" || arg == "-V" || arg == "-v" {
+            println!("my-lisp {}", env!("CARGO_PKG_VERSION"));
+            return;
+        }
+        
+        if arg == "--help" || arg == "-h" {
+            println!("Usage: my-lisp [file]");
+            println!("If no file is provided, starts the REPL.");
+            println!("\nOptions:");
+            println!("  -V, --version  Print version information");
+            println!("  -h, --help     Print help information");
+            return;
+        }
+
         // Run file
-        let filename = &args[1];
+        let filename = arg;
         match fs::read_to_string(filename) {
             Ok(source) => {
                 match parse(&source) {
@@ -48,7 +64,7 @@ fn main() {
         }
     } else {
         // REPL mode
-        println!("my-lisp REPL v0.1.0 (pure Rust)");
+        println!("my-lisp REPL v{} (pure Rust)", env!("CARGO_PKG_VERSION"));
         println!("Press Ctrl-C or Ctrl-D to exit.");
 
         let mut rl = DefaultEditor::new().unwrap();

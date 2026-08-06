@@ -17,19 +17,19 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: my-lisp
-            asset_name: my-lisp-linux-x86_64
+            asset_suffix: linux_amd64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: my-lisp.exe
-            asset_name: my-lisp-windows-x86_64.exe
+            asset_suffix: windows_x64
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: my-lisp
-            asset_name: my-lisp-macos-x86_64
+            asset_suffix: macos_x64
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: my-lisp
-            asset_name: my-lisp-macos-arm64
+            asset_suffix: macos_arm64
     
     steps:
       - uses: actions/checkout@v4
@@ -42,10 +42,23 @@ jobs:
       - name: Build CLI
         run: cargo build --release -p my-lisp-cli --target ${{ matrix.target }}
         
+      - name: Rename Binary
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          SRC="target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            DST="my-lisp_${VERSION}_${{ matrix.asset_suffix }}.exe"
+          else
+            DST="my-lisp_${VERSION}_${{ matrix.asset_suffix }}"
+          fi
+          mv "$SRC" "$DST"
+          echo "ASSET_PATH=$DST" >> $GITHUB_ENV
+          
       - name: Upload Binary
         uses: softprops/action-gh-release@v1
         with:
-          files: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          files: ${{ env.ASSET_PATH }}
           name: Release ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
         env:
