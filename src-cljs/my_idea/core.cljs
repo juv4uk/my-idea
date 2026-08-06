@@ -143,15 +143,19 @@
           (-> (wasm/evaluate source mode)
               (.then handle-eval-result!)
               (.catch handle-eval-error!))
-          ;; Fallback while WASM is still loading — ClojureScript prototype
-          ;; Fallback поки WASM завантажується — ClojureScript-прототип
-          ;; Fallback während das WASM noch lädt – ClojureScript-Prototyp
-          (try (let [{:keys [value output forms]} (language/run-program source)]
-                 (swap! state assoc
-                        :output (into ["my-lisp · ClojureScript (loading WASM…)"]
-                                      (conj (vec output) (str "=> " (pr-str value))))
-                        :ast (with-out-str (pprint/pprint forms)) :error? false))
-               (catch :default e (handle-eval-error! (.-message e))))))
+          ;; Fallback while WASM is still loading — ClojureScript prototype (my-lisp only)
+          ;; Fallback поки WASM завантажується — ClojureScript-прототип (лише my-lisp)
+          ;; Fallback während das WASM noch lädt – ClojureScript-Prototyp (nur my-lisp)
+          (if (= mode "markdown")
+            (swap! state assoc
+                   :output ["Literate mode requires WASM · очікуйте завершення завантаження · WASM wird geladen…"]
+                   :error? false)
+            (try (let [{:keys [value output forms]} (language/run-program source)]
+                   (swap! state assoc
+                          :output (into ["my-lisp · ClojureScript (loading WASM…)"]
+                                        (conj (vec output) (str "=> " (pr-str value))))
+                          :ast (with-out-str (pprint/pprint forms)) :error? false))
+                 (catch :default e (handle-eval-error! (.-message e)))))))
       (swap! state assoc
              :output [(str (get programming-language-labels mode)
                            " runtime is not connected yet · runtime ще не підключено · Runtime ist noch nicht verbunden")]
