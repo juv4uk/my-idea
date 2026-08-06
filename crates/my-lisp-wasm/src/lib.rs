@@ -12,6 +12,7 @@
 //! `core.cljs` beide Umgebungen mit identischen Ergebnisstrukturen behandeln kann.
 
 use my_lisp::Session;
+use my_lisp_literate::SourceMode;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -40,8 +41,9 @@ struct Evaluation {
 /// Im Fehlerfall wird eine JS-Ausnahme geworfen (im CLJS-.catch-Handler abgefangen).
 #[wasm_bindgen]
 pub fn evaluate(source: &str, mode: &str) -> Result<JsValue, JsValue> {
+    let source_mode = if mode == "markdown" { SourceMode::Literate } else { SourceMode::PureLisp };
     let mut session = Session::default();
-    let (result, forms) = my_lisp_literate::eval_literate(source, mode, &mut session)
+    let (result, forms) = my_lisp_literate::eval_literate(source, source_mode, &mut session)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let evaluation = Evaluation {
@@ -64,7 +66,7 @@ mod native_wasm_crate_tests {
     #[test]
     fn wasm_crate_single_pass_produces_exact_evaluation_struct() {
         let mut session = Session::default();
-        let (result, forms) = my_lisp_literate::eval_literate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))", "my-lisp", &mut session)
+        let (result, forms) = my_lisp_literate::eval_literate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))", SourceMode::PureLisp, &mut session)
             .expect("eval_literate should succeed");
 
         let evaluation = Evaluation {

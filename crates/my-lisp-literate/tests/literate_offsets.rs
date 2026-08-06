@@ -1,4 +1,5 @@
 use my_lisp::Value;
+use my_lisp_literate::SourceMode;
 
 #[test]
 fn test_literate_offsets() {
@@ -20,7 +21,7 @@ Some more text.
 "#;
 
     let mut session = my_lisp::Session::default();
-    let result = my_lisp_literate::eval_literate(source, "clojure", &mut session).expect("should evaluate successfully");
+    let result = my_lisp_literate::eval_literate(source, SourceMode::Literate, &mut session).expect("should evaluate successfully");
     
     assert_eq!(result.0.value, Value::Number(42.0));
 }
@@ -29,7 +30,7 @@ Some more text.
 fn test_fallback_no_markdown() {
     let source = "(+ 10 20)";
     let mut session = my_lisp::Session::default();
-    let result = my_lisp_literate::eval_literate(source, "clojure", &mut session).expect("should evaluate fallback");
+    let result = my_lisp_literate::eval_literate(source, SourceMode::PureLisp, &mut session).expect("should evaluate fallback");
     assert_eq!(result.0.value, Value::Number(30.0));
 }
 
@@ -50,7 +51,7 @@ Now an error:
 "#;
 
     let mut session = my_lisp::Session::default();
-    let error = my_lisp_literate::eval_literate(source, "clojure", &mut session).expect_err("should fail on unknown symbol");
+    let error = my_lisp_literate::eval_literate(source, SourceMode::Literate, &mut session).expect_err("should fail on unknown symbol");
     
     // Check if the span matches the original source
     let error_text = &source[error.span.start..error.span.end];

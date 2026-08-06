@@ -1,4 +1,5 @@
 use my_lisp::Session;
+use my_lisp_literate::SourceMode;
 use serde::Serialize;
 use std::{
     fs,
@@ -43,8 +44,9 @@ struct LispEvaluation {
 #[tauri::command]
 fn evaluate_my_lisp(source: String, mode: Option<String>) -> Result<LispEvaluation, String> {
     let mode_str = mode.as_deref().unwrap_or("my-lisp");
+    let source_mode = if mode_str == "markdown" { SourceMode::Literate } else { SourceMode::PureLisp };
     let mut session = Session::default();
-    let (result, forms) = my_lisp_literate::eval_literate(&source, mode_str, &mut session)
+    let (result, forms) = my_lisp_literate::eval_literate(&source, source_mode, &mut session)
         .map_err(|error| error.to_string())?;
         
     Ok(LispEvaluation {

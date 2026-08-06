@@ -23,7 +23,13 @@ fn remap_error(mut error: LanguageError, maps: &[(usize, usize, usize)]) -> Lang
     error
 }
 
-pub fn eval_literate(source: &str, mode: &str, session: &mut Session) -> Result<(EvalResult, Vec<Expr>), LanguageError> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceMode {
+    PureLisp,
+    Literate,
+}
+
+pub fn eval_literate(source: &str, mode: SourceMode, session: &mut Session) -> Result<(EvalResult, Vec<Expr>), LanguageError> {
     let mut concatenated = String::new();
     let mut offset_maps = Vec::new();
 
@@ -48,7 +54,7 @@ pub fn eval_literate(source: &str, mode: &str, session: &mut Session) -> Result<
         }
     }
 
-    let is_literate = mode == "markdown";
+    let is_literate = mode == SourceMode::Literate;
 
     if !is_literate {
         // Pure Lisp mode: evaluate the entire source
