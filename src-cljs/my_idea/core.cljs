@@ -21,7 +21,7 @@
                       :active-path nil
                       :documents {}
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
-
+(def messages
   {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
    "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд"
