@@ -52,18 +52,67 @@
   (cond
     (rational? value) [(.-numerator ^Rational value) (.-denominator ^Rational value)]
     (and (number? value) (js/Number.isSafeInteger value)) [value 1]
-    :else (throw (js/Error. "/ expects exact integers or rational numbers · / очікує точні цілі або раціональні числа · / erwartet exakte Ganz- oder rationale Zahlen"))))
+    :else (throw (js/Error. "expects exact integers or rational numbers"))))
+
+(defn- exact? [value]
+  (or (rational? value) (and (number? value) (js/Number.isSafeInteger value))))
+
+(defn- to-float [value]
+  (if (rational? value)
+    (/ (.-numerator ^Rational value) (.-denominator ^Rational value))
+    value))
+
+(defn- do-add [a b]
+  (if (and (exact? a) (exact? b))
+    (let [[an ad] (fraction-parts a)
+          [bn bd] (fraction-parts b)]
+      (rational (+ (* an bd) (* bn ad)) (* ad bd)))
+    (+ (to-float a) (to-float b))))
+
+(defn- exact-add
+  ([] 0)
+  ([value] value)
+  ([value & others] (reduce do-add value others)))
+
+(defn- do-sub [a b]
+  (if (and (exact? a) (exact? b))
+    (let [[an ad] (fraction-parts a)
+          [bn bd] (fraction-parts b)]
+      (rational (- (* an bd) (* bn ad)) (* ad bd)))
+    (- (to-float a) (to-float b))))
+
+(defn- exact-subtract
+  ([value]
+   (if (exact? value)
+     (let [[n d] (fraction-parts value)] (rational (- n) d))
+     (- (to-float value))))
+  ([value & others] (reduce do-sub value others)))
+
+(defn- do-mul [a b]
+  (if (and (exact? a) (exact? b))
+    (let [[an ad] (fraction-parts a)
+          [bn bd] (fraction-parts b)]
+      (rational (* an bn) (* ad bd)))
+    (* (to-float a) (to-float b))))
+
+(defn- exact-multiply
+  ([] 1)
+  ([value] value)
+  ([value & others] (reduce do-mul value others)))
+
+(defn- do-div [a b]
+  (if (and (exact? a) (exact? b))
+    (let [[an ad] (fraction-parts a)
+          [bn bd] (fraction-parts b)]
+      (rational (* an bd) (* ad bn)))
+    (/ (to-float a) (to-float b))))
 
 (defn- exact-divide
   ([value]
-   (let [[numerator denominator] (fraction-parts value)]
-     (rational denominator numerator)))
-  ([value & divisors]
-   (reduce (fn [result divisor]
-             (let [[left-n left-d] (fraction-parts result)
-                   [right-n right-d] (fraction-parts divisor)]
-               (rational (* left-n right-d) (* left-d right-n))))
-           value divisors)))
+   (if (exact? value)
+     (let [[n d] (fraction-parts value)] (rational d n))
+     (/ 1 (to-float value))))
+  ([value & others] (reduce do-div value others)))
 
 (defn- lisp-atom? [value]
   (if (or (not (seq? value)) (empty? value)) 't '()))
@@ -87,10 +136,10 @@
 (defn- lisp-bool [b] (if b 't '()))
 
 (def builtins
-  {'+ +, '- -, '* *, '/ exact-divide,
-   '= (fn [a b] (lisp-bool (= a b))),
-   '< (fn [a b] (lisp-bool (< a b))),
-   '> (fn [a b] (lisp-bool (> a b))),
+  {'+ exact-add, '- exact-subtract, '* exact-multiply, '/ exact-divide,
+   '= (fn [a b] (lisp-bool (if (or (exact? a) (exact? b)) (= (to-float a) (to-float b)) (= a b)))),
+   '< (fn [a b] (lisp-bool (< (to-float a) (to-float b)))),
+   '> (fn [a b] (lisp-bool (> (to-float a) (to-float b)))),
    'str str, 'list list, 'vector vector, 'count count,
    'atom lisp-atom?, 'eq lisp-eq, 'car lisp-car, 'cdr lisp-cdr, 'cons cons})
 
