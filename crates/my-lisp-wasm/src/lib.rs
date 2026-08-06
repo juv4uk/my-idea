@@ -60,6 +60,9 @@ pub fn evaluate(source: &str) -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&evaluation).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+// EN: Maintainers: If the body of evaluate() is modified above, ensure this native test stays in sync.
+// UK: Розробникам: Якщо тіло evaluate() змінюється вище, зберігайте цей нативний тест у синхроні з ним.
+// DE: Entwickler: Wenn der Rumpf von evaluate() oben geändert wird, halten Sie diesen nativen Test synchron.
 #[cfg(test)]
 mod native_wasm_crate_tests {
     use super::*;
