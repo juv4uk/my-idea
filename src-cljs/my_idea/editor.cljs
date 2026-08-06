@@ -1,9 +1,7 @@
 (ns my-idea.editor
-  (:require [my-idea.language :as idea-language]
-            ["@codemirror/autocomplete" :refer [autocompletion completeFromList completionKeymap]]
+  (:require ["@codemirror/autocomplete" :refer [autocompletion completeFromList completionKeymap]]
             ["@codemirror/commands" :refer [defaultKeymap history historyKeymap indentWithTab]]
             ["@codemirror/language" :refer [bracketMatching foldGutter indentOnInput]]
-            ["@codemirror/lint" :refer [linter lintGutter]]
             ["@codemirror/state" :refer [EditorState]]
             ["@codemirror/view" :refer [EditorView drawSelection
                                          highlightActiveLine highlightActiveLineGutter
@@ -34,17 +32,6 @@
         #js {:label "vector" :type "function"}
         #js {:label "count" :type "function"}
         #js {:label "pi" :type "constant"}]))
-
-(defn- diagnostics [view]
-  (let [source (.. view -state -doc toString)]
-    (try
-      (idea-language/parse-program source)
-      #js []
-      (catch :default error
-        #js [#js {:from 0
-                  :to (min 1 (count source))
-                  :severity "error"
-                  :message (.-message error)}]))))
 
 (defn- editor-theme []
   (let [theme (or (.. js/document -documentElement -dataset -theme) "auto")
@@ -99,7 +86,7 @@
     "markdown" #js [(markdown)]
     "mermaid" #js [(mermaid)]
     "text" #js []
-    #js [(clojure) (autocompletion #js {:override #js [completions]}) (lintGutter) (linter diagnostics)]))
+    #js [(clojure) (autocompletion #js {:override #js [completions]})]))
 
 (defn mount!
   "Mount the programming editor. The evaluator is only one optional consumer."

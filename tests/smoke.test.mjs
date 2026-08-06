@@ -37,7 +37,6 @@ test('CodeMirror 6 is the primary reusable editor', () => {
   assert.match(editor, /@codemirror\/view/);
   assert.match(editor, /lineNumbers/);
   assert.match(editor, /autocompletion/);
-  assert.match(editor, /linter/);
   assert.match(editor, /\.\-matches/);
 });
 
@@ -67,9 +66,9 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
   assert.match(cargo, /my-lisp\s*=\s*\{\s*path\s*=\s*"\.\.\/crates\/my-lisp"/);
   assert.match(rust, /fn evaluate_my_lisp/);
   assert.match(core, /invoke! "evaluate_my_lisp"/);
-  // ClojureScript prototype is now a fallback — WASM is the primary web engine
-  // ClojureScript-прототип тепер є fallback — WASM є основним веб-рушієм
-  assert.match(core, /loading WASM/);
+  // ClojureScript prototype is removed — WASM is the only web engine
+  // ClojureScript-прототип видалено — WASM є єдиним веб-рушієм
+  assert.match(core, /WASM engine is loading/);
   assert.match(core, /wasm\/ready\?/);
 });
 
