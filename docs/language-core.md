@@ -72,26 +72,26 @@ Die erste Bootstrap-Bibliothek ist `lib/core.my`. Ihre Definitionen (`identity`,
 
 ## Available Operations and Forms · Доступні операції та форми · Verfügbare Operationen und Formen
 
-### Built-in Forms (Rust core)
-- `quote` (`'`) — Returns the expression unevaluated
-- `lambda` — Creates an anonymous function (closure)
-- `def` — Defines a variable or function in the current environment
-- `defmacro` — Defines a macro (compile-time expansion)
-- `list` — Creates a list from evaluated arguments
-- `cond` — Conditional logic
-- `atom` — Checks if a value is an atom (not a list/pair)
-- `eq` — Checks equality between two atoms
-- `car` — Returns the first element of a list/pair
-- `cdr` — Returns the tail of a list/pair
-- `cons` — Constructs a pair or adds an element to a list
-- `+`, `-`, `*`, `/` — Arithmetic operations. `/` produces exact rational fractions (e.g. `1/3`) for integers.
+### Built-in Forms (Rust core) · Вбудовані форми · Eingebaute Formen
+- `quote` (`'`) — Returns the expression unevaluated · Повертає вираз без обчислення · Gibt den Ausdruck unberechnet zurück
+- `lambda` — Creates an anonymous function (closure) · Створює анонімну функцію (замикання) · Erstellt eine anonyme Funktion (Closure)
+- `def` — Defines a variable or function in the current environment · Визначає змінну або функцію в поточному середовищі · Definiert eine Variable oder Funktion in der aktuellen Umgebung
+- `defmacro` — Defines a macro (compile-time expansion) · Створює макрос (розкривається на етапі оцінки) · Definiert ein Makro (Erweiterung zur Kompilierzeit)
+- `list` — Creates a list from evaluated arguments · Створює список з обчислених аргументів · Erstellt eine Liste aus ausgewerteten Argumenten
+- `cond` — Conditional logic · Умовна логіка · Bedingte Logik
+- `atom` — Checks if a value is an atom (not a list/pair) · Перевіряє, чи є значення атомом (не списком/парою) · Prüft, ob ein Wert ein Atom ist (keine Liste/Paar)
+- `eq` — Checks equality between two atoms · Перевіряє рівність двох атомів · Prüft die Gleichheit zwischen zwei Atomen
+- `car` — Returns the first element of a list/pair · Повертає перший елемент списку/пари · Gibt das erste Element einer Liste/eines Paares zurück
+- `cdr` — Returns the tail of a list/pair · Повертає хвіст списку/пари · Gibt den Rest einer Liste/eines Paares zurück
+- `cons` — Constructs a pair or adds an element to a list · Створює пару або додає елемент до списку · Erstellt ein Paar oder fügt ein Element zu einer Liste hinzu
+- `+`, `-`, `*`, `/` — Arithmetic operations. `/` produces exact rational fractions (e.g. `1/3`) for integers. · Арифметичні операції. `/` для цілих чисел створює точні раціональні дроби (напр. `1/3`). · Arithmetische Operationen. `/` erzeugt für Ganzzahlen exakte rationale Brüche (z. B. `1/3`).
 
-### Standard Library (`lib/core.my`)
-- `identity` — Returns its argument
-- `not` — Logical NOT
-- `pair` — Creates a list of two elements
-- `second` — Returns the second element of a list
-- `third` — Returns the third element of a list
+### Standard Library (`lib/core.my`) · Стандартна бібліотека · Standardbibliothek
+- `identity` — Returns its argument · Повертає переданий аргумент · Gibt sein Argument zurück
+- `not` — Logical NOT · Логічне заперечення · Logisches NICHT
+- `pair` — Creates a list of two elements · Створює список із двох елементів · Erstellt eine Liste aus zwei Elementen
+- `second` — Returns the second element of a list · Повертає другий елемент списку · Gibt das zweite Element einer Liste zurück
+- `third` — Returns the third element of a list · Повертає третій елемент списку · Gibt das dritte Element einer Liste zurück
 - `caar` — `(car (car x))`
 - `cadr` — `(car (cdr x))`
 
