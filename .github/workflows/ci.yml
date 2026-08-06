@@ -25,6 +25,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+      - name: Install Playwright Browsers · Встановити браузери Playwright · Playwright-Browser installieren
+        run: npx playwright install chromium --with-deps
       - run: npm test
       - run: npm run check
       - name: Test my-lisp Rust core · Тест Rust-ядра my-lisp · my-lisp-Rust-Kern testen

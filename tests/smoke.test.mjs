@@ -205,8 +205,9 @@ test('Standalone web artifact does not stack overflow on 100k list', async () =>
   await new Promise(resolve => server.listen(0, resolve));
   const port = server.address().port;
   
-  const browser = await chromium.launch();
+  let browser;
   try {
+    browser = await chromium.launch();
     const context = await browser.newContext();
     const page = await context.newPage();
     
@@ -226,7 +227,7 @@ test('Standalone web artifact does not stack overflow on 100k list', async () =>
     assert.ok(res !== undefined, "Result should not be undefined");
     assert.ok(res.error === undefined, "Should not return an error: " + res.error);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
     server.close();
   }
 });
