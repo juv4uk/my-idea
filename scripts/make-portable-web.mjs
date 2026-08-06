@@ -15,6 +15,81 @@ let html = await readFile(inputPath, 'utf8');
 // DE: Lokale Stile und Skripte einbetten, damit die Demo offline funktioniert.
 html = await replaceAsync(html, /<link\s+rel=["']stylesheet["']\s+href=["']([^"']+)["']\s*\/?>/gi,
   async (_, reference) => `<style>${await readLocal(reference)}</style>`);
+
+// EN: Embed WASM as base64 and replace wasm-loader with embedded version.
+// UK: Вбудувати WASM як base64 і замінити wasm-loader на embedded версію.
+// DE: WASM als base64 einbetten und wasm-loader durch embedded Version ersetzen.
+const wasmBytes = await readFile(path.join(root, 'wasm/my_lisp_wasm_bg.wasm'));
+const wasmBase64 = wasmBytes.toString('base64');
+
+// EN: Inline wasm-bindgen JS if available, otherwise use simple fetch override.
+// UK: Інлайнити wasm-bindgen JS якщо доступний, інакше використати просте перевизначення fetch.
+// DE: wasm-bindgen JS inline wenn verfügbar, sonst einfaches fetch-Override verwenden.
+let wasmJs;
+try {
+  wasmJs = await readFile(path.join(root, 'wasm/my_lisp_wasm.js'), 'utf8');
+} catch (e) {
+  console.warn('wasm/my_lisp_wasm.js not found, using fetch override only');
+}
+
+// EN: Create embedded loader with base64 WASM data.
+// UK: Створити embedded loader з base64 WASM даними.
+// DE: Embedded-Loader mit base64-WASM-Daten erstellen.
+const embeddedLoader = `
+// Embedded WASM loader for standalone HTML artifact.
+// Embedded WASM-Loader für standalone HTML-Artefakt.
+function decodeBase64(base64) {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// EN: Embedded WASM binary data.
+// UK: Вбудовані WASM бінарні дані.
+// DE: Eingebettete WASM-Binärdaten.
+const embeddedWasmBytes = decodeBase64('${wasmBase64}');
+
+// EN: Override fetch to serve embedded WASM.
+// UK: Перевизначити fetch для обслуговування вбудованого WASM.
+// DE: Fetch überschreiben, um eingebettetes WASM zu servieren.
+const originalFetch = window.fetch;
+window.fetch = function(url, options) {
+  if (typeof url === 'string' && url.endsWith('.wasm')) {
+    return Promise.resolve({
+      arrayBuffer: () => Promise.resolve(embeddedWasmBytes)
+    });
+  }
+  return originalFetch.apply(this, arguments);
+};
+
+${wasmJs || ''}
+
+// EN: Shim for compatibility with existing wasm-loader interface.
+// UK: Shim для сумісності з існуючим wasm-loader інтерфейсом.
+// DE: Shim für Kompatibilität mit dem bestehenden wasm-loader-Interface.
+window.loadMyLispWasm = function() {
+  if (window.wasm_bindgen) {
+    return Promise.resolve(window.wasm_bindgen);
+  }
+  // Fallback to dynamic import if wasm-bindgen was not inlined.
+  // Fallback zu dynamic import wenn wasm-bindgen nicht inline war.
+  var dynamicImport = new Function('u', 'return import(u)');
+  return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {
+    return mod.default().then(function () {
+      return mod;
+    });
+  });
+};
+`;
+
+html = html.replace(
+  /<script\s+src=["']\.\/wasm-loader\.js["']\s*><\/script>/,
+  `<script>${embeddedLoader.replaceAll('</script>', '<\\/script>')}</script>`
+);
+
 html = await replaceAsync(html, /<script\s+src=["']([^"']+)["']\s*><\/script>/gi,
   async (_, reference) => `<script>${(await readLocal(reference)).replaceAll('</script>', '<\\/script>')}</script>`);
 
@@ -23,7 +98,7 @@ if (/<script[^>]+src=|<link[^>]+rel=["']stylesheet["']/i.test(html)) {
 }
 
 await writeFile(outputPath, html, 'utf8');
-console.log(`Standalone Web HTML created: ${outputPath} (${Buffer.byteLength(html)} bytes)`);
+console.log(`Standalone Web HTML created: ${outputPath} (${Buffer.byteLength(html)} bytes, WASM: ${wasmBytes.length} bytes)`);
 
 async function readLocal(reference) {
   if (/^(?:[a-z]+:)?\/\//i.test(reference)) throw new Error(`Remote asset cannot be embedded: ${reference}`);

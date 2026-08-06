@@ -71,5 +71,7 @@ docs/PROJECT_MEMORY.md
 src-tauri/gen/android/app/src/main/res/mipmap-*/
 src-tauri/gen/android/app/src/main/res/mipmap-anydpi-v26/
 
-# Standalone Web HTML
+# Standalone Web HTML (generated artifact)
+# Standalone Web HTML (згенерований артефакт)
+# Standalone Web HTML (generiertes Artefakt)
 my-idea-web.html
