@@ -2,11 +2,11 @@
 
 > **A small language that grows itself. · Маленька мова, що вирощує себе. · Eine kleine Sprache, die sich selbst wachsen lässt.**
 
-The language is named **my-lisp** and is independent from the IDE. Its first canonical Rust implementation lives in `crates/my-lisp`; the current ClojureScript evaluator remains an executable prototype during migration.
+The language is named **my-lisp** and is independent from the IDE. Its canonical implementation lives in `crates/my-lisp` (Rust), which powers both the desktop shell and the Web build via WebAssembly. The initial ClojureScript prototype has been fully replaced.
 
-Мова має назву **my-lisp** і є незалежною від IDE. Її перша канонічна реалізація на Rust міститься у `crates/my-lisp`; під час міграції поточний інтерпретатор ClojureScript залишається виконуваним прототипом.
+Мова має назву **my-lisp** і є незалежною від IDE. Її канонічна реалізація міститься у `crates/my-lisp` (Rust), яка забезпечує роботу як десктопної оболонки, так і веб-збірки через WebAssembly. Початковий прототип на ClojureScript повністю замінено.
 
-Die Sprache heißt **my-lisp** und ist von der IDE unabhängig. Ihre erste kanonische Rust-Implementierung liegt in `crates/my-lisp`; während der Migration bleibt der aktuelle ClojureScript-Interpreter ein ausführbarer Prototyp.
+Die Sprache heißt **my-lisp** und ist von der IDE unabhängig. Ihre kanonische Implementierung liegt in `crates/my-lisp` (Rust), welche sowohl die Desktop-Hülle als auch den Web-Build über WebAssembly antreibt. Der anfängliche ClojureScript-Prototyp wurde vollständig ersetzt.
 
 The canonical source-file extension is **`.my`** (for example, `welcome.my`). The generic `.lisp` extension remains a compatible alias.
 
@@ -70,19 +70,19 @@ The first bootstrapped library is `lib/core.my`. Its definitions (`identity`, `n
 
 Die erste Bootstrap-Bibliothek ist `lib/core.my`. Ihre Definitionen (`identity`, `not`, `pair`, `second`, `third`, `caar` und `cadr`) sind gewöhnlicher my-lisp-Code. Rust stellt nur `def` und lexikalische Bindung als Mechanismus zum Laden dauerhafter benannter Definitionen bereit.
 
-## Migration path · Шлях міграції · Migrationspfad
+## Unified execution · Уніфіковане виконання · Einheitliche Ausführung
 
-1. Keep the primitive behavior specified by implementation-independent examples and tests.
-2. Keep the independent Rust parser and value model covered by conformance tests.
-3. Run the same conformance cases against ClojureScript and Rust during migration.
-4. Expose Rust through Tauri on desktop and a portable boundary on web/mobile.
-5. Remove the prototype only after the Rust core passes the full contract.
+The migration from the ClojureScript prototype to the Rust core is complete. The Rust implementation conforms to the primitive behavior specified by implementation-independent examples and tests.
 
-The desktop and mobile Tauri shell exposes `evaluate_my_lisp`, while the Web/PWA build uses `crates/my-lisp-wasm` to run the canonical Rust engine directly in the browser via WebAssembly. Both host boundaries utilize single-pass parsing (`eval_parsed_expressions`), parsing editor source code once to produce both the AST view and evaluation result. Runtime errors never fall back silently from Rust to ClojureScript.
+Міграція з прототипу на ClojureScript до Rust-ядра завершена. Rust-реалізація відповідає примітивній поведінці, визначеній незалежними від реалізації прикладами та тестами.
 
-Оболонка Tauri для desktop і mobile надає `evaluate_my_lisp`, а Web/PWA-збірка використовує `crates/my-lisp-wasm` для запуску канонічного Rust-рушія безпосередньо у браузері через WebAssembly. Обидві межі використовують однопрохідний парсинг (`eval_parsed_expressions`), аналізуючи код редактора один раз як для відображення AST, так і для обчислення. Помилки виконання Rust ніколи не запускають тихий fallback на ClojureScript.
+Die Migration vom ClojureScript-Prototyp zum Rust-Kern ist abgeschlossen. Die Rust-Implementierung entspricht dem primitiven Verhalten, das durch implementierungsunabhängige Beispiele und Tests spezifiziert ist.
 
-Die Tauri-Hülle für Desktop und Mobile stellt `evaluate_my_lisp` bereit, während der Web/PWA-Build `crates/my-lisp-wasm` nutzt, um die kanonische Rust-Engine über WebAssembly direkt im Browser auszuführen. Beide Host-Grenzen verwenden Single-Pass-Parsing (`eval_parsed_expressions`), sodass der Editorcode nur einmal für AST-Anzeige und Auswertung geparst wird. Rust-Laufzeitfehler lösen niemals still einen Fallback auf ClojureScript aus.
+The desktop and mobile Tauri shell exposes `evaluate_my_lisp`, while the Web/PWA build uses `crates/my-lisp-wasm` to run the canonical Rust engine directly in the browser via WebAssembly. Both host boundaries utilize single-pass parsing (`eval_parsed_expressions`), parsing editor source code once to produce both the AST view and evaluation result. If WebAssembly fails to load in a web environment, the application gracefully degrades by displaying a clear UI error instead of an infinite loading state.
+
+Оболонка Tauri для desktop і mobile надає `evaluate_my_lisp`, а Web/PWA-збірка використовує `crates/my-lisp-wasm` для запуску канонічного Rust-рушія безпосередньо у браузері через WebAssembly. Обидві межі використовують однопрохідний парсинг (`eval_parsed_expressions`), аналізуючи код редактора один раз як для відображення AST, так і для обчислення. Якщо WebAssembly не завантажується у веб-середовищі, застосунок витончено деградує, відображаючи чітку помилку інтерфейсу замість нескінченного стану завантаження.
+
+Die Tauri-Hülle für Desktop und Mobile stellt `evaluate_my_lisp` bereit, während der Web/PWA-Build `crates/my-lisp-wasm` nutzt, um die kanonische Rust-Engine über WebAssembly direkt im Browser auszuführen. Beide Host-Grenzen verwenden Single-Pass-Parsing (`eval_parsed_expressions`), sodass der Editorcode nur einmal für AST-Anzeige und Auswertung geparst wird. Wenn WebAssembly in einer Webumgebung nicht geladen werden kann, wird die Anwendung elegant herabgestuft und zeigt einen klaren UI-Fehler anstelle eines endlosen Ladezustands.
 
 The Rust evaluator executes the final expression of a closure and the selected `cond` branch through an explicit trampoline. Tail-recursive programs therefore use constant Rust call-stack space. Closure bodies share immutable AST nodes through `Rc`; the next performance boundary is structural sharing for persistent list values.
 

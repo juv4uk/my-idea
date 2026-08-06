@@ -36,7 +36,7 @@ my-lisp source files use the canonical `.my` extension; see the [trilingual sour
 
 - CodeMirror 6 editor with Clojure highlighting, line numbers, history, bracket matching, folding, completion and diagnostics;
 - local source persistence and a responsive desktop/mobile workspace;
-- embedded safe Lisp evaluator with console and parsed-form view;
+- embedded safe Lisp evaluator (powered by Rust and WebAssembly) with console and parsed-form view;
 - English, Ukrainian and German interface;
 - installable offline PWA plus the Tauri foundation for Windows, Linux, macOS and mobile.
 

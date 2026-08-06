@@ -31,8 +31,8 @@ flowchart LR
 
 - `src-cljs/my_idea/editor.cljs` owns the reusable CodeMirror 6 integration.
 - `src-cljs/my_idea/core.cljs` renders the current workspace.
-- `src-cljs/my_idea/language.cljs` is a deliberately small capability-free Lisp evaluator.
-- `src-tauri/` is the native boundary. Future external runtimes belong behind explicit commands here.
+- `src-tauri/` is the native boundary for the desktop shell.
+- `crates/my-lisp-wasm` and `crates/my-lisp` encapsulate the canonical Rust evaluator for the Web.
 
 ## Runtime policy · Політика виконання · Laufzeitrichtlinie
 
