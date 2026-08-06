@@ -22,12 +22,26 @@ html = await replaceAsync(html, /<link\s+rel=["']stylesheet["']\s+href=["']([^"'
 const wasmBytes = await readFile(path.join(root, 'wasm/my_lisp_wasm_bg.wasm'));
 const wasmBase64 = wasmBytes.toString('base64');
 
-// EN: Inline wasm-bindgen JS if available, otherwise use simple fetch override.
-// UK: Інлайнити wasm-bindgen JS якщо доступний, інакше використати просте перевизначення fetch.
-// DE: wasm-bindgen JS inline wenn verfügbar, sonst einfaches fetch-Override verwenden.
+// EN: Inline wasm-bindgen JS if available, converting ES module exports to window globals.
+// UK: Інлайнити wasm-bindgen JS якщо доступний, конвертуючи ES module exports в window globals.
+// DE: wasm-bindgen JS inline wenn verfügbar, ES-Module-Exports in window-Globals konvertieren.
 let wasmJs;
 try {
   wasmJs = await readFile(path.join(root, 'wasm/my_lisp_wasm.js'), 'utf8');
+  // Convert ES module exports to window globals for non-module script context.
+  // ES-Module-Exports in window-Globals für Nicht-Modul-Skript-Kontext konvertieren.
+  wasmJs = wasmJs
+    .replace(/export function /g, 'window.')
+    .replace(/export { ([^}]+) };/g, (match, exports) => {
+      const items = exports.split(',').map(e => e.trim());
+      return items.map(item => {
+        if (item.includes(' as ')) {
+          const [original, alias] = item.split(' as ').map(s => s.trim());
+          return `window.${alias} = ${original};`;
+        }
+        return `window.${item} = ${item};`;
+      }).join('\n');
+    });
 } catch (e) {
   console.warn('wasm/my_lisp_wasm.js not found, using fetch override only');
 }
@@ -65,9 +79,8 @@ window.loadMyLispWasm = function() {
   // initSync використовувати для вбудованих WASM байтів замість fetch/Response хаку.
   // initSync für eingebettete WASM-Bytes verwenden statt fetch/Response-Hack.
   try {
-    const module = WebAssembly.instantiate(embeddedWasmBytes);
-    if (window.wasm_bindgen && window.wasm_bindgen.initSync) {
-      window.wasm_bindgen.initSync({ module: embeddedWasmBytes });
+    if (window.initSync) {
+      window.initSync({ module: embeddedWasmBytes });
       return Promise.resolve(window.wasm_bindgen);
     }
   } catch (e) {
