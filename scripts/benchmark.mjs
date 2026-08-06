@@ -13,9 +13,7 @@ function run(command, args) {
   return result.stdout;
 }
 
-run(process.execPath, ['node_modules/shadow-cljs/cli/runner.js', 'compile', 'benchmark']);
 const outputs = [
-  run('node', ['target/cljs-benchmark.js']),
   run('cargo', ['run', '--quiet', '--release', '--manifest-path', 'crates/my-lisp/Cargo.toml', '--example', 'benchmark']),
 ];
 const rows = outputs.flatMap(output => output.split(/\r?\n/))
