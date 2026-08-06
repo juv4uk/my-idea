@@ -67,6 +67,7 @@ fn evaluate(expression: &Expr, environment: &Environment) -> Result<Value, Langu
 fn evaluate_step(expression: &Expr, environment: &Environment) -> Result<EvalStep, LanguageError> {
     match &expression.kind {
         ExprKind::Number(number) => Ok(EvalStep::Value(Value::Number(*number))),
+        ExprKind::Rational(rational) => Ok(EvalStep::Value(Value::Rational(*rational))),
         ExprKind::String(value) => Ok(EvalStep::Value(Value::String(value.clone()))),
         ExprKind::Symbol(symbol) => environment.get(symbol).map(EvalStep::Value).ok_or_else(|| {
             LanguageError::new(
@@ -576,6 +577,7 @@ fn exact_arity(
 fn quoted(expression: &Expr) -> Value {
     match &expression.kind {
         ExprKind::Number(number) => Value::Number(*number),
+        ExprKind::Rational(rational) => Value::Rational(*rational),
         ExprKind::String(value) => Value::String(value.clone()),
         ExprKind::Symbol(symbol) => Value::Symbol(symbol.clone()),
         ExprKind::List(items) => Value::list(items.iter().map(quoted)),
@@ -626,7 +628,7 @@ fn value_to_expr(value: Value, span: Span) -> Result<Expr, LanguageError> {
         Value::Bool(true) => ExprKind::Symbol("t".into()),
         Value::Bool(false) => ExprKind::List(Rc::new([])),
         Value::Number(number) => ExprKind::Number(*number),
-        Value::Rational(rational) => ExprKind::Number(rational.as_f64()),
+        Value::Rational(rational) => ExprKind::Rational(*rational),
         Value::String(val) => ExprKind::String(val.clone()),
         Value::Symbol(symbol) => ExprKind::Symbol(symbol.clone()),
         Value::Pair(_, _) => {
@@ -687,5 +689,17 @@ mod single_pass_eval_tests {
         let mut session = Session::default();
         let result = eval_program(source, &mut session).expect("eval should succeed");
         assert_eq!(result.value.to_string(), "success");
+    }
+
+    #[test]
+    fn macro_expansion_preserves_exact_rationals() {
+        let source = r#"
+            (defmacro half-of-third ()
+                (/ 1 6))
+            (half-of-third)
+        "#;
+        let mut session = Session::default();
+        let result = eval_program(source, &mut session).expect("eval should succeed");
+        assert_eq!(result.value.to_string(), "1/6");
     }
 }

@@ -1,3 +1,4 @@
+use crate::value::Rational;
 use std::rc::Rc;
 
 /// Byte range in the original UTF-8 source.
@@ -18,6 +19,7 @@ pub struct Expr {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExprKind {
     Number(f64),
+    Rational(Rational),
     String(Rc<str>),
     Symbol(Rc<str>),
     List(Rc<[Expr]>),
