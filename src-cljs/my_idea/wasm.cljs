@@ -4,6 +4,7 @@
 ;; Єдиний атом, що зберігає ініціалізований wasm-bindgen модуль або nil під час завантаження.
 ;; Einzelnes Atom, das das initialisierte wasm-bindgen-Modul oder nil während des Ladens enthält.
 (defonce !module (atom nil))
+(defonce !failed (atom false))
 
 (defn ready?
   "Returns true once the WASM module has been loaded and initialised.
@@ -11,6 +12,13 @@
    Gibt true zurück, sobald das WASM-Modul geladen und initialisiert wurde."
   []
   (some? @!module))
+
+(defn failed?
+  "Returns true if the WASM module failed to load.
+   Повертає true якщо WASM-модуль не вдалося завантажити.
+   Gibt true zurück, wenn das Laden des WASM-Moduls fehlgeschlagen ist."
+  []
+  @!failed)
 
 (defn load!
   "Asynchronously fetches and initialises the my-lisp WASM module.
@@ -44,9 +52,11 @@
                  (reset! !module js-module)
                  (on-ready)))
         (.catch (fn [err]
-                  (js/console.warn
-                   "my-lisp WASM failed to load – falling back to ClojureScript prototype"
-                   err))))))
+                  (reset! !failed true)
+                  (js/console.error
+                   "my-lisp WASM failed to load – WebAssembly is likely unsupported or blocked"
+                   err)
+                  (on-ready))))))
 
 (defn evaluate
   "Calls the WASM evaluate(source) function.

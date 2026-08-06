@@ -158,16 +158,30 @@
         (-> (workspace/invoke! "evaluate_my_lisp" {:source source :mode mode})
             (.then handle-eval-result!)
             (.catch handle-eval-error!))
-        (if (wasm/ready?)
+        (cond
+          (wasm/ready?)
           ;; Web — same Rust engine compiled to WASM
           ;; Веб — той самий Rust-рушій, зкомпільований до WASM
           ;; Web – dieselbe Rust-Engine als WASM kompiliert
           (-> (wasm/evaluate source mode)
               (.then handle-eval-result!)
               (.catch handle-eval-error!))
-          ;; Fallback while WASM is still loading — ClojureScript prototype (my-lisp only)
-          ;; Fallback поки WASM завантажується — ClojureScript-прототип (лише my-lisp)
-          ;; Fallback während das WASM noch lädt – ClojureScript-Prototyp (nur my-lisp)
+              
+          (wasm/failed?)
+          ;; WebAssembly failed to load (e.g. no support or CSP blocked)
+          ;; WebAssembly не вдалося завантажити (не підтримується або заблоковано CSP)
+          ;; WebAssembly konnte nicht geladen werden (nicht unterstützt oder durch CSP blockiert)
+          (swap! state assoc
+                 :output [(case (:language @state)
+                            "uk" "Ваш браузер не підтримує WebAssembly (або заблоковано) · code execution unavailable"
+                            "de" "Ihr Browser unterstützt WebAssembly nicht (oder blockiert) · code execution unavailable"
+                            "Your browser does not support WebAssembly (or blocked) · code execution unavailable")]
+                 :error? true)
+                 
+          :else
+          ;; Fallback while WASM is still loading
+          ;; Fallback поки WASM завантажується
+          ;; Fallback während das WASM noch lädt
           (swap! state assoc
                  :output ["my-lisp WASM engine is loading… · очікуйте завершення завантаження · WASM wird geladen…"]
                  :error? false)))

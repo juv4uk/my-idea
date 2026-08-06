@@ -26,7 +26,7 @@
                    (.initialize (:mermaid m) #js {:startOnLoad false})
                    m))))))
 
-(defn- render-markdown! [marked-fn dompurify-obj source element]
+(defn- render-markdown! [marked-fn ^js dompurify-obj source element]
   (-> (js/Promise.resolve (.parse marked-fn source))
       (.then (fn [html]
                (set! (.-innerHTML element) (.sanitize dompurify-obj html))))))
