@@ -57,6 +57,33 @@ pub fn evaluate(source: &str, mode: JsValue) -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&evaluation).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Diagnostic {
+    from: usize,
+    to: usize,
+    severity: &'static str,
+    message: String,
+}
+
+#[wasm_bindgen]
+pub fn diagnose(source: &str, mode: JsValue) -> JsValue {
+    let mode_str = mode.as_string().unwrap_or_default();
+    let source_mode = if mode_str == "markdown" { SourceMode::Literate } else { SourceMode::PureLisp };
+    
+    let diagnostics = match my_lisp_literate::parse_literate(source, source_mode) {
+        Ok(_) => vec![],
+        Err(e) => vec![Diagnostic {
+            from: e.span.start,
+            to: e.span.end,
+            severity: "error",
+            message: e.to_string(),
+        }],
+    };
+
+    serde_wasm_bindgen::to_value(&diagnostics).unwrap_or(JsValue::NULL)
+}
+
 // EN: Maintainers: If the body of evaluate() is modified above, ensure this native test stays in sync.
 // UK: Розробникам: Якщо тіло evaluate() змінюється вище, зберігайте цей нативний тест у синхроні з ним.
 // DE: Entwickler: Wenn der Rumpf von evaluate() oben geändert wird, halten Sie diesen nativen Test synchron.

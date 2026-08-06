@@ -9,7 +9,8 @@
             ["@codemirror/lang-rust" :refer [rust]]
             ["@codemirror/lang-markdown" :refer [markdown]]
             ["codemirror-lang-mermaid" :refer [mermaid]]
-            ["@nextjournal/lang-clojure" :refer [clojure]]))
+            ["@nextjournal/lang-clojure" :refer [clojure]]
+            ["@codemirror/lint" :refer [linter lintGutter]]))
 
 ;; One CodeMirror instance is shared by the workspace.
 ;; Один екземпляр CodeMirror обслуговує робочу область.
@@ -90,7 +91,7 @@
 
 (defn mount!
   "Mount the programming editor. The evaluator is only one optional consumer."
-  [parent source-text mode on-change]
+  [parent source-text mode diagnose-fn on-change]
   (when-let [^js old-view @view*]
     (.destroy old-view))
   (let [state (.create EditorState
@@ -100,6 +101,8 @@
                                  (history) (drawSelection) (indentOnInput)
                                  (bracketMatching) (highlightActiveLine)
                                  (language-extensions mode)
+                                 (lintGutter)
+                                 (linter (fn [view] (diagnose-fn (.. view -state -doc toString) mode)))
                                  (.of keymap
                                       (.concat #js [indentWithTab]
                                                defaultKeymap historyKeymap completionKeymap))

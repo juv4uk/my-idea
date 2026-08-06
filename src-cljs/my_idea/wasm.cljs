@@ -72,3 +72,13 @@
    Darf nur aufgerufen werden, wenn (ready?) true ist."
   [source mode]
   (js/Promise.resolve (.evaluate @!module source mode)))
+
+(defn diagnose
+  "Calls the WASM diagnose(source, mode) function to get syntax errors.
+   Returns an array of diagnostics. Returns an empty array if not loaded or if it fails."
+  [source mode]
+  (if (and (ready?) (not (failed?)))
+    (try
+      (.diagnose @!module source mode)
+      (catch js/Error _ #js []))
+    #js []))

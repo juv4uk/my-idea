@@ -220,7 +220,7 @@
            (get programming-language-labels mode)
            "</button><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
     (when doc 
-      (editor/mount! (.getElementById js/document "editor") (:contents doc) mode 
+      (editor/mount! (.getElementById js/document "editor") (:contents doc) mode wasm/diagnose
                      #(do (swap! state workspace/update-active %)
                           (when preview? (preview/render! % mode (.getElementById js/document "preview-content")))))
       (when preview?

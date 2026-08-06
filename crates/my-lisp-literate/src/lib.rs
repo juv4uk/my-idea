@@ -29,10 +29,13 @@ pub enum SourceMode {
     Literate,
 }
 
-pub fn eval_literate(source: &str, mode: SourceMode, session: &mut Session) -> Result<(EvalResult, Vec<Expr>), LanguageError> {
+pub fn extract_code(source: &str, is_literate: bool) -> (String, Vec<(usize, usize, usize)>) {
+    if !is_literate {
+        return (source.to_string(), vec![(0, source.len(), 0)]);
+    }
+
     let mut concatenated = String::new();
     let mut offset_maps = Vec::new();
-
     let parser = Parser::new(source).into_offset_iter();
     let mut in_my_lisp_block = false;
 
@@ -53,15 +56,23 @@ pub fn eval_literate(source: &str, mode: SourceMode, session: &mut Session) -> R
             _ => {}
         }
     }
+    (concatenated, offset_maps)
+}
 
-    let is_literate = mode == SourceMode::Literate;
+pub fn parse_literate(source: &str, mode: SourceMode) -> Result<Vec<Expr>, LanguageError> {
+    let (concatenated, offset_maps) = extract_code(source, mode == SourceMode::Literate);
 
-    if !is_literate {
-        // Pure Lisp mode: evaluate the entire source
-        concatenated = source.to_string();
-        offset_maps.push((0, source.len(), 0));
-    } else if offset_maps.is_empty() {
-        // Literate mode but no my-lisp blocks found
+    if mode == SourceMode::Literate && offset_maps.is_empty() {
+        return Ok(vec![]);
+    }
+
+    parse(&concatenated).map_err(|e| remap_error(e, &offset_maps))
+}
+
+pub fn eval_literate(source: &str, mode: SourceMode, session: &mut Session) -> Result<(EvalResult, Vec<Expr>), LanguageError> {
+    let (concatenated, offset_maps) = extract_code(source, mode == SourceMode::Literate);
+
+    if mode == SourceMode::Literate && offset_maps.is_empty() {
         return Ok((
             EvalResult {
                 value: my_lisp::Value::Nil,
