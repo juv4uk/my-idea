@@ -141,9 +141,9 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p arm64-artifacts
-          cp src-tauri/target/release/bundle/deb/*.deb arm64-artifacts/ 2>/dev/null || true
-          cp src-tauri/target/release/bundle/appimage/*.AppImage arm64-artifacts/ 2>/dev/null || true
-          cp src-tauri/target/release/bundle/rpm/*.rpm arm64-artifacts/ 2>/dev/null || true
+          find src-tauri/target -name "*.deb" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
+          find src-tauri/target -name "*.AppImage" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
+          find src-tauri/target -name "*.rpm" -exec cp {} arm64-artifacts/ \; 2>/dev/null || true
           test -n "$(find arm64-artifacts -type f -print -quit)"
           gh release upload "$RELEASE_TAG" arm64-artifacts/* --clobber
 
