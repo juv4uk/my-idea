@@ -32,9 +32,9 @@ try {
   console.warn('wasm/my_lisp_wasm.js not found, using fetch override only');
 }
 
-// EN: Create embedded loader with base64 WASM data.
-// UK: Створити embedded loader з base64 WASM даними.
-// DE: Embedded-Loader mit base64-WASM-Daten erstellen.
+// EN: Create embedded loader with base64 WASM data using initSync.
+// UK: Створити embedded loader з base64 WASM даними використовуючи initSync.
+// DE: Embedded-Loader mit base64-WASM-Daten unter Verwendung von initSync erstellen.
 const embeddedLoader = `
 // Embedded WASM loader for standalone HTML artifact.
 // Embedded WASM-Loader für standalone HTML-Artefakt.
@@ -52,27 +52,26 @@ function decodeBase64(base64) {
 // DE: Eingebettete WASM-Binärdaten.
 const embeddedWasmBytes = decodeBase64('${wasmBase64}');
 
-// EN: Override fetch to serve embedded WASM.
-// UK: Перевизначити fetch для обслуговування вбудованого WASM.
-// DE: Fetch überschreiben, um eingebettetes WASM zu servieren.
-const originalFetch = window.fetch;
-window.fetch = function(url, options) {
-  if (typeof url === 'string' && url.endsWith('.wasm')) {
-    return Promise.resolve({
-      arrayBuffer: () => Promise.resolve(embeddedWasmBytes)
-    });
-  }
-  return originalFetch.apply(this, arguments);
-};
-
 ${wasmJs || ''}
 
-// EN: Shim for compatibility with existing wasm-loader interface.
-// UK: Shim для сумісності з існуючим wasm-loader інтерфейсом.
-// DE: Shim für Kompatibilität mit dem bestehenden wasm-loader-Interface.
+// EN: Shim for compatibility with existing wasm-loader interface using initSync.
+// UK: Shim для сумісності з існуючим wasm-loader інтерфейсом використовуючи initSync.
+// DE: Shim für Kompatibilität mit dem bestehenden wasm-loader-Interface unter Verwendung von initSync.
 window.loadMyLispWasm = function() {
   if (window.wasm_bindgen) {
     return Promise.resolve(window.wasm_bindgen);
+  }
+  // Use initSync for embedded WASM bytes instead of fetch/Response hack.
+  // initSync використовувати для вбудованих WASM байтів замість fetch/Response хаку.
+  // initSync für eingebettete WASM-Bytes verwenden statt fetch/Response-Hack.
+  try {
+    const module = WebAssembly.instantiate(embeddedWasmBytes);
+    if (window.wasm_bindgen && window.wasm_bindgen.initSync) {
+      window.wasm_bindgen.initSync({ module: embeddedWasmBytes });
+      return Promise.resolve(window.wasm_bindgen);
+    }
+  } catch (e) {
+    console.warn('initSync failed, falling back to dynamic import:', e);
   }
   // Fallback to dynamic import if wasm-bindgen was not inlined.
   // Fallback zu dynamic import wenn wasm-bindgen nicht inline war.
