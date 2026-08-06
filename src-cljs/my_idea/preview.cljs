@@ -17,8 +17,8 @@
 (defn- load-modules! []
   (if-let [m @modules]
     (js/Promise.resolve m)
-    (-> (js/Promise.all #js [(load-script! "https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js" "marked")
-                            (load-script! "https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js" "mermaid")])
+    (-> (js/Promise.all #js [(load-script! "./vendor/marked.min.js" "marked")
+                            (load-script! "./vendor/mermaid.min.js" "mermaid")])
         (.then (fn [[marked-obj mermaid-obj]]
                  (let [m {:marked marked-obj :mermaid mermaid-obj}]
                    (reset! modules m)

@@ -9,7 +9,9 @@ const APP_SHELL = [
   './icons/pwa-512.png',
   './wasm-loader.js',
   './wasm/my_lisp_wasm.js',
-  './wasm/my_lisp_wasm_bg.wasm'
+  './wasm/my_lisp_wasm_bg.wasm',
+  './vendor/marked.min.js',
+  './vendor/mermaid.min.js'
 ];
 
 // Cache the complete shell atomically so a partial install never replaces a working version.
