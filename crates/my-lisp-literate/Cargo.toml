@@ -1,0 +1,10 @@
+[package]
+name = "my-lisp-literate"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Literate markdown extraction wrapper for the my-lisp engine"
+
+[dependencies]
+my-lisp = { path = "../my-lisp" }
+pulldown-cmark = "0.12"

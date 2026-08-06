@@ -11,7 +11,7 @@
 //! Die öffentliche API spiegelt bewusst den Tauri-Befehl `evaluate_my_lisp`, sodass
 //! `core.cljs` beide Umgebungen mit identischen Ergebnisstrukturen behandeln kann.
 
-use my_lisp::{eval_parsed_expressions, eval_program, parse, Session};
+use my_lisp::Session;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -40,14 +40,8 @@ struct Evaluation {
 /// Im Fehlerfall wird eine JS-Ausnahme geworfen (im CLJS-.catch-Handler abgefangen).
 #[wasm_bindgen]
 pub fn evaluate(source: &str) -> Result<JsValue, JsValue> {
-    // EN: Single-pass parse for both AST generation and evaluation.
-    // UK: Однопрохідний парсинг для побудови AST та обчислення.
-    // DE: Single-Pass-Parsing sowohl für AST-Generierung als auch Auswertung.
-    let forms = parse(source).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let mut session = Session::default();
-    eval_program(include_str!("../../../lib/core.my"), &mut session)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    let result = eval_parsed_expressions(&forms, &mut session)
+    let (result, forms) = my_lisp_literate::eval_literate(source, &mut session)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let evaluation = Evaluation {
@@ -69,13 +63,9 @@ mod native_wasm_crate_tests {
 
     #[test]
     fn wasm_crate_single_pass_produces_exact_evaluation_struct() {
-        let forms = parse("(cons (second '(radio antenna)) (cons (/ 1 3) '()))")
-            .expect("parse should succeed");
         let mut session = Session::default();
-        eval_program(include_str!("../../../lib/core.my"), &mut session)
-            .expect("bootstrap should succeed");
-        let result = eval_parsed_expressions(&forms, &mut session)
-            .expect("eval_parsed_expressions should succeed");
+        let (result, forms) = my_lisp_literate::eval_literate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))", &mut session)
+            .expect("eval_literate should succeed");
 
         let evaluation = Evaluation {
             value: result.value.to_string(),

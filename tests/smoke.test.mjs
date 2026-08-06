@@ -66,7 +66,6 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   assert.match(cargo, /my-lisp\s*=\s*\{\s*path\s*=\s*"\.\.\/crates\/my-lisp"/);
   assert.match(rust, /fn evaluate_my_lisp/);
-  assert.match(rust, /include_str!\("\.\.\/\.\.\/lib\/core\.my"\)/);
   assert.match(core, /invoke! "evaluate_my_lisp"/);
   // ClojureScript prototype is now a fallback — WASM is the primary web engine
   // ClojureScript-прототип тепер є fallback — WASM є основним веб-рушієм
@@ -87,7 +86,6 @@ test('WASM crate and ClojureScript bindings are present and correctly wired', ()
   assert.match(wasmLib, /#\[wasm_bindgen\]/);
   assert.match(wasmLib, /pub fn evaluate/);
   assert.match(wasmLib, /my-lisp · WASM/);
-  assert.match(wasmLib, /include_str!/);
   // CLJS bindings load the module and expose ready? / evaluate
   assert.match(wasmCljs, /ready\?/);
   assert.match(wasmCljs, /load!/);

@@ -4,6 +4,7 @@
 # Mitglieder des Cargo-Workspace.
 members = [
     "crates/my-lisp",
+    "crates/my-lisp-literate",
     "crates/my-lisp-wasm",
     "src-tauri",
 ]
