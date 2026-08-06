@@ -4,16 +4,16 @@
 
 (deftest mccarthy-primitives
   (testing "atom recognizes atoms and the empty list"
-    (is (= true (:value (language/run-program "(atom (quote radio))"))))
-    (is (= true (:value (language/run-program "(atom (quote ()))"))))
-    (is (= false (:value (language/run-program "(atom (quote (radio antenna)))")))))
+    (is (= 't (:value (language/run-program "(atom (quote radio))"))))
+    (is (= 't (:value (language/run-program "(atom (quote ()))"))))
+    (is (= '() (:value (language/run-program "(atom (quote (radio antenna)))")))))
   (testing "car, cdr and cons build and inspect lists"
     (is (= 'radio (:value (language/run-program "(car (quote (radio antenna)))"))))
     (is (= '(antenna) (:value (language/run-program "(cdr (quote (radio antenna)))"))))
     (is (= '(radio antenna) (:value (language/run-program "(cons (quote radio) (quote (antenna)))")))))
   (testing "eq compares atoms"
-    (is (= true (:value (language/run-program "(eq (quote radio) (quote radio))"))))
-    (is (= false (:value (language/run-program "(eq (quote radio) (quote antenna))")))))
+    (is (= 't (:value (language/run-program "(eq (quote radio) (quote radio))"))))
+    (is (= '() (:value (language/run-program "(eq (quote radio) (quote antenna))")))))
   (testing "cond selects the first true clause"
     (is (= 'low (:value (language/run-program "(cond ((< 5 1) (quote high)) (t (quote low)))"))))))
 
@@ -37,3 +37,18 @@
 (deftest demo-source-with-single-quote-sugar
   (let [source "; my-lisp · Rust/CLJS shared contract\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second '(radio antenna)) '()))"]
     (is (= '("Hello · Привіт · Hallo" antenna) (:value (language/run-program source))))))
+
+(deftest cross-engine-conformance
+  (testing "CLJS prototype passes the canonical conformance suite"
+    (let [fs (js/require "node:fs")
+          path (js/require "node:path")
+          fixture-path (.resolve path "tests/fixtures/conformance.json")
+          fixture-text (.readFileSync fs fixture-path "utf-8")
+          fixture-data (js->clj (js/JSON.parse fixture-text) :keywordize-keys true)]
+      (doseq [case fixture-data]
+        (let [expr (:expr case)
+              expected (:expected case)
+              result (language/run-program expr)]
+          ;; Since we now use 't and '() correctly, we can stringify the result and compare
+          (is (= expected (pr-str (:value result)))
+              (str "Failed conformance for: " expr)))))))

@@ -1,12 +1,15 @@
-;; @deprecated — In the web/PWA build this interpreter is used only as a temporary
+;; @deprecated — safety-net only, не приймати нові фічі мови сюди
+;; In the web/PWA build this interpreter is used only as a temporary
 ;; fallback while the canonical WASM engine (my-idea.wasm) loads asynchronously.
 ;; Do not add new language features here; implement them in crates/my-lisp instead.
 ;;
-;; @deprecated — У веб/PWA збірці цей інтерпретатор використовується лише як тимчасовий
+;; @deprecated — safety-net only, не приймати нові фічі мови сюди
+;; У веб/PWA збірці цей інтерпретатор використовується лише як тимчасовий
 ;; fallback доки канонічний WASM-рушій (my-idea.wasm) завантажується асинхронно.
 ;; Не додавати нові можливості мови тут; реалізовувати їх у crates/my-lisp.
 ;;
-;; @deprecated — Im Web/PWA-Build wird dieser Interpreter nur als temporärer Fallback
+;; @deprecated — safety-net only, не приймати нові фічі мови сюди
+;; Im Web/PWA-Build wird dieser Interpreter nur als temporärer Fallback
 ;; verwendet, während die kanonische WASM-Engine (my-idea.wasm) asynchron lädt.
 ;; Keine neuen Sprachfeatures hier hinzufügen; in crates/my-lisp implementieren.
 (ns my-idea.language
@@ -63,7 +66,7 @@
            value divisors)))
 
 (defn- lisp-atom? [value]
-  (or (not (seq? value)) (empty? value)))
+  (if (or (not (seq? value)) (empty? value)) 't '()))
 
 (defn- require-cell [name value]
   (when-not (and (seq? value) (seq value))
@@ -77,12 +80,17 @@
   (rest (require-cell "cdr" value)))
 
 (defn- lisp-eq [left right]
-  (when-not (and (lisp-atom? left) (lisp-atom? right))
+  (when-not (and (or (not (seq? left)) (empty? left)) (or (not (seq? right)) (empty? right)))
     (throw (js/Error. "eq expects two atoms")))
-  (= left right))
+  (if (= left right) 't '()))
+
+(defn- lisp-bool [b] (if b 't '()))
 
 (def builtins
-  {'+ +, '- -, '* *, '/ exact-divide, '= =, '< <, '> >,
+  {'+ +, '- -, '* *, '/ exact-divide,
+   '= (fn [a b] (lisp-bool (= a b))),
+   '< (fn [a b] (lisp-bool (< a b))),
+   '> (fn [a b] (lisp-bool (> a b))),
    'str str, 'list list, 'vector vector, 'count count,
    'atom lisp-atom?, 'eq lisp-eq, 'car lisp-car, 'cdr lisp-cdr, 'cons cons})
 
@@ -90,14 +98,17 @@
   (loop [remaining forms result []]
     (if-let [form (first remaining)]
       (if (and (= form (symbol "'")) (next remaining))
-        (recur (drop 2 remaining)
-               (conj result (list 'quote (expand-quotes (second remaining)))))
+        (let [target (second remaining)
+              expanded-target (if (sequential? target) (expand-quotes target) target)]
+          (recur (drop 2 remaining)
+                 (conj result (list 'quote expanded-target))))
         (recur (rest remaining)
                (conj result (if (sequential? form) (expand-quotes form) form))))
       (if (vector? forms) result (apply list result)))))
 
 (defn parse-program [source]
-  (expand-quotes (reader/read-string (str "[" source "]"))))
+  (let [spaced-source (str/replace source "'" "' ")]
+    (expand-quotes (reader/read-string (str "[" spaced-source "]")))))
 
 (declare evaluate)
 
@@ -120,7 +131,7 @@
       (when-not (and (sequential? clause) (= 2 (count clause)))
         (throw (js/Error. "cond expects (test expression) clauses")))
       (let [[condition environment output] (evaluate (first clause) environment output)]
-        (if condition
+        (if (not= condition '())
           (evaluate (second clause) environment output)
           (recur (rest clauses) environment output))))
     [nil environment output]))
@@ -135,7 +146,7 @@
                [(closure parameters body environment) environment output])
       cond (evaluate-cond (rest form) environment output)
       if (let [[condition environment output] (evaluate (second form) environment output)]
-           (evaluate (if condition (nth form 2) (nth form 3 nil)) environment output))
+           (evaluate (if (not= condition '()) (nth form 2) (nth form 3 nil)) environment output))
       def (let [name (second form)
                 [value environment output] (evaluate (nth form 2) environment output)
                 next-environment (assoc environment name value)]
@@ -167,12 +178,13 @@
     (symbol? form) (if (contains? environment form)
                      [(get environment form) environment output]
                      (throw (js/Error. (str "Unknown symbol: " form))))
+    (and (seq? form) (empty? form)) ['() environment output]
     (seq? form) (evaluate-list form environment output)
     :else [form environment output]))
 
 (defn run-program [source]
   (let [forms (parse-program source)
-        initial (merge builtins {'pi js/Math.PI, 't true})
+        initial (merge builtins {'pi js/Math.PI, 't 't})
         [value environment output]
         (reduce (fn [[_ env out] form] (evaluate form env out)) [nil initial []] forms)]
     {:value value :environment environment :output output :forms forms}))
