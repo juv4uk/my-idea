@@ -27,11 +27,11 @@
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
 
 (def messages
-  {"en" {:open "Open folder" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :web "Web demo Markdown & Mermaid rendering"
+  {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :web "Web demo Markdown & Mermaid rendering"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
-   "uk" {:open "Відкрити папку" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд" :web "Веб-демо відображення Markdown та Mermaid"
+   "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд" :web "Веб-демо відображення Markdown та Mermaid"
          :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія" "signal" "Сигнал" "amber" "Бурштин" "forest" "Ліс"}}
-   "de" {:open "Ordner öffnen" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau" :web "Web-Demo Markdown & Mermaid rendering"
+   "de" {:open "Ordner öffnen" :new-file "Neue Datei" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau" :web "Web-Demo Markdown & Mermaid rendering"
          :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia" "signal" "Signal" "amber" "Bernstein" "forest" "Wald"}}})
 (defn- t [key] (get-in messages [(:language @state) key]))
 (defn- esc [x] (-> (str x) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
@@ -76,6 +76,17 @@
     (-> (workspace/invoke! "choose_workspace" {})
         (.then #(when % (swap! state assoc :root % :tree [] :open-paths [] :active-path nil :documents {}) (refresh-tree!))))
     (choose-browser-workspace!)))
+
+(defn- new-file! []
+  (let [name (js/prompt (case (:language @state)
+                          "uk" "Назва файлу:"
+                          "de" "Dateiname:"
+                          "File name:") "untitled.my")]
+    (when (and name (not (str/blank? name)))
+      (let [path (if (:root @state) name (str/trim name))]
+        (swap! state workspace/open-document path "")
+        (persist!)
+        (render!)))))
 (defn- open-file! [path]
   (if (get-in @state [:documents path]) (do (swap! state assoc :active-path path) (persist!) (render!))
     (-> (workspace/invoke! "read_workspace_file" {:path path})
@@ -180,7 +191,7 @@
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
            "<div class='actions'><button id='language' title='Language'>" (get language-labels language) "</button><button id='theme' title='Theme'>" (get theme-icons theme) " " (get-in messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button><button class='run' id='run'>▶ " (t :run) "</button></div></header>"
-           "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='pane-head'>" (t :files) "</div><div class='root'>" (esc (or root (t :web))) "</div><nav>" (workspace/tree-html tree) "</nav></aside>"
+           "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='pane-head'><span>" (t :files) "</span><div class='sidebar-actions'><button id='new-file' title='" (t :new-file) "'>+</button><button id='open-sidebar' title='" (t :open) "'>⏏</button></div></div><div class='root'>" (esc (or root (t :web))) "</div><nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
            (if preview?
@@ -197,6 +208,8 @@
       (when preview?
         (preview/render! (:contents doc) mode (.getElementById js/document "preview-content"))))
     (.addEventListener (.getElementById js/document "open") "click" choose-workspace!)
+    (.addEventListener (.getElementById js/document "new-file") "click" new-file!)
+    (.addEventListener (.getElementById js/document "open-sidebar") "click" choose-workspace!)
     (.addEventListener (.getElementById js/document "save") "click" save!)
     (.addEventListener (.getElementById js/document "save-as") "click" save-as!)
     (.addEventListener (.getElementById js/document "run") "click" execute!)

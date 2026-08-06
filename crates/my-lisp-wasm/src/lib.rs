@@ -40,8 +40,9 @@ struct Evaluation {
 /// Verwendet Single-Pass-Parsing (`eval_parsed_expressions`), um doppeltes Parsing zu vermeiden.
 /// Im Fehlerfall wird eine JS-Ausnahme geworfen (im CLJS-.catch-Handler abgefangen).
 #[wasm_bindgen]
-pub fn evaluate(source: &str, mode: &str) -> Result<JsValue, JsValue> {
-    let source_mode = if mode == "markdown" { SourceMode::Literate } else { SourceMode::PureLisp };
+pub fn evaluate(source: &str, mode: JsValue) -> Result<JsValue, JsValue> {
+    let mode_str = mode.as_string().unwrap_or_default();
+    let source_mode = if mode_str == "markdown" { SourceMode::Literate } else { SourceMode::PureLisp };
     let mut session = Session::default();
     let (result, forms) = my_lisp_literate::eval_literate(source, source_mode, &mut session)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
