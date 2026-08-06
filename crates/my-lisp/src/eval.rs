@@ -96,6 +96,8 @@ fn evaluate_list(
         }
         Some("lambda") => create_lambda(arguments, environment, span).map(EvalStep::Value),
         Some("def") => evaluate_definition(arguments, environment, span).map(EvalStep::Value),
+        Some("defmacro") => evaluate_defmacro(arguments, environment, span).map(EvalStep::Value),
+        Some("list") => evaluate_list_func(arguments, environment, span).map(EvalStep::Value),
         Some("cond") => evaluate_cond(arguments, environment, span),
         Some("atom") => {
             exact_arity("atom", arguments, 1, span)?;
@@ -117,7 +119,10 @@ fn evaluate_list(
         .map(EvalStep::Value),
         _ => {
             let function = evaluate(&items[0], environment)?;
-            apply(function, arguments, environment, span)
+            match &function {
+                Value::Macro(closure) => apply_macro(closure.clone(), arguments, environment, span),
+                _ => apply(function, arguments, environment, span),
+            }
         }
     }
 }
@@ -258,6 +263,46 @@ fn evaluate_definition(
     // Der gemeinsame lexikalische Frame macht rekursive Definitionen nach der Bindung für ihre Closure sichtbar.
     environment.define(name.clone(), value.clone());
     Ok(value)
+}
+
+fn evaluate_defmacro(
+    arguments: &[Expr],
+    environment: &Environment,
+    span: Span,
+) -> Result<Value, LanguageError> {
+    if arguments.len() < 2 {
+        return Err(LanguageError::new(
+            ErrorKind::Arity,
+            "defmacro expects a name, parameters, and a body · defmacro очікує назву, параметри й тіло · defmacro erwartet einen Namen, Parameter und einen Rumpf",
+            span,
+        ));
+    }
+    let ExprKind::Symbol(name) = &arguments[0].kind else {
+        return Err(LanguageError::new(
+            ErrorKind::InvalidForm,
+            "defmacro expects a symbol name · defmacro очікує назву-символ · defmacro erwartet einen Symbolnamen",
+            arguments[0].span,
+        ));
+    };
+    let closure_val = create_lambda(&arguments[1..], environment, span)?;
+    let Value::Closure(closure) = &closure_val else {
+        unreachable!("create_lambda always returns Closure")
+    };
+    let macro_val = Value::Macro(closure.clone());
+    environment.define(name.clone(), macro_val.clone());
+    Ok(macro_val)
+}
+
+fn evaluate_list_func(
+    arguments: &[Expr],
+    environment: &Environment,
+    _span: Span,
+) -> Result<Value, LanguageError> {
+    let mut values = Vec::with_capacity(arguments.len());
+    for argument in arguments {
+        values.push(evaluate(argument, environment)?);
+    }
+    Ok(Value::list(values))
 }
 
 fn evaluate_division(
@@ -537,6 +582,85 @@ fn quoted(expression: &Expr) -> Value {
     }
 }
 
+fn apply_macro(
+    closure: Rc<Closure>,
+    arguments: &[Expr],
+    calling_environment: &Environment,
+    span: Span,
+) -> Result<EvalStep, LanguageError> {
+    if arguments.len() != closure.parameters.len() {
+        return Err(LanguageError::new(
+            ErrorKind::Arity,
+            format!(
+                "defmacro: expected / очікувалося / erwartet {}; received / отримано / erhalten {}",
+                closure.parameters.len(),
+                arguments.len()
+            ),
+            span,
+        ));
+    }
+
+    let local_environment = closure.environment.child();
+    for (parameter, argument) in closure.parameters.iter().zip(arguments.iter()) {
+        let value = quoted(argument); // Do NOT evaluate arguments
+        local_environment.define(parameter.clone(), value);
+    }
+
+    let (last, leading) = closure.body.split_last().expect("lambda body validated");
+    for expression in leading {
+        evaluate(expression, &local_environment)?;
+    }
+
+    let expanded_value = evaluate(last, &local_environment)?;
+    let expanded_expr = value_to_expr(expanded_value, span)?;
+
+    Ok(EvalStep::TailCall {
+        expression: expanded_expr,
+        environment: calling_environment.clone(),
+    })
+}
+
+fn value_to_expr(value: Value, span: Span) -> Result<Expr, LanguageError> {
+    let kind = match &value {
+        Value::Nil => ExprKind::List(Rc::new([])),
+        Value::Bool(true) => ExprKind::Symbol("t".into()),
+        Value::Bool(false) => ExprKind::List(Rc::new([])),
+        Value::Number(number) => ExprKind::Number(*number),
+        Value::Rational(rational) => ExprKind::Number(rational.as_f64()),
+        Value::String(val) => ExprKind::String(val.clone()),
+        Value::Symbol(symbol) => ExprKind::Symbol(symbol.clone()),
+        Value::Pair(_, _) => {
+            let mut items = Vec::new();
+            let mut current = value.clone();
+            loop {
+                match &current {
+                    Value::Pair(h, t) => {
+                        items.push(value_to_expr((**h).clone(), span)?);
+                        current = (**t).clone();
+                    }
+                    Value::Nil => break,
+                    _ => {
+                        return Err(LanguageError::new(
+                            ErrorKind::InvalidForm,
+                            "macros must return proper lists · макроси повинні повертати правильні списки · Makros müssen korrekte Listen zurückgeben",
+                            span,
+                        ))
+                    }
+                }
+            }
+            ExprKind::List(items.into())
+        }
+        Value::Closure(_) | Value::Macro(_) => {
+            return Err(LanguageError::new(
+                ErrorKind::InvalidForm,
+                "macros cannot return closures or macros · макроси не можуть повертати замикання або макроси · Makros dürfen keine Closures oder Makros zurückgeben",
+                span,
+            ))
+        }
+    };
+    Ok(Expr { kind, span })
+}
+
 #[cfg(test)]
 mod single_pass_eval_tests {
     use super::*;
@@ -549,5 +673,19 @@ mod single_pass_eval_tests {
         let result = eval_parsed_expressions(&forms, &mut session)
             .expect("eval_parsed_expressions should succeed");
         assert_eq!(result.value.to_string(), "(1/3)");
+    }
+
+    #[test]
+    fn macros_expand_and_evaluate_correctly() {
+        let source = r#"
+            (defmacro unless (condition body)
+                (list 'cond
+                    (list condition '())
+                    (list 't body)))
+            (unless () 'success)
+        "#;
+        let mut session = Session::default();
+        let result = eval_program(source, &mut session).expect("eval should succeed");
+        assert_eq!(result.value.to_string(), "success");
     }
 }

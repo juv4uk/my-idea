@@ -107,6 +107,7 @@ pub enum Value {
     Symbol(Rc<str>),
     Pair(Rc<Value>, Rc<Value>),
     Closure(Rc<Closure>),
+    Macro(Rc<Closure>),
 }
 
 impl PartialEq for Value {
@@ -125,6 +126,7 @@ impl PartialEq for Value {
             // Функції мають ідентичність: два окремо створені замикання не є рівними.
             // Funktionen besitzen Identität: Zwei getrennt erzeugte Closures sind nicht gleich.
             (Value::Closure(left), Value::Closure(right)) => Rc::ptr_eq(left, right),
+            (Value::Macro(left), Value::Macro(right)) => Rc::ptr_eq(left, right),
             _ => false,
         }
     }
@@ -165,6 +167,7 @@ impl fmt::Display for Value {
             Value::Symbol(symbol) => write!(formatter, "{symbol}"),
             Value::Pair(_, _) => write_pair(formatter, self),
             Value::Closure(_) => write!(formatter, "<lambda>"),
+            Value::Macro(_) => write!(formatter, "<macro>"),
         }
     }
 }
