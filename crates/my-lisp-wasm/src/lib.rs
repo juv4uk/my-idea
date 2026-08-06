@@ -39,9 +39,9 @@ struct Evaluation {
 /// Verwendet Single-Pass-Parsing (`eval_parsed_expressions`), um doppeltes Parsing zu vermeiden.
 /// Im Fehlerfall wird eine JS-Ausnahme geworfen (im CLJS-.catch-Handler abgefangen).
 #[wasm_bindgen]
-pub fn evaluate(source: &str) -> Result<JsValue, JsValue> {
+pub fn evaluate(source: &str, mode: &str) -> Result<JsValue, JsValue> {
     let mut session = Session::default();
-    let (result, forms) = my_lisp_literate::eval_literate(source, &mut session)
+    let (result, forms) = my_lisp_literate::eval_literate(source, mode, &mut session)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let evaluation = Evaluation {
@@ -64,7 +64,7 @@ mod native_wasm_crate_tests {
     #[test]
     fn wasm_crate_single_pass_produces_exact_evaluation_struct() {
         let mut session = Session::default();
-        let (result, forms) = my_lisp_literate::eval_literate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))", &mut session)
+        let (result, forms) = my_lisp_literate::eval_literate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))", "my-lisp", &mut session)
             .expect("eval_literate should succeed");
 
         let evaluation = Evaluation {
@@ -86,7 +86,7 @@ mod wasm_adapter_tests {
 
     #[wasm_bindgen_test]
     fn wasm_adapter_single_pass_preserves_exact_rationals_and_serde_boundary() {
-        let js_value = evaluate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))")
+        let js_value = evaluate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))", "my-lisp")
             .expect("WASM evaluation should succeed for exact values");
         let eval: Evaluation = serde_wasm_bindgen::from_value(js_value)
             .expect("should deserialize Evaluation struct from JsValue");

@@ -1,30 +1,45 @@
 (ns my-idea.core
   (:require [cljs.pprint :as pprint] [clojure.string :as str]
             [my-idea.editor :as editor] [my-idea.language :as language]
+            [my-idea.preview :as preview]
             [my-idea.wasm :as wasm] [my-idea.workspace :as workspace]))
 
 (def demo-source
   "; my-lisp · Rust/CLJS shared contract · спільний контракт · gemeinsamer Vertrag\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second '(radio antenna)) '()))")
+
+(def markdown-demo
+  "# my-lisp literate document\n\nThis is a standard markdown document that mixes prose and code.\n\n```my-lisp\n;; This code block is extracted and evaluated by the engine!\n(def text \"Hello from Literate my-lisp!\")\ntext\n```\n")
+
+(def mermaid-demo
+  "graph TD\n    A[Welcome] -->|Evaluate| B(my-lisp)\n    B --> C{Platform}\n    C -->|Desktop| D[Tauri]\n    C -->|Web| E[WASM]\n")
+
 (defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
                       :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
-                      :root nil :tree [] :open-paths ["welcome.my"] :active-path "welcome.my"
-                      :documents {"welcome.my" {:contents demo-source :saved demo-source :dirty? false :language-mode "my-lisp"}}
+                      :root nil 
+                      :tree [{:name "welcome.my" :path "welcome.my" :directory false :children []}
+                             {:name "literate.md" :path "literate.md" :directory false :children []}
+                             {:name "architecture.mermaid" :path "architecture.mermaid" :directory false :children []}]
+                      :open-paths ["welcome.my" "literate.md" "architecture.mermaid"] 
+                      :active-path "literate.md"
+                      :documents {"welcome.my" {:contents demo-source :saved demo-source :dirty? false :language-mode "my-lisp"}
+                                  "literate.md" {:contents markdown-demo :saved markdown-demo :dirty? false :language-mode "markdown"}
+                                  "architecture.mermaid" {:contents mermaid-demo :saved mermaid-demo :dirty? false :language-mode "mermaid"}}
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
 
 (def messages
-  {"en" {:open "Open folder" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :web "Web demo"
+  {"en" {:open "Open folder" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :web "Web demo Markdown & Mermaid rendering"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
-   "uk" {:open "Відкрити папку" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :web "Веб-демо"
+   "uk" {:open "Відкрити папку" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд" :web "Веб-демо відображення Markdown та Mermaid"
          :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія" "signal" "Сигнал" "amber" "Бурштин" "forest" "Ліс"}}
-   "de" {:open "Ordner öffnen" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :web "Web-Demo"
+   "de" {:open "Ordner öffnen" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau" :web "Web-Demo Markdown & Mermaid rendering"
          :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia" "signal" "Signal" "amber" "Bernstein" "forest" "Wald"}}})
 (defn- t [key] (get-in messages [(:language @state) key]))
 (defn- esc [x] (-> (str x) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
 (defn- active-doc [] (get-in @state [:documents (:active-path @state)]))
 (def languages ["uk" "de" "en"])
 (def themes ["auto" "light" "dark" "sepia" "signal" "amber" "forest"])
-(def programming-languages ["my-lisp" "clojurescript" "rust" "text"])
-(def programming-language-labels {"my-lisp" "my-lisp" "clojurescript" "ClojureScript" "rust" "Rust" "text" "Text"})
+(def programming-languages ["my-lisp" "clojurescript" "rust" "markdown" "mermaid" "text"])
+(def programming-language-labels {"my-lisp" "my-lisp" "clojurescript" "ClojureScript" "rust" "Rust" "markdown" "Markdown" "mermaid" "Mermaid" "text" "Text"})
 (def language-labels {"uk" "UA" "de" "DE" "en" "EN"})
 (def theme-icons {"auto" "◐" "light" "☀" "dark" "☾" "sepia" "◉" "signal" "⌁" "amber" "◆" "forest" "♣"})
 (defn- next-value [values current]
@@ -118,14 +133,14 @@
         ;; Desktop (Tauri) — canonical Rust engine via IPC
         ;; Десктоп (Tauri) — канонічний Rust-рушій через IPC
         ;; Desktop (Tauri) – kanonische Rust-Engine über IPC
-        (-> (workspace/invoke! "evaluate_my_lisp" {:source source})
+        (-> (workspace/invoke! "evaluate_my_lisp" {:source source :mode mode})
             (.then handle-eval-result!)
             (.catch handle-eval-error!))
         (if (wasm/ready?)
           ;; Web — same Rust engine compiled to WASM
           ;; Веб — той самий Rust-рушій, зкомпільований до WASM
           ;; Web – dieselbe Rust-Engine als WASM kompiliert
-          (-> (wasm/evaluate source)
+          (-> (wasm/evaluate source mode)
               (.then handle-eval-result!)
               (.catch handle-eval-error!))
           ;; Fallback while WASM is still loading — ClojureScript prototype
@@ -152,18 +167,31 @@
       (render!))))
 
 (defn render! []
-  (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar?]} @state app (.getElementById js/document "app") doc (active-doc)]
+  (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar?]} @state 
+        app (.getElementById js/document "app") 
+        doc (active-doc)
+        mode (or (:language-mode doc) "text")
+        preview? (or (= mode "markdown") (= mode "mermaid"))]
     (apply-theme! theme)
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
            "<div class='actions'><button id='language' title='Language'>" (get language-labels language) "</button><button id='theme' title='Theme'>" (get theme-icons theme) " " (get-in messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button><button class='run' id='run'>▶ " (t :run) "</button></div></header>"
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='pane-head'>" (t :files) "</div><div class='root'>" (esc (or root (t :web))) "</div><nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
-           "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section><section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section></div></main>"
+           "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
+           (if preview?
+             (str "<section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
+             (str "<section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section>"))
+           "</div></main>"
            "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><button id='programming-language' class='status-language' title='Programming language · Мова програмування · Programmiersprache'>"
-           (get programming-language-labels (or (:language-mode doc) "text"))
+           (get programming-language-labels mode)
            "</button><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
-    (when doc (editor/mount! (.getElementById js/document "editor") (:contents doc) (:language-mode doc) #(swap! state workspace/update-active %)))
+    (when doc 
+      (editor/mount! (.getElementById js/document "editor") (:contents doc) mode 
+                     #(do (swap! state workspace/update-active %)
+                          (when preview? (preview/render! % mode (.getElementById js/document "preview-content")))))
+      (when preview?
+        (preview/render! (:contents doc) mode (.getElementById js/document "preview-content"))))
     (.addEventListener (.getElementById js/document "open") "click" choose-workspace!)
     (.addEventListener (.getElementById js/document "save") "click" save!)
     (.addEventListener (.getElementById js/document "save-as") "click" save-as!)

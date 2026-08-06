@@ -41,9 +41,10 @@ struct LispEvaluation {
 /// Wertet capability-freien my-lisp-Code mit der kanonischen Rust-Engine aus.
 /// Verwendet Single-Pass-Parsing (`eval_parsed_expressions`), um doppeltes Parsing zu vermeiden.
 #[tauri::command]
-fn evaluate_my_lisp(source: String) -> Result<LispEvaluation, String> {
+fn evaluate_my_lisp(source: String, mode: Option<String>) -> Result<LispEvaluation, String> {
+    let mode_str = mode.as_deref().unwrap_or("my-lisp");
     let mut session = Session::default();
-    let (result, forms) = my_lisp_literate::eval_literate(&source, &mut session)
+    let (result, forms) = my_lisp_literate::eval_literate(&source, mode_str, &mut session)
         .map_err(|error| error.to_string())?;
         
     Ok(LispEvaluation {
@@ -60,7 +61,7 @@ mod language_adapter_tests {
 
     #[test]
     fn native_adapter_loads_bootstrap_library_and_preserves_exact_values() {
-        let result = evaluate_my_lisp("(cons (second '(radio antenna)) (cons (/ 1 3) '()))".into())
+        let result = evaluate_my_lisp("(cons (second '(radio antenna)) (cons (/ 1 3) '()))".into(), Some("my-lisp".to_string()))
             .expect("native evaluation should succeed");
         assert_eq!(result.value, "(antenna 1/3)");
         assert_eq!(result.engine, "my-lisp · Rust");

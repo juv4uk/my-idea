@@ -16,6 +16,7 @@
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-markdown": "^6.5.2",
     "@codemirror/lang-rust": "^6.0.2",
     "@codemirror/language": "^6.11.3",
     "@codemirror/lint": "^6.9.7",
@@ -24,6 +25,9 @@
     "@nextjournal/lang-clojure": "^1.0.0",
     "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2",
+    "codemirror-lang-mermaid": "^0.5.0",
+    "marked": "^18.0.9",
+    "mermaid": "^11.16.1",
     "shadow-cljs": "^3.4.12"
   }
 }

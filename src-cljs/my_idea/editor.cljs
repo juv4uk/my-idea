@@ -9,6 +9,8 @@
                                          highlightActiveLine highlightActiveLineGutter
                                          keymap lineNumbers]]
             ["@codemirror/lang-rust" :refer [rust]]
+            ["@codemirror/lang-markdown" :refer [markdown]]
+            ["codemirror-lang-mermaid" :refer [mermaid]]
             ["@nextjournal/lang-clojure" :refer [clojure]]))
 
 ;; One CodeMirror instance is shared by the workspace.
@@ -94,6 +96,8 @@
 (defn- language-extensions [mode]
   (case mode
     "rust" #js [(rust)]
+    "markdown" #js [(markdown)]
+    "mermaid" #js [(mermaid)]
     "text" #js []
     #js [(clojure) (autocompletion #js {:override #js [completions]}) (lintGutter) (linter diagnostics)]))
 

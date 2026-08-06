@@ -132,7 +132,7 @@ test('language and eye-comfort themes use simple cycling buttons', () => {
 test('active document programming language switches from the bottom status bar', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   const editor = readFileSync('src-cljs/my_idea/editor.cljs', 'utf8');
-  assert.match(core, /def programming-languages \["my-lisp" "clojurescript" "rust" "text"\]/);
+  assert.match(core, /def programming-languages \["my-lisp" "clojurescript" "rust" "markdown" "mermaid" "text"\]/);
   assert.match(core, /id='programming-language'/);
   assert.match(core, /cycle-programming-language!/);
   assert.match(core, /welcome\.my/);

@@ -23,9 +23,8 @@ fn remap_error(mut error: LanguageError, maps: &[(usize, usize, usize)]) -> Lang
     error
 }
 
-pub fn eval_literate(source: &str, session: &mut Session) -> Result<(EvalResult, Vec<Expr>), LanguageError> {
+pub fn eval_literate(source: &str, mode: &str, session: &mut Session) -> Result<(EvalResult, Vec<Expr>), LanguageError> {
     let mut concatenated = String::new();
-    // (concat_start, concat_end, orig_start)
     let mut offset_maps = Vec::new();
 
     let parser = Parser::new(source).into_offset_iter();
@@ -49,10 +48,21 @@ pub fn eval_literate(source: &str, session: &mut Session) -> Result<(EvalResult,
         }
     }
 
-    // Fallback for non-literate files (like `lib/core.my` or pure Lisp scripts)
-    if offset_maps.is_empty() {
+    let is_literate = mode == "markdown";
+
+    if !is_literate {
+        // Pure Lisp mode: evaluate the entire source
         concatenated = source.to_string();
         offset_maps.push((0, source.len(), 0));
+    } else if offset_maps.is_empty() {
+        // Literate mode but no my-lisp blocks found
+        return Ok((
+            EvalResult {
+                value: my_lisp::Value::Nil,
+                output: vec!["No my-lisp code blocks found in markdown document.".to_string()],
+            },
+            vec![]
+        ));
     }
 
     let forms = parse(&concatenated).map_err(|e| remap_error(e, &offset_maps))?;

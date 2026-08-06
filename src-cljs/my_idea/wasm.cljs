@@ -60,5 +60,5 @@
    Ruft die WASM-Funktion evaluate(source) auf.
    Gibt ein JS-Promise zurück, das zu {:value :output :ast :engine} auflöst.
    Darf nur aufgerufen werden, wenn (ready?) true ist."
-  [source]
-  (js/Promise.resolve (.evaluate @!module source)))
+  [source mode]
+  (js/Promise.resolve (.evaluate @!module source mode)))

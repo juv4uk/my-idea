@@ -25,6 +25,8 @@
       (or (str/ends-with? lower ".rs")) "rust"
       (or (str/ends-with? lower ".cljs") (str/ends-with? lower ".cljc") (str/ends-with? lower ".clj")) "clojurescript"
       (or (str/ends-with? lower ".my") (str/ends-with? lower ".lisp")) "my-lisp"
+      (or (str/ends-with? lower ".md") (str/ends-with? lower ".markdown")) "markdown"
+      (or (str/ends-with? lower ".mermaid") (str/ends-with? lower ".mmd")) "mermaid"
       :else "text")))
 
 (defn browser-path [file]
