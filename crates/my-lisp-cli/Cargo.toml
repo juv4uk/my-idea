@@ -1,0 +1,8 @@
+[package]
+name = "my-lisp-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+my-lisp = { path = "../my-lisp" }
+rustyline = "14.0.0"
