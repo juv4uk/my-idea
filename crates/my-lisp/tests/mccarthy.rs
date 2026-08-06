@@ -174,13 +174,14 @@ fn conformance_tests_from_json() {
     for line in json.lines() {
         let line = line.trim();
         if !line.starts_with("{") { continue; }
+        if line.contains("\"mode\": \"markdown\"") { continue; }
         
         let expr_start = line.find("\"expr\": \"").unwrap() + 9;
         let expr_end = line[expr_start..].find("\", \"").unwrap() + expr_start;
         let expr = &line[expr_start..expr_end];
         
         let exp_start = line.find("\"expected\": \"").unwrap() + 13;
-        let exp_end = line[exp_start..].find("\" }").unwrap() + exp_start;
+        let exp_end = line[exp_start..].find("\"").unwrap() + exp_start;
         let expected = &line[exp_start..exp_end];
         
         let actual = eval_program(expr, &mut session).unwrap().value.to_string();

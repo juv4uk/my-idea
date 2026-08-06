@@ -44,8 +44,9 @@
           path (js/require "node:path")
           fixture-path (.resolve path "tests/fixtures/conformance.json")
           fixture-text (.readFileSync fs fixture-path "utf-8")
-          fixture-data (js->clj (js/JSON.parse fixture-text) :keywordize-keys true)]
-      (doseq [case fixture-data]
+          fixture-data (js->clj (js/JSON.parse fixture-text) :keywordize-keys true)
+          canonical-data (filter #(not= (:mode %) "markdown") fixture-data)]
+      (doseq [case canonical-data]
         (let [expr (:expr case)
               expected (:expected case)
               result (language/run-program expr)]

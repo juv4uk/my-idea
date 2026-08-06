@@ -57,3 +57,10 @@ Now an error:
     let error_text = &source[error.span.start..error.span.end];
     assert_eq!(error_text, "foo-bar");
 }
+#[test]
+fn test_literate_evaluation() {
+    let source = "# Literate Lisp\n\nThis is a literate program.\n\n```my-lisp\n(def x 10)\n(* x 2)\n```\n\nIt ignores non-code blocks.";
+    let mut session = my_lisp::Session::default();
+    let (res, _) = my_lisp_literate::eval_literate(source, SourceMode::Literate, &mut session).unwrap();
+    assert_eq!(res.value.to_string(), "20");
+}

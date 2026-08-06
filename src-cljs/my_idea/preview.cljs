@@ -18,17 +18,18 @@
   (if-let [m @modules]
     (js/Promise.resolve m)
     (-> (js/Promise.all #js [(load-script! "./vendor/marked.min.js" "marked")
-                            (load-script! "./vendor/mermaid.min.js" "mermaid")])
-        (.then (fn [[marked-obj mermaid-obj]]
-                 (let [m {:marked marked-obj :mermaid mermaid-obj}]
+                            (load-script! "./vendor/mermaid.min.js" "mermaid")
+                            (load-script! "./vendor/dompurify.min.js" "DOMPurify")])
+        (.then (fn [[marked-obj mermaid-obj dompurify-obj]]
+                 (let [m {:marked marked-obj :mermaid mermaid-obj :dompurify dompurify-obj}]
                    (reset! modules m)
                    (.initialize (:mermaid m) #js {:startOnLoad false})
                    m))))))
 
-(defn- render-markdown! [marked-fn source element]
+(defn- render-markdown! [marked-fn dompurify-obj source element]
   (-> (js/Promise.resolve (.parse marked-fn source))
       (.then (fn [html]
-               (set! (.-innerHTML element) html)))))
+               (set! (.-innerHTML element) (.sanitize dompurify-obj html))))))
 
 (defn- render-mermaid! [mermaid-obj source element]
   (let [id "mermaid-preview-svg"]
@@ -42,9 +43,9 @@
 
 (defn render! [source mode element]
   (-> (load-modules!)
-      (.then (fn [{:keys [marked mermaid]}]
+      (.then (fn [{:keys [marked mermaid dompurify]}]
                (case mode
-                 "markdown" (render-markdown! marked source element)
+                 "markdown" (render-markdown! marked dompurify source element)
                  "mermaid" (render-mermaid! mermaid source element)
                  (set! (.-innerHTML element) ""))))
       (.catch (fn [e]

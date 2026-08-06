@@ -35,7 +35,7 @@ pub fn eval_program(source: &str, session: &mut Session) -> Result<EvalResult, L
 enum EvalStep {
     Value(Value),
     TailCall {
-        expression: Rc<Expr>,
+        expression: Expr,
         environment: Environment,
     },
 }
@@ -410,7 +410,7 @@ fn apply(
     // Хвостові позиції стають даними для циклу evaluator, а не рекурсивними викликами Rust.
     // Tail-Positionen werden zu Daten für die Evaluator-Schleife statt zu rekursiven Rust-Aufrufen.
     Ok(EvalStep::TailCall {
-            expression: Rc::new(last.clone()),
+            expression: last.clone(),
             environment: local_environment,
     })
 }
@@ -497,10 +497,7 @@ fn evaluate_cond(
             ));
         }
         if evaluate(&parts[0], environment)?.is_truthy() {
-            return Ok(EvalStep::TailCall {
-                expression: Rc::new(parts[1].clone()),
-                environment: environment.clone(),
-            });
+            return evaluate_step(&parts[1], environment);
         }
     }
     if clauses.is_empty() {

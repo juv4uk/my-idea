@@ -14,9 +14,9 @@ test('Conformance alignment tests', async (t) => {
     const wasmBytes = fs.readFileSync(path.resolve('public/wasm/my_lisp_wasm_bg.wasm'));
     await init({ module_or_path: wasmBytes });
     
-    for (const { expr, expected } of fixture) {
+    for (const { expr, expected, mode } of fixture) {
         await t.test(`Evaluating: ${expr}`, () => {
-            const res = evaluate(expr);
+            const res = evaluate(expr, mode || "my-lisp");
             if (res.error) {
                 assert.fail(`Evaluation failed with error: ${res.error}`);
             }
