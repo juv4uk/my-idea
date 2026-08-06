@@ -34,7 +34,7 @@
   (let [id "mermaid-preview-svg"]
     (-> (.render mermaid-obj id source)
         (.then (fn [result]
-                 (set! (.-innerHTML element) (.-svg result))))
+                 (set! (.-innerHTML element) (goog.object/get result "svg"))))
         (.catch (fn [e]
                   (when-let [err-el (.getElementById js/document (str "d" id))]
                     (.remove err-el))
