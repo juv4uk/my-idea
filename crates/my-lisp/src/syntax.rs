@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 /// Byte range in the original UTF-8 source.
 /// Діапазон байтів у початковому тексті UTF-8.
 /// Bytebereich im ursprünglichen UTF-8-Quelltext.
@@ -16,7 +18,7 @@ pub struct Expr {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExprKind {
     Number(f64),
-    String(String),
-    Symbol(String),
-    List(Vec<Expr>),
+    String(Rc<str>),
+    Symbol(Rc<str>),
+    List(Rc<[Expr]>),
 }

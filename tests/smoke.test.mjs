@@ -192,3 +192,43 @@ test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds'
   assert.match(androidGradle, /signingConfigs/);
   assert.match(androidGradle, /rootProject\.file\(\"keystore\.properties\"\)/);
 });
+
+import { chromium } from '@playwright/test';
+import http from 'node:http';
+import fs from 'node:fs';
+
+test('Standalone web artifact does not stack overflow on 100k list', async () => {
+  const html = fs.readFileSync('my-idea-web.html');
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(html);
+  });
+  
+  await new Promise(resolve => server.listen(0, resolve));
+  const port = server.address().port;
+  
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    
+    await page.goto(`http://localhost:${port}/`);
+    
+    const res = await page.evaluate(async () => {
+      const wasm = await window.loadMyLispWasm();
+      return wasm.evaluate(`
+        (def build 
+          (lambda (n acc)
+            (cond ((eq n 0) acc)
+                  ('t (build (- n 1) (cons n acc))))))
+        (build 100000 '())
+      `);
+    });
+    
+    assert.ok(res !== undefined, "Result should not be undefined");
+    assert.ok(res.error === undefined, "Should not return an error: " + res.error);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});

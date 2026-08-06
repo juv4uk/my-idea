@@ -28,6 +28,8 @@ const wasmBase64 = wasmBytes.toString('base64');
 let wasmJs;
 try {
   wasmJs = await readFile(path.join(root, 'wasm/my_lisp_wasm.js'), 'utf8');
+  // EN: Replace import.meta.url to avoid invalid URL errors when loaded via Blob URL.
+  wasmJs = wasmJs.replaceAll('import.meta.url', 'location.href');
 } catch (e) {
   console.warn('wasm/my_lisp_wasm.js not found, WASM-only mode');
 }
@@ -75,10 +77,13 @@ window.loadMyLispWasm = function() {
   // dynamic import mit fetch-Override für eingebettetes WASM verwenden.
   const originalFetch = window.fetch;
   window.fetch = function(url, options) {
-    if (typeof url === 'string' && url.endsWith('.wasm')) {
-      return Promise.resolve({
-        arrayBuffer: () => Promise.resolve(embeddedWasmBytes)
-      });
+    const urlStr = url instanceof URL ? url.toString() : (typeof url === 'string' ? url : (url && url.url ? url.url : ''));
+    console.log('fetch shim called with urlStr:', urlStr, 'url:', url);
+    if (urlStr.endsWith('.wasm') || urlStr.includes('.wasm')) {
+      return Promise.resolve(new Response(embeddedWasmBytes.buffer, {
+        status: 200,
+        headers: { 'content-type': 'application/wasm' }
+      }));
     }
     return originalFetch.apply(this, arguments);
   };
@@ -87,9 +92,12 @@ window.loadMyLispWasm = function() {
   const wasmJsBlob = new Blob([embeddedWasmJs], { type: 'text/javascript' });
   const wasmJsUrl = URL.createObjectURL(wasmJsBlob);
   return dynamicImport(wasmJsUrl).then(function (mod) {` : `return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {`}
-    window.fetch = originalFetch;
     return mod.default().then(function () {
+      window.fetch = originalFetch;
       return mod;
+    }).catch(function(e) {
+      window.fetch = originalFetch;
+      throw e;
     });
   });
 };

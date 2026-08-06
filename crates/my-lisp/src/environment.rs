@@ -1,12 +1,16 @@
 use crate::Value;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+/// **Known Risk:** Dropping a deeply nested `Environment` chain (thousands of levels)
+/// could cause a stack overflow because `Rc<RefCell<Frame>>` uses Rust's recursive `Drop`.
+/// This is not currently an issue since we only have one child level from root in most usage,
+/// but it could appear if deep nesting of `let` or currying patterns emerges.
 #[derive(Clone, Debug)]
 pub struct Environment(Rc<RefCell<Frame>>);
 
 #[derive(Debug)]
 struct Frame {
-    values: HashMap<String, Value>,
+    values: HashMap<Rc<str>, Value>,
     parent: Option<Environment>,
 }
 
@@ -30,17 +34,19 @@ impl Environment {
         })))
     }
 
-    pub fn define(&self, name: impl Into<String>, value: Value) {
+    pub fn define(&self, name: impl Into<Rc<str>>, value: Value) {
         self.0.borrow_mut().values.insert(name.into(), value);
     }
 
     pub fn get(&self, name: &str) -> Option<Value> {
-        let frame = self.0.borrow();
-        frame
-            .values
-            .get(name)
-            .cloned()
-            .or_else(|| frame.parent.as_ref()?.get(name))
+        let mut current = Some(self.clone());
+        while let Some(env) = current {
+            if let Some(value) = env.0.borrow().values.get(name) {
+                return Some(value.clone());
+            }
+            current = env.0.borrow().parent.clone();
+        }
+        None
     }
 }
 

@@ -56,7 +56,7 @@ impl Parser<'_> {
                     },
                 },
                 value,
-            ]),
+            ].into()),
         })
     }
 
@@ -69,7 +69,7 @@ impl Parser<'_> {
                 Some(')') => {
                     self.bump();
                     return Ok(Expr {
-                        kind: ExprKind::List(items),
+                        kind: ExprKind::List(items.into()),
                         span: Span {
                             start,
                             end: self.cursor,
@@ -95,7 +95,7 @@ impl Parser<'_> {
             match character {
                 '"' => {
                     return Ok(Expr {
-                        kind: ExprKind::String(value),
+                        kind: ExprKind::String(value.into()),
                         span: Span {
                             start,
                             end: self.cursor,

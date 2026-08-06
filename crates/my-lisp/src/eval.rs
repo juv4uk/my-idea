@@ -344,7 +344,7 @@ fn create_lambda(
     };
     let mut parameters = Vec::with_capacity(parameter_forms.len());
     let mut unique = HashSet::new();
-    for parameter in parameter_forms {
+    for parameter in parameter_forms.iter() {
         let ExprKind::Symbol(name) = &parameter.kind else {
             return Err(LanguageError::new(
                 ErrorKind::InvalidForm,
@@ -363,7 +363,7 @@ fn create_lambda(
     }
     Ok(Value::Closure(Rc::new(Closure {
         parameters,
-        body: arguments[1..].iter().cloned().map(Rc::new).collect(),
+        body: arguments[1..].into(),
         environment: environment.clone(),
     })))
 }
@@ -374,8 +374,9 @@ fn apply(
     calling_environment: &Environment,
     span: Span,
 ) -> Result<EvalStep, LanguageError> {
-    let Value::Closure(closure) = function else {
+    let Value::Closure(ref closure) = function else {
         return Err(LanguageError::new(
+
             ErrorKind::Type,
             "expression is not callable · вираз не можна викликати · Ausdruck ist nicht aufrufbar",
             span,
@@ -396,13 +397,10 @@ fn apply(
     // Arguments belong to the caller; parameters belong to the captured lexical frame.
     // Аргументи належать виклику, а параметри — захопленому лексичному фрейму.
     // Argumente gehören zum Aufrufer, Parameter zum erfassten lexikalischen Frame.
-    let values = arguments
-        .iter()
-        .map(|argument| evaluate(argument, calling_environment))
-        .collect::<Result<Vec<_>, _>>()?;
     let local_environment = closure.environment.child();
-    for (parameter, value) in closure.parameters.iter().zip(values) {
-        local_environment.define(parameter, value);
+    for (parameter, argument) in closure.parameters.iter().zip(arguments.iter()) {
+        let value = evaluate(argument, calling_environment)?;
+        local_environment.define(parameter.clone(), value);
     }
     let (last, leading) = closure.body.split_last().expect("lambda body validated");
     for expression in leading {
@@ -412,8 +410,8 @@ fn apply(
     // Хвостові позиції стають даними для циклу evaluator, а не рекурсивними викликами Rust.
     // Tail-Positionen werden zu Daten für die Evaluator-Schleife statt zu rekursiven Rust-Aufrufen.
     Ok(EvalStep::TailCall {
-        expression: Rc::clone(last),
-        environment: local_environment,
+            expression: Rc::new(last.clone()),
+            environment: local_environment,
     })
 }
 
@@ -442,7 +440,7 @@ fn evaluate_car(
 ) -> Result<Value, LanguageError> {
     exact_arity("car", arguments, 1, span)?;
     match evaluate(&arguments[0], environment)? {
-        Value::Pair(head, _) => Ok(*head),
+        Value::Pair(ref head, _) => Ok((**head).clone()),
         _ => Err(LanguageError::new(
             ErrorKind::Type,
             "car expects a non-empty list · car очікує непорожній список · car erwartet eine nicht leere Liste",
@@ -458,7 +456,7 @@ fn evaluate_cdr(
 ) -> Result<Value, LanguageError> {
     exact_arity("cdr", arguments, 1, span)?;
     match evaluate(&arguments[0], environment)? {
-        Value::Pair(_, tail) => Ok(*tail),
+        Value::Pair(_, ref tail) => Ok((**tail).clone()),
         _ => Err(LanguageError::new(
             ErrorKind::Type,
             "cdr expects a non-empty list · cdr очікує непорожній список · cdr erwartet eine nicht leere Liste",
@@ -475,7 +473,7 @@ fn evaluate_cons(
     exact_arity("cons", arguments, 2, span)?;
     let head = evaluate(&arguments[0], environment)?;
     let tail = evaluate(&arguments[1], environment)?;
-    Ok(Value::Pair(Box::new(head), Box::new(tail)))
+    Ok(Value::Pair(Rc::new(head), Rc::new(tail)))
 }
 
 fn evaluate_cond(

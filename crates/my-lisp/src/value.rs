@@ -89,8 +89,8 @@ fn gcd(mut left: u128, mut right: u128) -> u128 {
 /// Eine Closure bewahrt ausführbare Formen zusammen mit ihrer lexikalischen Umgebung auf.
 #[derive(Clone, Debug)]
 pub struct Closure {
-    pub(crate) parameters: Vec<String>,
-    pub(crate) body: Vec<Rc<Expr>>,
+    pub(crate) parameters: Vec<Rc<str>>,
+    pub(crate) body: Rc<[Expr]>,
     pub(crate) environment: Environment,
 }
 
@@ -103,9 +103,9 @@ pub enum Value {
     Bool(bool),
     Number(f64),
     Rational(Rational),
-    String(String),
-    Symbol(String),
-    Pair(Box<Value>, Box<Value>),
+    String(Rc<str>),
+    Symbol(Rc<str>),
+    Pair(Rc<Value>, Rc<Value>),
     Closure(Rc<Closure>),
 }
 
@@ -138,7 +138,7 @@ impl Value {
             .into_iter()
             .rev()
             .fold(Value::Nil, |tail, head| {
-                Value::Pair(Box::new(head), Box::new(tail))
+                Value::Pair(Rc::new(head), Rc::new(tail))
             })
     }
 
@@ -185,6 +185,40 @@ fn write_pair(formatter: &mut fmt::Formatter<'_>, value: &Value) -> fmt::Result 
             }
             Value::Nil => return write!(formatter, ")"),
             tail => return write!(formatter, " . {tail})"),
+        }
+    }
+}
+
+impl Drop for Value {
+    fn drop(&mut self) {
+        if !matches!(self, Value::Pair(_, _)) {
+            return;
+        }
+
+        let mut worklist = Vec::new();
+        worklist.push(std::mem::replace(self, Value::Nil));
+
+        while let Some(value) = worklist.pop() {
+            let mut value = std::mem::ManuallyDrop::new(value);
+            match &mut *value {
+                Value::Pair(head, tail) => {
+                    let head = unsafe { std::ptr::read(head) };
+                    let tail = unsafe { std::ptr::read(tail) };
+                    if let Ok(inner) = Rc::try_unwrap(head) {
+                        if matches!(inner, Value::Pair(_, _)) {
+                            worklist.push(inner);
+                        }
+                    }
+                    if let Ok(inner) = Rc::try_unwrap(tail) {
+                        if matches!(inner, Value::Pair(_, _)) {
+                            worklist.push(inner);
+                        }
+                    }
+                }
+                _ => {
+                    unsafe { std::mem::ManuallyDrop::drop(&mut value) };
+                }
+            }
         }
     }
 }

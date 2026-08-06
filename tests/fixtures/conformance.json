@@ -1,0 +1,18 @@
+[
+  { "expr": "(quote radio)", "expected": "radio" },
+  { "expr": "(atom 'radio)", "expected": "t" },
+  { "expr": "(atom '())", "expected": "t" },
+  { "expr": "(atom '(radio antenna))", "expected": "()" },
+  { "expr": "(eq 'radio 'radio)", "expected": "t" },
+  { "expr": "(eq 'radio 'antenna)", "expected": "()" },
+  { "expr": "(car '(radio antenna))", "expected": "radio" },
+  { "expr": "(cdr '(radio antenna))", "expected": "(antenna)" },
+  { "expr": "(cons 'radio '(antenna))", "expected": "(radio antenna)" },
+  { "expr": "(cond (() 'wrong) (t 'right))", "expected": "right" },
+  { "expr": "(/ 5 6 8 7)", "expected": "5/336" },
+  { "expr": "(+ (/ 1 3) (/ 1 3))", "expected": "2/3" },
+  { "expr": "(- 1 (/ 1 3))", "expected": "2/3" },
+  { "expr": "(* (/ 2 3) (/ 9 4))", "expected": "3/2" },
+  { "expr": "(- (/ 1 3))", "expected": "-1/3" },
+  { "expr": "(+ (/ 1 2) 0.25)", "expected": "0.75" }
+]

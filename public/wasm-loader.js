@@ -29,7 +29,7 @@ window.loadMyLispWasm = function () {
   // new Function уникає конфлікту Closure Compiler з ключовим словом `import`.
   // new Function vermeidet den Schlüsselwortkonflikt des Closure Compilers mit `import`.
   var dynamicImport = new Function('u', 'return import(u)');
-  return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {
+  return dynamicImport('./wasm/my_lisp_wasm.js').then(function (mod) {
     return mod.default().then(function () {
       return mod;
     });

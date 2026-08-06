@@ -165,3 +165,25 @@ fn lambda_reports_invalid_parameters_and_arity() {
     let arity = eval_program("((lambda (x) x))", &mut Session::default()).unwrap_err();
     assert_eq!(arity.kind, ErrorKind::Arity);
 }
+
+#[test]
+fn conformance_tests_from_json() {
+    let json = include_str!("../../../tests/fixtures/conformance.json");
+    let mut session = Session::default();
+    
+    for line in json.lines() {
+        let line = line.trim();
+        if !line.starts_with("{") { continue; }
+        
+        let expr_start = line.find("\"expr\": \"").unwrap() + 9;
+        let expr_end = line[expr_start..].find("\", \"").unwrap() + expr_start;
+        let expr = &line[expr_start..expr_end];
+        
+        let exp_start = line.find("\"expected\": \"").unwrap() + 13;
+        let exp_end = line[exp_start..].find("\" }").unwrap() + exp_start;
+        let expected = &line[exp_start..exp_end];
+        
+        let actual = eval_program(expr, &mut session).unwrap().value.to_string();
+        assert_eq!(actual, expected, "Failed on expression: {}", expr);
+    }
+}
