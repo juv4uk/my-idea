@@ -70,6 +70,31 @@ The first bootstrapped library is `lib/core.my`. Its definitions (`identity`, `n
 
 Die erste Bootstrap-Bibliothek ist `lib/core.my`. Ihre Definitionen (`identity`, `not`, `pair`, `second`, `third`, `caar` und `cadr`) sind gewöhnlicher my-lisp-Code. Rust stellt nur `def` und lexikalische Bindung als Mechanismus zum Laden dauerhafter benannter Definitionen bereit.
 
+## Available Operations and Forms · Доступні операції та форми · Verfügbare Operationen und Formen
+
+### Built-in Forms (Rust core)
+- `quote` (`'`) — Returns the expression unevaluated
+- `lambda` — Creates an anonymous function (closure)
+- `def` — Defines a variable or function in the current environment
+- `defmacro` — Defines a macro (compile-time expansion)
+- `list` — Creates a list from evaluated arguments
+- `cond` — Conditional logic
+- `atom` — Checks if a value is an atom (not a list/pair)
+- `eq` — Checks equality between two atoms
+- `car` — Returns the first element of a list/pair
+- `cdr` — Returns the tail of a list/pair
+- `cons` — Constructs a pair or adds an element to a list
+- `+`, `-`, `*`, `/` — Arithmetic operations. `/` produces exact rational fractions (e.g. `1/3`) for integers.
+
+### Standard Library (`lib/core.my`)
+- `identity` — Returns its argument
+- `not` — Logical NOT
+- `pair` — Creates a list of two elements
+- `second` — Returns the second element of a list
+- `third` — Returns the third element of a list
+- `caar` — `(car (car x))`
+- `cadr` — `(car (cdr x))`
+
 ## Unified execution · Уніфіковане виконання · Einheitliche Ausführung
 
 The migration from the ClojureScript prototype to the Rust core is complete. The Rust implementation conforms to the primitive behavior specified by implementation-independent examples and tests.
