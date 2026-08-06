@@ -22,20 +22,20 @@ html = await replaceAsync(html, /<link\s+rel=["']stylesheet["']\s+href=["']([^"'
 const wasmBytes = await readFile(path.join(root, 'wasm/my_lisp_wasm_bg.wasm'));
 const wasmBase64 = wasmBytes.toString('base64');
 
-// EN: Inline wasm-bindgen JS if available, using module script type for ES syntax.
-// UK: Інлайнити wasm-bindgen JS якщо доступний, використовуючи module script type для ES синтаксису.
-// DE: wasm-bindgen JS inline wenn verfügbar, module script type für ES-Syntax verwenden.
+// EN: Inline wasm-bindgen JS if available for true standalone operation.
+// UK: Інлайнити wasm-bindgen JS якщо доступний для справжньої автономної роботи.
+// DE: wasm-bindgen JS inline wenn verfügbar für echte eigenständige Operation.
 let wasmJs;
 try {
   wasmJs = await readFile(path.join(root, 'wasm/my_lisp_wasm.js'), 'utf8');
 } catch (e) {
-  console.warn('wasm/my_lisp_wasm.js not found, using fetch override only');
+  console.warn('wasm/my_lisp_wasm.js not found, WASM-only mode');
 }
 
-// EN: Create embedded loader with base64 WASM data using module script.
-// UK: Створити embedded loader з base64 WASM даними використовуючи module script.
-// DE: Embedded-Loader mit base64-WASM-Daten unter Verwendung von module script erstellen.
-const embeddedLoader = `
+// EN: Create embedded loader with base64 WASM data and inline wasm-bindgen JS.
+// UK: Створити embedded loader з base64 WASM даними та інлайнити wasm-bindgen JS.
+// DE: Embedded-Loader mit base64-WASM-Daten und inline wasm-bindgen JS erstellen.
+let embeddedLoader = `
 // Embedded WASM loader for standalone HTML artifact.
 // Embedded WASM-Loader für standalone HTML-Artefakt.
 function decodeBase64(base64) {
@@ -51,7 +51,18 @@ function decodeBase64(base64) {
 // UK: Вбудовані WASM бінарні дані.
 // DE: Eingebettete WASM-Binärdaten.
 const embeddedWasmBytes = decodeBase64('${wasmBase64}');
+`;
 
+let wasmJsUrl = '';
+if (wasmJs) {
+  // EN: Inline wasm-bindgen JS as Blob URL for ES module import.
+  // UK: Інлайнити wasm-bindgen JS як Blob URL для ES module import.
+  // DE: wasm-bindgen JS als Blob URL für ES-Module-Import inline einbetten.
+  const wasmJsBlob = new Blob([wasmJs], { type: 'text/javascript' });
+  wasmJsUrl = URL.createObjectURL(wasmJsBlob);
+}
+
+embeddedLoader += `
 // EN: Shim for compatibility with existing wasm-loader interface.
 // UK: Shim для сумісності з існуючим wasm-loader інтерфейсом.
 // DE: Shim für Kompatibilität mit dem bestehenden wasm-loader-Interface.
@@ -72,7 +83,7 @@ window.loadMyLispWasm = function() {
     return originalFetch.apply(this, arguments);
   };
   var dynamicImport = new Function('u', 'return import(u)');
-  return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {
+  ${wasmJs ? `return dynamicImport('${wasmJsUrl}').then(function (mod) {` : `return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {`}
     window.fetch = originalFetch;
     return mod.default().then(function () {
       return mod;
