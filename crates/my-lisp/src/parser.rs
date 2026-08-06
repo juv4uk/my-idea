@@ -134,10 +134,19 @@ impl Parser<'_> {
             self.bump();
         }
         let token = &self.source[start..self.cursor];
-        let kind = token
-            .parse::<f64>()
-            .map(ExprKind::Number)
-            .unwrap_or_else(|_| ExprKind::Symbol(token.into()));
+        let kind = if let Some((num, den)) = token.split_once('/') {
+            if let (Ok(n), Ok(d)) = (num.parse::<i64>(), den.parse::<i64>()) {
+                if let Some(r) = crate::value::Rational::new(n, d) {
+                    ExprKind::Rational(r)
+                } else {
+                    ExprKind::Symbol(token.into())
+                }
+            } else {
+                token.parse::<f64>().map(ExprKind::Number).unwrap_or_else(|_| ExprKind::Symbol(token.into()))
+            }
+        } else {
+            token.parse::<f64>().map(ExprKind::Number).unwrap_or_else(|_| ExprKind::Symbol(token.into()))
+        };
         Ok(Expr {
             kind,
             span: Span {

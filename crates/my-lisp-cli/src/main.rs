@@ -8,6 +8,12 @@ use std::process;
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut session = Session::default();
+    
+    // Load standard library
+    let core_lib = include_str!("../../../lib/core.my");
+    if let Ok(core_ast) = parse(core_lib) {
+        let _ = eval_parsed_expressions(&core_ast, &mut session);
+    }
 
     if args.len() > 1 {
         // Run file
