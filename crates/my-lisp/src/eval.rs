@@ -533,6 +533,15 @@ fn exact_arity(
     ))
 }
 
+fn quoted(expression: &Expr) -> Value {
+    match &expression.kind {
+        ExprKind::Number(number) => Value::Number(*number),
+        ExprKind::String(value) => Value::String(value.clone()),
+        ExprKind::Symbol(symbol) => Value::Symbol(symbol.clone()),
+        ExprKind::List(items) => Value::list(items.iter().map(quoted)),
+    }
+}
+
 #[cfg(test)]
 mod single_pass_eval_tests {
     use super::*;
@@ -545,14 +554,5 @@ mod single_pass_eval_tests {
         let result = eval_parsed_expressions(&forms, &mut session)
             .expect("eval_parsed_expressions should succeed");
         assert_eq!(result.value.to_string(), "(1/3)");
-    }
-}
-
-fn quoted(expression: &Expr) -> Value {
-    match &expression.kind {
-        ExprKind::Number(number) => Value::Number(*number),
-        ExprKind::String(value) => Value::String(value.clone()),
-        ExprKind::Symbol(symbol) => Value::Symbol(symbol.clone()),
-        ExprKind::List(items) => Value::list(items.iter().map(quoted)),
     }
 }
