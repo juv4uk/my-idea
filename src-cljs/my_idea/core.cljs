@@ -92,10 +92,12 @@
                      (swap! state update-in [:documents new-path] merge {:contents contents :saved contents :dirty? false})
                      (render!))))
           (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
-      (do (workspace/download! path contents)
-          (when-let [active-p (:active-path @state)]
-            (swap! state update-in [:documents active-p] merge {:contents contents :saved contents :dirty? false}))
-          (render!)))))
+      (workspace/save-as-browser! path contents
+        (fn [new-path]
+          (when new-path
+            (swap! state assoc :active-path new-path)
+            (swap! state update-in [:documents new-path] merge {:contents contents :saved contents :dirty? false})
+            (render!)))))))
 
 (defn- handle-eval-result! [result]
   (let [{:keys [value output ast engine]} (js->clj result :keywordize-keys true)]

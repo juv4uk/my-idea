@@ -49,6 +49,26 @@
     (.remove link)
     (js/setTimeout #(.revokeObjectURL js/URL url) 0)))
 
+(defn save-as-browser! [path contents callback]
+  (if (exists? js/window.showSaveFilePicker)
+    (-> (.showSaveFilePicker js/window
+           (clj->js {:suggestedName (filename path)
+                     :types [{:description "Source File · Файл коду"
+                              :accept {"text/plain" [".my" ".lisp" ".txt" ".rs" ".cljs"]}}]}))
+        (.then (fn [handle]
+                 (-> (.createWritable handle)
+                     (.then (fn [writable]
+                              (-> (.write writable contents)
+                                  (.then #(.close writable))
+                                  (.then #(callback (.-name handle)))))))))
+        (.catch (fn [err]
+                  (if (= (.-name err) "AbortError")
+                    (callback nil)
+                    (do (download! path contents)
+                        (callback (filename path)))))))
+    (do (download! path contents)
+        (callback (filename path)))))
+
 (defn update-active [model contents]
   (if-let [path (:active-path model)]
     (-> model
