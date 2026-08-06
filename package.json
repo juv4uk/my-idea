@@ -1,6 +1,6 @@
 {
   "name": "my-idea",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "description": "Lightweight programming IDE built with Tauri, ClojureScript and CodeMirror 6",
   "license": "MIT",
