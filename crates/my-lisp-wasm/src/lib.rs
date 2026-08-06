@@ -12,13 +12,13 @@
 //! `core.cljs` beide Umgebungen mit identischen Ergebnisstrukturen behandeln kann.
 
 use my_lisp::{eval_parsed_expressions, eval_program, parse, Session};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 /// Result shape identical to the Tauri LispEvaluation struct.
 /// Форма результату ідентична структурі Tauri LispEvaluation.
 /// Ergebnisstruktur identisch mit der Tauri-LispEvaluation-Struktur.
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Evaluation {
     value: String,
@@ -60,14 +60,44 @@ pub fn evaluate(source: &str) -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&evaluation).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+#[cfg(test)]
+mod native_wasm_crate_tests {
+    use super::*;
+
+    #[test]
+    fn wasm_crate_single_pass_produces_exact_evaluation_struct() {
+        let forms = parse("(cons (second '(radio antenna)) (cons (/ 1 3) '()))")
+            .expect("parse should succeed");
+        let mut session = Session::default();
+        eval_program(include_str!("../../../lib/core.my"), &mut session)
+            .expect("bootstrap should succeed");
+        let result = eval_parsed_expressions(&forms, &mut session)
+            .expect("eval_parsed_expressions should succeed");
+
+        let evaluation = Evaluation {
+            value: result.value.to_string(),
+            output: result.output,
+            ast: format!("{forms:#?}"),
+            engine: "my-lisp · WASM",
+        };
+
+        assert_eq!(evaluation.value, "(antenna 1/3)");
+        assert_eq!(evaluation.engine, "my-lisp · WASM");
+    }
+}
+
 #[cfg(all(test, target_arch = "wasm32"))]
 mod wasm_adapter_tests {
-    use super::evaluate;
+    use super::*;
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test]
     fn wasm_adapter_single_pass_preserves_exact_rationals_and_serde_boundary() {
-        let result = evaluate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))");
-        assert!(result.is_ok(), "WASM evaluation should succeed for exact values");
+        let js_value = evaluate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))")
+            .expect("WASM evaluation should succeed for exact values");
+        let eval: Evaluation = serde_wasm_bindgen::from_value(js_value)
+            .expect("should deserialize Evaluation struct from JsValue");
+        assert_eq!(eval.value, "(antenna 1/3)");
+        assert_eq!(eval.engine, "my-lisp · WASM");
     }
 }
