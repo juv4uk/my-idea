@@ -1,6 +1,5 @@
 const CACHE_NAME = 'my-idea-pwa-v1';
 const APP_SHELL = [
-  './',
   './index.html',
   './styles.css',
   './js/main.js',
