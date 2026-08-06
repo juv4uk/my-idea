@@ -22,33 +22,19 @@ html = await replaceAsync(html, /<link\s+rel=["']stylesheet["']\s+href=["']([^"'
 const wasmBytes = await readFile(path.join(root, 'wasm/my_lisp_wasm_bg.wasm'));
 const wasmBase64 = wasmBytes.toString('base64');
 
-// EN: Inline wasm-bindgen JS if available, converting ES module exports to window globals.
-// UK: Інлайнити wasm-bindgen JS якщо доступний, конвертуючи ES module exports в window globals.
-// DE: wasm-bindgen JS inline wenn verfügbar, ES-Module-Exports in window-Globals konvertieren.
+// EN: Inline wasm-bindgen JS if available, using module script type for ES syntax.
+// UK: Інлайнити wasm-bindgen JS якщо доступний, використовуючи module script type для ES синтаксису.
+// DE: wasm-bindgen JS inline wenn verfügbar, module script type für ES-Syntax verwenden.
 let wasmJs;
 try {
   wasmJs = await readFile(path.join(root, 'wasm/my_lisp_wasm.js'), 'utf8');
-  // Convert ES module exports to window globals for non-module script context.
-  // ES-Module-Exports in window-Globals für Nicht-Modul-Skript-Kontext konvertieren.
-  wasmJs = wasmJs
-    .replace(/export function /g, 'window.')
-    .replace(/export { ([^}]+) };/g, (match, exports) => {
-      const items = exports.split(',').map(e => e.trim());
-      return items.map(item => {
-        if (item.includes(' as ')) {
-          const [original, alias] = item.split(' as ').map(s => s.trim());
-          return `window.${alias} = ${original};`;
-        }
-        return `window.${item} = ${item};`;
-      }).join('\n');
-    });
 } catch (e) {
   console.warn('wasm/my_lisp_wasm.js not found, using fetch override only');
 }
 
-// EN: Create embedded loader with base64 WASM data using initSync.
-// UK: Створити embedded loader з base64 WASM даними використовуючи initSync.
-// DE: Embedded-Loader mit base64-WASM-Daten unter Verwendung von initSync erstellen.
+// EN: Create embedded loader with base64 WASM data using module script.
+// UK: Створити embedded loader з base64 WASM даними використовуючи module script.
+// DE: Embedded-Loader mit base64-WASM-Daten unter Verwendung von module script erstellen.
 const embeddedLoader = `
 // Embedded WASM loader for standalone HTML artifact.
 // Embedded WASM-Loader für standalone HTML-Artefakt.
@@ -66,30 +52,28 @@ function decodeBase64(base64) {
 // DE: Eingebettete WASM-Binärdaten.
 const embeddedWasmBytes = decodeBase64('${wasmBase64}');
 
-${wasmJs || ''}
-
-// EN: Shim for compatibility with existing wasm-loader interface using initSync.
-// UK: Shim для сумісності з існуючим wasm-loader інтерфейсом використовуючи initSync.
-// DE: Shim für Kompatibilität mit dem bestehenden wasm-loader-Interface unter Verwendung von initSync.
+// EN: Shim for compatibility with existing wasm-loader interface.
+// UK: Shim для сумісності з існуючим wasm-loader інтерфейсом.
+// DE: Shim für Kompatibilität mit dem bestehenden wasm-loader-Interface.
 window.loadMyLispWasm = function() {
   if (window.wasm_bindgen) {
     return Promise.resolve(window.wasm_bindgen);
   }
-  // Use initSync for embedded WASM bytes instead of fetch/Response hack.
-  // initSync використовувати для вбудованих WASM байтів замість fetch/Response хаку.
-  // initSync für eingebettete WASM-Bytes verwenden statt fetch/Response-Hack.
-  try {
-    if (window.initSync) {
-      window.initSync({ module: embeddedWasmBytes });
-      return Promise.resolve(window.wasm_bindgen);
+  // Use dynamic import with fetch override for embedded WASM.
+  // Використовувати dynamic import з fetch override для вбудованого WASM.
+  // dynamic import mit fetch-Override für eingebettetes WASM verwenden.
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (typeof url === 'string' && url.endsWith('.wasm')) {
+      return Promise.resolve({
+        arrayBuffer: () => Promise.resolve(embeddedWasmBytes)
+      });
     }
-  } catch (e) {
-    console.warn('initSync failed, falling back to dynamic import:', e);
-  }
-  // Fallback to dynamic import if wasm-bindgen was not inlined.
-  // Fallback zu dynamic import wenn wasm-bindgen nicht inline war.
+    return originalFetch.apply(this, arguments);
+  };
   var dynamicImport = new Function('u', 'return import(u)');
   return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {
+    window.fetch = originalFetch;
     return mod.default().then(function () {
       return mod;
     });
@@ -99,7 +83,7 @@ window.loadMyLispWasm = function() {
 
 html = html.replace(
   /<script\s+src=["']\.\/wasm-loader\.js["']\s*><\/script>/,
-  `<script>${embeddedLoader.replaceAll('</script>', '<\\/script>')}</script>`
+  `<script type="module">${embeddedLoader.replaceAll('</script>', '<\\/script>')}</script>`
 );
 
 html = await replaceAsync(html, /<script\s+src=["']([^"']+)["']\s*><\/script>/gi,
