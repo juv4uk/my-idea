@@ -135,7 +135,7 @@ test('active document programming language switches from the bottom status bar',
   assert.match(core, /def programming-languages \["my-lisp" "clojurescript" "rust" "markdown" "mermaid" "text"\]/);
   assert.match(core, /id='programming-language'/);
   assert.match(core, /cycle-programming-language!/);
-  assert.match(core, /welcome\.my/);
+  assert.match(core, /language-mode/);
   assert.match(editor, /@codemirror\/lang-rust/);
   assert.match(editor, /language-extensions/);
   const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');

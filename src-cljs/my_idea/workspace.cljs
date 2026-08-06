@@ -33,6 +33,48 @@
   (let [relative (.-webkitRelativePath file)]
     (if (str/blank? relative) (.-name file) relative)))
 
+(defonce fs-handles (atom {}))
+
+(def ignored-names #{"node_modules" ".git" "target" "dist" ".cargo" ".rustup"})
+
+(defn- collect-dir-entries [dir-handle]
+  (let [result (atom [])
+        iter (.values dir-handle)]
+    (letfn [(step []
+              (-> (.next iter)
+                  (.then (fn [item]
+                           (if (.-done item)
+                             @result
+                             (do (swap! result conj (.-value item))
+                                 (step)))))))]
+      (step))))
+
+(defn scan-dir-tree [dir-handle prefix]
+  (-> (collect-dir-entries dir-handle)
+      (.then (fn [entries]
+               (let [visible (remove #(contains? ignored-names (.-name %)) entries)
+                     sorted  (sort-by #(str (if (= (.-kind %) "directory") "0" "1") (.-name %)) visible)
+                     promises (map (fn [entry]
+                                     (let [entry-path (if (str/blank? prefix)
+                                                        (.-name entry)
+                                                        (str prefix "/" (.-name entry)))]
+                                       (if (= (.-kind entry) "directory")
+                                         (-> (scan-dir-tree entry entry-path)
+                                             (.then (fn [children]
+                                                      {:name (.-name entry) :path entry-path
+                                                       :directory true :children children})))
+                                         (do (swap! fs-handles assoc entry-path entry)
+                                             (js/Promise.resolve
+                                               {:name (.-name entry) :path entry-path
+                                                :directory false :children []})))))
+                                   sorted)]
+                 (js/Promise.all (clj->js promises)))))
+      (.then (fn [nodes] (vec (js->clj nodes :keywordize-keys true))))))
+
+(defn read-file-from-handle [path]
+  (when-let [handle (get @fs-handles path)]
+    (-> (.getFile handle) (.then #(.text %)))))
+
 (defn browser-tree [files]
   (->> files
        (map (fn [file]

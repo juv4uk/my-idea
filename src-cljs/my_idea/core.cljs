@@ -15,23 +15,18 @@
 
 (defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
                       :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
-                      :root nil 
-                      :tree [{:name "welcome.my" :path "welcome.my" :directory false :children []}
-                             {:name "literate.md" :path "literate.md" :directory false :children []}
-                             {:name "architecture.mermaid" :path "architecture.mermaid" :directory false :children []}]
-                      :open-paths ["welcome.my" "literate.md" "architecture.mermaid"] 
-                      :active-path "literate.md"
-                      :documents {"welcome.my" {:contents demo-source :saved demo-source :dirty? false :language-mode "my-lisp"}
-                                  "literate.md" {:contents markdown-demo :saved markdown-demo :dirty? false :language-mode "markdown"}
-                                  "architecture.mermaid" {:contents mermaid-demo :saved mermaid-demo :dirty? false :language-mode "mermaid"}}
+                      :root nil
+                      :tree []
+                      :open-paths []
+                      :active-path nil
+                      :documents {}
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
 
-(def messages
-  {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :web "Web demo Markdown & Mermaid rendering"
+  {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
-   "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд" :web "Веб-демо відображення Markdown та Mermaid"
+   "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд"
          :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія" "signal" "Сигнал" "amber" "Бурштин" "forest" "Ліс"}}
-   "de" {:open "Ordner öffnen" :new-file "Neue Datei" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau" :web "Web-Demo Markdown & Mermaid rendering"
+   "de" {:open "Ordner öffnen" :new-file "Neue Datei" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau"
          :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia" "signal" "Signal" "amber" "Bernstein" "forest" "Wald"}}})
 (defn- t [key] (get-in messages [(:language @state) key]))
 (defn- esc [x] (-> (str x) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
@@ -71,11 +66,23 @@
                          (render!)))
                 (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))))
     (.click input)))
-(defn- choose-workspace! []
-  (if (workspace/native?)
-    (-> (workspace/invoke! "choose_workspace" {})
-        (.then #(when % (swap! state assoc :root % :tree [] :open-paths [] :active-path nil :documents {}) (refresh-tree!))))
-    (choose-browser-workspace!)))
+(defn- open-file! [path]
+  (if (get-in @state [:documents path])
+    (do (swap! state assoc :active-path path) (persist!) (render!))
+    (if (workspace/native?)
+      (-> (workspace/invoke! "read_workspace_file" {:path path})
+          (.then #(do (swap! state workspace/open-document path %)
+                      (persist!)
+                      (render!)))
+          (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
+      (if-let [p (workspace/read-file-from-handle path)]
+        (-> p
+            (.then (fn [contents]
+                     (swap! state workspace/open-document path contents)
+                     (persist!)
+                     (render!)))
+            (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
+        (do (swap! state assoc :output [(str "Handle not found: " path)] :error? true) (render!))))))
 
 (defn- new-file! []
   (let [name (js/prompt (case (:language @state)
@@ -87,14 +94,11 @@
         (swap! state workspace/open-document path "")
         (persist!)
         (render!)))))
-(defn- open-file! [path]
-  (if (get-in @state [:documents path]) (do (swap! state assoc :active-path path) (persist!) (render!))
-    (-> (workspace/invoke! "read_workspace_file" {:path path})
-        (.then #(do (swap! state workspace/update-active %)
-                    (swap! state assoc :active-path path)
-                    (persist!)
-                    (render!)))
-        (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))
+(defn- choose-workspace! []
+  (if (workspace/native?)
+    (-> (workspace/invoke! "choose_workspace" {})
+        (.then #(when % (swap! state assoc :root % :tree [] :open-paths [] :active-path nil :documents {}) (refresh-tree!))))
+    (choose-browser-workspace!)))
 
 (defn- save! []
   (when-let [path (:active-path @state)]
@@ -191,7 +195,7 @@
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
            "<div class='actions'><button id='language' title='Language'>" (get language-labels language) "</button><button id='theme' title='Theme'>" (get theme-icons theme) " " (get-in messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button><button class='run' id='run'>▶ " (t :run) "</button></div></header>"
-           "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='pane-head'><span>" (t :files) "</span><div class='sidebar-actions'><button id='new-file' title='" (t :new-file) "'>+</button><button id='open-sidebar' title='" (t :open) "'>⏏</button></div></div><div class='root'>" (esc (or root (t :web))) "</div><nav>" (workspace/tree-html tree) "</nav></aside>"
+           "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
            (if preview?
