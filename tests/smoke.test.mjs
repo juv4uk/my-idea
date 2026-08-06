@@ -24,7 +24,7 @@ test('web build is an installable offline PWA without affecting Tauri protocols'
   assert.match(html, /\^\(https\?:\)\$/);
   assert.equal(manifest.display, 'standalone');
   assert.deepEqual(manifest.icons.map(({ sizes }) => sizes), ['192x192', '512x512']);
-  assert.match(worker, /cache\.addAll\(APP_SHELL\)/);
+  assert.match(worker, /Promise\.all\([\s\S]*cache\.add\(url\)/);
   assert.match(worker, /request\.mode === 'navigate'/);
   const readme = readFileSync('README.md', 'utf8');
   assert.match(readme, /releases\/latest\/download\/my-idea-web\.html/);
