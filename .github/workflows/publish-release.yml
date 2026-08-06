@@ -58,12 +58,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin,wasm32-unknown-unknown
-      - name: Install wasm-pack (Windows) · Встановити wasm-pack (Windows) · wasm-pack installieren (Windows)
-        if: runner.os == 'Windows'
-        run: choco install wasm-pack -y
-      - name: Install wasm-pack (Unix) · Встановити wasm-pack (Unix) · wasm-pack installieren (Unix)
-        if: runner.os != 'Windows'
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -126,7 +124,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -168,8 +168,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-pc-windows-msvc,wasm32-unknown-unknown
-      - name: Install wasm-pack (Windows) · Встановити wasm-pack (Windows) · wasm-pack installieren (Windows)
-        run: choco install wasm-pack -y
+      - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -227,7 +229,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
@@ -296,7 +300,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
       - run: npm ci
       - run: npm run build
       - name: Create and verify standalone Web file
@@ -348,7 +354,9 @@ jobs:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android,wasm32-unknown-unknown
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         if: steps.signing.outputs.ready == 'true'
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
       - uses: Swatinem/rust-cache@v2
         if: steps.signing.outputs.ready == 'true'
         with:
