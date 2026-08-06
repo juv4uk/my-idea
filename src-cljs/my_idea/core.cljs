@@ -82,7 +82,14 @@
                      (persist!)
                      (render!)))
             (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
-        (do (swap! state assoc :output [(str "Handle not found: " path)] :error? true) (render!))))))
+        ;; Handle is gone (page was reloaded) — prompt to re-open folder
+        (do (swap! state assoc
+                   :output [(case (:language @state)
+                              "uk" "📁 Після перезавантаження сторінки потрібно знову відкрити папку (кнопка 📁 зліва)"
+                              "de" "📁 Nach dem Neuladen muss der Ordner erneut geöffnet werden (Schaltfläche 📁 links)"
+                              "📁 After page reload, re-open the folder using the 📁 button on the left")]
+                   :error? false)
+            (render!))))))
 
 (defn- new-file! []
   (let [name (js/prompt (case (:language @state)

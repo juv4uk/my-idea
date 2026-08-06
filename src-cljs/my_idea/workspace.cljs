@@ -73,7 +73,17 @@
 
 (defn read-file-from-handle [path]
   (when-let [handle (get @fs-handles path)]
-    (-> (.getFile handle) (.then #(.text %)))))
+    (-> (if (.-requestPermission handle)
+          (-> (.requestPermission handle #js {:mode "read"})
+              (.then (fn [status]
+                       (if (= status "granted")
+                         (-> (.getFile handle) (.then #(.text %)))
+                         (js/Promise.reject (js/Error. "Permission denied"))))))
+          (-> (.getFile handle) (.then #(.text %))))
+        (.catch (fn [err]
+                  ;; If handle is stale (after page reload), clear it
+                  (swap! fs-handles dissoc path)
+                  (js/Promise.reject err))))))
 
 (defn browser-tree [files]
   (->> files
