@@ -86,8 +86,18 @@
    'str str, 'list list, 'vector vector, 'count count,
    'atom lisp-atom?, 'eq lisp-eq, 'car lisp-car, 'cdr lisp-cdr, 'cons cons})
 
+(defn- expand-quotes [forms]
+  (loop [remaining forms result []]
+    (if-let [form (first remaining)]
+      (if (and (= form (symbol "'")) (next remaining))
+        (recur (drop 2 remaining)
+               (conj result (list 'quote (expand-quotes (second remaining)))))
+        (recur (rest remaining)
+               (conj result (if (sequential? form) (expand-quotes form) form))))
+      (if (vector? forms) result (apply list result)))))
+
 (defn parse-program [source]
-  (reader/read-string (str "[" source "]")))
+  (expand-quotes (reader/read-string (str "[" source "]"))))
 
 (declare evaluate)
 

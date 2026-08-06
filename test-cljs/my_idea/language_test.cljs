@@ -33,3 +33,7 @@
 (deftest lambda-and-derived-functions
   (is (= 'antenna (:value (language/run-program "(def second (lambda (values) (car (cdr values)))) (second (quote (radio antenna)))"))))
   (is (= '(radio antenna) (:value (language/run-program "((lambda (left right) (cons left (cons right (quote ())))) (quote radio) (quote antenna))")))))
+
+(deftest demo-source-with-single-quote-sugar
+  (let [source "; my-lisp · Rust/CLJS shared contract\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second '(radio antenna)) '()))"]
+    (is (= '("Hello · Привіт · Hallo" antenna) (:value (language/run-program source))))))
