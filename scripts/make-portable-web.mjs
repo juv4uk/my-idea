@@ -97,7 +97,7 @@ window.loadMyLispWasm = function() {
 
 html = html.replace(
   /<script\s+src=["']\.\/wasm-loader\.js["']\s*><\/script>/,
-  `<script type="module">${embeddedLoader.replaceAll('</script>', '<\\/script>')}</script>`
+  `<script>${embeddedLoader.replaceAll('</script>', '<\\/script>')}</script>`
 );
 
 html = await replaceAsync(html, /<script\s+src=["']([^"']+)["']\s*><\/script>/gi,
