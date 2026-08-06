@@ -53,13 +53,13 @@ function decodeBase64(base64) {
 const embeddedWasmBytes = decodeBase64('${wasmBase64}');
 `;
 
-let wasmJsUrl = '';
 if (wasmJs) {
-  // EN: Inline wasm-bindgen JS as Blob URL for ES module import.
-  // UK: Інлайнити wasm-bindgen JS як Blob URL для ES module import.
-  // DE: wasm-bindgen JS als Blob URL für ES-Module-Import inline einbetten.
-  const wasmJsBlob = new Blob([wasmJs], { type: 'text/javascript' });
-  wasmJsUrl = URL.createObjectURL(wasmJsBlob);
+  embeddedLoader += `
+// EN: Embedded wasm-bindgen JS text.
+// UK: Вбудований текст wasm-bindgen JS.
+// DE: Eingebetteter wasm-bindgen JS Text.
+const embeddedWasmJs = ${JSON.stringify(wasmJs)};
+`;
 }
 
 embeddedLoader += `
@@ -83,7 +83,10 @@ window.loadMyLispWasm = function() {
     return originalFetch.apply(this, arguments);
   };
   var dynamicImport = new Function('u', 'return import(u)');
-  ${wasmJs ? `return dynamicImport('${wasmJsUrl}').then(function (mod) {` : `return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {`}
+  ${wasmJs ? `
+  const wasmJsBlob = new Blob([embeddedWasmJs], { type: 'text/javascript' });
+  const wasmJsUrl = URL.createObjectURL(wasmJsBlob);
+  return dynamicImport(wasmJsUrl).then(function (mod) {` : `return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {`}
     window.fetch = originalFetch;
     return mod.default().then(function () {
       return mod;
