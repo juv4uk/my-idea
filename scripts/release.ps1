@@ -71,7 +71,7 @@ if ($LASTEXITCODE -ne 0) { throw 'npm run build failed.' }
 # EN: Refuse to publish changes outside the five version files.
 # UK: Ne publikuvaty zminy poza piatma failamy versii.
 # DE: Anderungen ausserhalb der funf Versionsdateien nicht veroffentlichen.
-$releaseFiles = @('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json')
+$releaseFiles = @('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'Cargo.lock', 'src-tauri/tauri.conf.json')
 $changedFiles = @(git status --porcelain | ForEach-Object { $_.Substring(3) })
 $unexpectedFiles = @($changedFiles | Where-Object { $_ -notin $releaseFiles })
 if ($unexpectedFiles.Count -gt 0) { throw "Unexpected changed files: $($unexpectedFiles -join ', ')" }
