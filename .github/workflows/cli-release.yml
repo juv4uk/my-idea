@@ -48,9 +48,9 @@ jobs:
           VERSION=${GITHUB_REF_NAME#v}
           SRC="target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            DST="my-lisp_${VERSION}_${{ matrix.asset_suffix }}.exe"
+            DST="my-lisp-cli_${VERSION}_${{ matrix.asset_suffix }}.exe"
           else
-            DST="my-lisp_${VERSION}_${{ matrix.asset_suffix }}"
+            DST="my-lisp-cli_${VERSION}_${{ matrix.asset_suffix }}"
           fi
           mv "$SRC" "$DST"
           echo "ASSET_PATH=$DST" >> $GITHUB_ENV
