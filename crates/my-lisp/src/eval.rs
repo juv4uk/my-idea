@@ -10,16 +10,26 @@ pub struct EvalResult {
     pub output: Vec<String>,
 }
 
-pub fn eval_program(source: &str, session: &mut Session) -> Result<EvalResult, LanguageError> {
-    let expressions = parse(source)?;
+pub fn eval_parsed_expressions(
+    expressions: &[Expr],
+    session: &mut Session,
+) -> Result<EvalResult, LanguageError> {
     let mut value = Value::Nil;
-    for expression in &expressions {
+    for expression in expressions {
         value = evaluate(expression, &session.environment)?;
     }
     Ok(EvalResult {
         value,
         output: session.output.clone(),
     })
+}
+
+/// Evaluates source string by parsing it and running the resulting expressions.
+/// Обчислює сирцевий рядок через парсинг та виконання отриманих виразів.
+/// Wertet den Quelltext durch Parsing und Ausführung der Ausdrücke aus.
+pub fn eval_program(source: &str, session: &mut Session) -> Result<EvalResult, LanguageError> {
+    let expressions = parse(source)?;
+    eval_parsed_expressions(&expressions, session)
 }
 
 enum EvalStep {
@@ -521,6 +531,21 @@ fn exact_arity(
         ),
         span,
     ))
+}
+
+#[cfg(test)]
+mod single_pass_eval_tests {
+    use super::*;
+
+    #[test]
+    fn single_pass_eval_parsed_expressions_evaluates_preparsed_ast() {
+        let source = "(def x (/ 1 3)) (cons x '())";
+        let forms = parse(source).expect("parsing should succeed");
+        let mut session = Session::default();
+        let result = eval_parsed_expressions(&forms, &mut session)
+            .expect("eval_parsed_expressions should succeed");
+        assert_eq!(result.value.to_string(), "(1/3)");
+    }
 }
 
 fn quoted(expression: &Expr) -> Value {

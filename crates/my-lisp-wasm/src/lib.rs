@@ -11,7 +11,7 @@
 //! Die öffentliche API spiegelt bewusst den Tauri-Befehl `evaluate_my_lisp`, sodass
 //! `core.cljs` beide Umgebungen mit identischen Ergebnisstrukturen behandeln kann.
 
-use my_lisp::{eval_program, parse, Session};
+use my_lisp::{eval_parsed_expressions, eval_program, parse, Session};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -28,20 +28,26 @@ struct Evaluation {
 }
 
 /// Evaluates a my-lisp program and returns `{ value, output, ast, engine }`.
+/// Uses a single-pass parse (`eval_parsed_expressions`) to avoid redundant parsing.
 /// On error returns a JS exception (caught by the `.catch` handler in CLJS).
 ///
 /// Обчислює програму my-lisp і повертає `{ value, output, ast, engine }`.
+/// Використовує однопрохідний парсинг (`eval_parsed_expressions`), щоб уникнути повторного аналізу.
 /// При помилці кидає JS-виняток (перехоплюється обробником `.catch` у CLJS).
 ///
 /// Wertet ein my-lisp-Programm aus und gibt `{ value, output, ast, engine }` zurück.
+/// Verwendet Single-Pass-Parsing (`eval_parsed_expressions`), um doppeltes Parsing zu vermeiden.
 /// Im Fehlerfall wird eine JS-Ausnahme geworfen (im CLJS-.catch-Handler abgefangen).
 #[wasm_bindgen]
 pub fn evaluate(source: &str) -> Result<JsValue, JsValue> {
+    // EN: Single-pass parse for both AST generation and evaluation.
+    // UK: Однопрохідний парсинг для побудови AST та обчислення.
+    // DE: Single-Pass-Parsing sowohl für AST-Generierung als auch Auswertung.
     let forms = parse(source).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let mut session = Session::default();
     eval_program(include_str!("../../../lib/core.my"), &mut session)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    let result = eval_program(source, &mut session)
+    let result = eval_parsed_expressions(&forms, &mut session)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let evaluation = Evaluation {
@@ -52,4 +58,16 @@ pub fn evaluate(source: &str) -> Result<JsValue, JsValue> {
     };
 
     serde_wasm_bindgen::to_value(&evaluation).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod wasm_adapter_tests {
+    use super::evaluate;
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn wasm_adapter_single_pass_preserves_exact_rationals_and_serde_boundary() {
+        let result = evaluate("(cons (second '(radio antenna)) (cons (/ 1 3) '()))");
+        assert!(result.is_ok(), "WASM evaluation should succeed for exact values");
+    }
 }

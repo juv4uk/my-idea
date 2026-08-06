@@ -1,4 +1,4 @@
-use my_lisp::{eval_program, parse, Session};
+use my_lisp::{eval_parsed_expressions, eval_program, parse, Session};
 use serde::Serialize;
 use std::{
     fs,
@@ -33,15 +33,20 @@ struct LispEvaluation {
 }
 
 /// Evaluates capability-free my-lisp code through the canonical Rust engine.
+/// Uses a single-pass parse (`eval_parsed_expressions`) to avoid redundant parsing.
+///
 /// Обчислює код my-lisp без системних можливостей через канонічний Rust-рушій.
+/// Використовує однопрохідний парсинг (`eval_parsed_expressions`), щоб уникнути повторного аналізу.
+///
 /// Wertet capability-freien my-lisp-Code mit der kanonischen Rust-Engine aus.
+/// Verwendet Single-Pass-Parsing (`eval_parsed_expressions`), um doppeltes Parsing zu vermeiden.
 #[tauri::command]
 fn evaluate_my_lisp(source: String) -> Result<LispEvaluation, String> {
     let forms = parse(&source).map_err(|error| error.to_string())?;
     let mut session = Session::default();
     eval_program(include_str!("../../lib/core.my"), &mut session)
         .map_err(|error| error.to_string())?;
-    let result = eval_program(&source, &mut session).map_err(|error| error.to_string())?;
+    let result = eval_parsed_expressions(&forms, &mut session).map_err(|error| error.to_string())?;
     Ok(LispEvaluation {
         value: result.value.to_string(),
         output: result.output,
