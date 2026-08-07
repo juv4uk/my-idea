@@ -7,6 +7,7 @@
 - [Windows ARM64 releases · Релізи Windows ARM64 · Windows-ARM64-Releases](windows-arm64.md)
 - [Release asset names · Назви файлів релізу · Namen der Release-Dateien](release-assets.md)
 - [Language core · Ядро мови · Sprachkern](language-core.md)
+- [Remove the apostrophe · Приберіть апостроф · Entfernen Sie das Apostroph](quote-tutorial.md)
 - [Android releases · Android-релізи · Android-Releases](android-release.md)
 - [Platform roadmap · Дорожня карта платформ · Plattform-Roadmap](platform-roadmap.md)
 
