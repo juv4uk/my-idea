@@ -3,6 +3,7 @@
 - [Versioning and inherited history · Версіонування та успадкована історія · Versionierung und übernommene Historie](versioning.md)
 - [my-lisp source files · Файли my-lisp · my-lisp-Quelldateien](source-files.md)
 - [my-lisp benchmarks · Benchmarks my-lisp · my-lisp-Benchmarks](benchmarks.md)
+- [my-lisp test results · Результати тестів my-lisp · my-lisp-Testergebnisse](testing.md)
 - [Windows ARM64 releases · Релізи Windows ARM64 · Windows-ARM64-Releases](windows-arm64.md)
 - [Release asset names · Назви файлів релізу · Namen der Release-Dateien](release-assets.md)
 - [Language core · Ядро мови · Sprachkern](language-core.md)
