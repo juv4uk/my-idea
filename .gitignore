@@ -36,31 +36,6 @@ keystore_base64.txt
 .vscode/
 .idea/
 
-.env.*
-!.env.example
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
-
-# Rust / Tauri build artifacts
-src-tauri/target/
-src-tauri/Cargo.lock
-src-tauri/gen/
-src-tauri/release/
-
-# Android build output & signing
-*.apk
-*.aab
-*.apks
-*.jks
-*.keystore
-keystore.properties
-keystore_base64.txt
-*.log
-
-# IDE settings
-.vscode/
-.idea/
-
 # Local release-script backup / Локальна резервна копія / Lokale Sicherung
 scripts/release1.ps1
 
