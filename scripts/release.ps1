@@ -61,6 +61,15 @@ Set-FirstRegexMatch -Path 'src-tauri/tauri.conf.json' -Pattern '"version"\s*:\s*
 Write-Host 'Running release checks...' -ForegroundColor Cyan
 cargo check --manifest-path src-tauri/Cargo.toml
 if ($LASTEXITCODE -ne 0) { throw 'cargo check failed.' }
+# EN: The my-lisp Rust crates ship independently of src-tauri (CLI, WASM); a release must not skip their tests.
+# UK: Rust-крейти my-lisp постачаються окремо від src-tauri (CLI, WASM); реліз не повинен пропускати їхні тести.
+# DE: Die my-lisp-Rust-Crates werden unabhängig von src-tauri ausgeliefert (CLI, WASM); ein Release darf ihre Tests nicht überspringen.
+cargo test --manifest-path crates/my-lisp/Cargo.toml
+if ($LASTEXITCODE -ne 0) { throw 'cargo test (my-lisp) failed.' }
+cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
+if ($LASTEXITCODE -ne 0) { throw 'cargo test (my-lisp-cli) failed.' }
+cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
+if ($LASTEXITCODE -ne 0) { throw 'cargo test (my-lisp-literate) failed.' }
 npm.cmd test
 if ($LASTEXITCODE -ne 0) { throw 'npm test failed.' }
 npm.cmd run check

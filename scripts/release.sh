@@ -41,7 +41,11 @@ node -e '
 # Only the first version assignment is the application package version.
 sed -E -i "0,/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/s//version = \"$VERSION\"/" src-tauri/Cargo.toml
 
+# The my-lisp Rust crates ship independently of src-tauri (CLI, WASM); a release must not skip their tests.
 cargo check --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path crates/my-lisp/Cargo.toml
+cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
+cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 npm test
 npm run check
 npm run build

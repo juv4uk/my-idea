@@ -31,3 +31,7 @@ jobs:
       - run: npm run check
       - name: Test my-lisp Rust core · Тест Rust-ядра my-lisp · my-lisp-Rust-Kern testen
         run: cargo test --manifest-path crates/my-lisp/Cargo.toml
+      - name: Test my-lisp CLI · Тест CLI my-lisp · my-lisp-CLI testen
+        run: cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
+      - name: Test my-lisp-literate · Тест my-lisp-literate · my-lisp-literate testen
+        run: cargo test --manifest-path crates/my-lisp-literate/Cargo.toml

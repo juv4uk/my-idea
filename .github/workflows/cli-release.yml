@@ -8,8 +8,21 @@ permissions:
   contents: write
 
 jobs:
+  test-cli:
+    name: Test my-lisp and my-lisp-cli before release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Test my-lisp core
+        run: cargo test --manifest-path crates/my-lisp/Cargo.toml
+      - name: Test my-lisp CLI
+        run: cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
+
   build-cli:
     name: Build CLI for ${{ matrix.os }}
+    needs: test-cli
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
