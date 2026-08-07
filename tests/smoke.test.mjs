@@ -155,6 +155,24 @@ test('Rust benchmarks the my-lisp programs', () => {
   assert.match(rust, /BENCH_RESULT/);
 });
 
+test('my-lisp-cli-web.html is wired into build, release, and docs', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const workflow = readFileSync('.github/workflows/publish-release.yml', 'utf8');
+  const readme = readFileSync('README.md', 'utf8');
+  const releaseAssets = readFileSync('docs/release-assets.md', 'utf8');
+  const gitignore = readFileSync('.gitignore', 'utf8');
+  assert.match(ci, /make-portable-web\.mjs dist\/my-lisp-cli-web\.html my-lisp-cli-web\.html/);
+  assert.match(workflow, /make-portable-web\.mjs dist\/my-lisp-cli-web\.html my-lisp-cli-web\.html/);
+  assert.match(workflow, /gh release upload "\$RELEASE_TAG" my-lisp-cli-web\.html/);
+  assert.match(readme, /releases\/latest\/download\/my-lisp-cli-web\.html/);
+  assert.match(releaseAssets, /my-lisp-cli-web\.html/);
+  // Anchored with a leading `/` so it only matches the generated root artifact,
+  // not the public/my-lisp-cli-web.html source template (a bug this test guards against).
+  // Прив'язано `/`, щоб зачіпало лише згенерований кореневий артефакт, а не вихідний
+  // шаблон public/my-lisp-cli-web.html (баг, від якого захищає цей тест).
+  assert.match(gitignore, /^\/my-lisp-cli-web\.html$/m);
+});
+
 test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds', () => {
   const workflow = readFileSync('.github/workflows/publish-release.yml', 'utf8');
   const portable = readFileSync('scripts/make-portable-web.mjs', 'utf8');
