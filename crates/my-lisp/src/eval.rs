@@ -111,13 +111,15 @@ fn evaluate_list(
         Some("cdr") => evaluate_cdr(arguments, environment, span).map(EvalStep::Value),
         Some("cons") => evaluate_cons(arguments, environment, span).map(EvalStep::Value),
         Some("/") => evaluate_division(arguments, environment, span).map(EvalStep::Value),
-        Some("+") | Some("-") | Some("*") => evaluate_arithmetic(
-            items[0].kind.as_symbol().expect("matched symbol"),
-            arguments,
-            environment,
-            span,
-        )
-        .map(EvalStep::Value),
+        // Binding the operator symbol in the pattern avoids re-deriving it with
+        // an `.expect()`, so a future refactor of `as_symbol` cannot turn this into a panic.
+        // Захоплення символа оператора прямо в патерні уникає повторного `.expect()`,
+        // тож майбутня зміна `as_symbol` не зможе перетворити це на паніку.
+        // Das Binden des Operator-Symbols im Pattern vermeidet ein erneutes `.expect()`,
+        // sodass eine spätere Änderung an `as_symbol` dies nicht zu einem Panic machen kann.
+        Some(operator @ ("+" | "-" | "*")) => {
+            evaluate_arithmetic(operator, arguments, environment, span).map(EvalStep::Value)
+        }
         _ => {
             let function = evaluate(&items[0], environment)?;
             match &function {
@@ -332,7 +334,19 @@ fn evaluate_division(
             )),
         }
     });
-    let first = values.next().expect("arity checked");
+    // The empty-arguments case is rejected above, but the iterator is re-derived here
+    // rather than trusting that earlier check, so a future reorder cannot turn this into a panic.
+    // Порожній список аргументів відхиляється вище, але ітератор тут перевіряється
+    // окремо, тож майбутнє перевпорядкування коду не перетвориться на паніку.
+    // Der Fall leerer Argumente wird oben abgelehnt, aber der Iterator wird hier erneut
+    // geprüft, sodass eine spätere Umordnung dies nicht in einen Panic verwandeln kann.
+    let Some(first) = values.next() else {
+        return Err(LanguageError::new(
+            ErrorKind::Arity,
+            "/ expects at least one argument · / очікує щонайменше один аргумент · / erwartet mindestens ein Argument",
+            span,
+        ));
+    };
     let mut result = first?;
     if arguments.len() == 1 {
         result = Rational::integer(1)
@@ -448,10 +462,7 @@ fn apply(
         let value = evaluate(argument, calling_environment)?;
         local_environment.define(parameter.clone(), value);
     }
-    let (last, leading) = closure.body.split_last().expect("lambda body validated");
-    for expression in leading {
-        evaluate(expression, &local_environment)?;
-    }
+    let last = last_body_expression(&closure.body, &local_environment, span)?;
     // Tail positions become data for the evaluator loop instead of recursive Rust calls.
     // Хвостові позиції стають даними для циклу evaluator, а не рекурсивними викликами Rust.
     // Tail-Positionen werden zu Daten für die Evaluator-Schleife statt zu rekursiven Rust-Aufrufen.
@@ -459,6 +470,36 @@ fn apply(
             expression: last.clone(),
             environment: local_environment,
     })
+}
+
+/// Runs every body expression except the last for its side effects, then returns
+/// the last one for the caller to evaluate in tail position. `create_lambda` always
+/// builds a non-empty body, but this returns a `LanguageError` instead of panicking
+/// so a future invariant change degrades gracefully rather than crashing the process.
+/// Виконує всі вирази тіла, крім останнього, заради побічних ефектів, і повертає
+/// останній, щоб виклик обчислив його в хвостовій позиції. `create_lambda` завжди
+/// будує непорожнє тіло, але тут повертається `LanguageError`, а не паніка, щоб
+/// майбутня зміна інваріанту деградувала плавно, а не аварійно завершувала процес.
+/// Führt alle Rumpf-Ausdrücke außer dem letzten wegen ihrer Seiteneffekte aus und
+/// gibt den letzten für die Auswertung in Tail-Position zurück. `create_lambda` baut
+/// stets einen nicht leeren Rumpf, dennoch wird hier ein `LanguageError` statt eines
+/// Panics zurückgegeben, damit eine künftige Invariantenänderung sanft statt abstürzend degradiert.
+fn last_body_expression<'a>(
+    body: &'a [Expr],
+    environment: &Environment,
+    span: Span,
+) -> Result<&'a Expr, LanguageError> {
+    let Some((last, leading)) = body.split_last() else {
+        return Err(LanguageError::new(
+            ErrorKind::InvalidForm,
+            "lambda body must not be empty · тіло lambda не може бути порожнім · lambda-Rumpf darf nicht leer sein",
+            span,
+        ));
+    };
+    for expression in leading {
+        evaluate(expression, environment)?;
+    }
+    Ok(last)
 }
 
 fn evaluate_eq(
@@ -608,10 +649,7 @@ fn apply_macro(
         local_environment.define(parameter.clone(), value);
     }
 
-    let (last, leading) = closure.body.split_last().expect("lambda body validated");
-    for expression in leading {
-        evaluate(expression, &local_environment)?;
-    }
+    let last = last_body_expression(&closure.body, &local_environment, span)?;
 
     let expanded_value = evaluate(last, &local_environment)?;
     let expanded_expr = value_to_expr(expanded_value, span)?;

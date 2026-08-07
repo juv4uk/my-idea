@@ -67,8 +67,20 @@ fn main() {
         println!("my-lisp REPL v{} (pure Rust)", env!("CARGO_PKG_VERSION"));
         println!("Press Ctrl-C or Ctrl-D to exit.");
 
-        let mut rl = DefaultEditor::new().unwrap();
-        
+        // rustyline can fail to init on an unusual terminal (e.g. no TTY); report it
+        // cleanly instead of panicking, so a redirected/CI invocation exits with a message.
+        // rustyline може не ініціалізуватися на нетиповому терміналі (напр. без TTY);
+        // повідомляємо про це чисто замість паніки, щоб перенаправлений/CI-запуск завершився з повідомленням.
+        // rustyline kann bei einem ungewöhnlichen Terminal (z. B. ohne TTY) fehlschlagen;
+        // das wird sauber gemeldet statt einen Panic auszulösen, damit ein umgeleiteter/CI-Aufruf mit Meldung endet.
+        let mut rl = match DefaultEditor::new() {
+            Ok(editor) => editor,
+            Err(err) => {
+                eprintln!("Error: could not start the REPL line editor: {err}");
+                process::exit(1);
+            }
+        };
+
         loop {
             let readline = rl.readline("my-lisp> ");
             match readline {
