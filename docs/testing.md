@@ -6,7 +6,7 @@ Every Rust crate under `crates/` carries its own automated tests, run with `carg
 
 | Crate | Suite | Tests | Covers |
 |---|---|---:|---|
-| `my-lisp` | unit tests (`src/parser.rs`, `src/environment.rs`, `src/eval.rs`) | 24 | reader/parser edge cases, lexical-scope isolation, single-pass evaluation, macro expansion |
+| `my-lisp` | unit tests (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 24 | reader/parser edge cases, lexical-scope isolation, single-pass evaluation, macro expansion |
 | `my-lisp` | `tests/mccarthy.rs` | 12 | the seven McCarthy primitives, exact/inexact arithmetic, lambda semantics, structured errors |
 | `my-lisp` | `tests/stack_safety.rs` | 4 | tail recursion and deep list clone/drop use constant Rust stack |
 | `my-lisp-cli` | `tests/cli.rs` | 8 | the compiled binary end-to-end: `--version`/`--help`, file execution, parse/eval error exit codes, missing-file handling, `lib/core.my` preloading |
@@ -29,7 +29,7 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 
 | Крейт | Набір | Тестів | Покриває |
 |---|---|---:|---|
-| `my-lisp` | unit-тести (`src/parser.rs`, `src/environment.rs`, `src/eval.rs`) | 24 | межові випадки reader/parser, ізоляцію лексичного скоупу, однопрохідне обчислення, розкриття макросів |
+| `my-lisp` | unit-тести (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 24 | межові випадки reader/parser, ізоляцію лексичного скоупу, однопрохідне обчислення, розкриття макросів |
 | `my-lisp` | `tests/mccarthy.rs` | 12 | сім примітивів Маккарті, точну/неточну арифметику, семантику lambda, структуровані помилки |
 | `my-lisp` | `tests/stack_safety.rs` | 4 | хвостову рекурсію та clone/drop глибоких списків зі сталим Rust-стеком |
 | `my-lisp-cli` | `tests/cli.rs` | 8 | скомпільований бінарник наскрізно: `--version`/`--help`, виконання файлу, коди виходу при помилках парсингу/обчислення, відсутній файл, попереднє завантаження `lib/core.my` |
@@ -52,7 +52,7 @@ Jedes Rust-Crate unter `crates/` besitzt eigene automatisierte Tests, ausgeführ
 
 | Crate | Suite | Tests | Deckt ab |
 |---|---|---:|---|
-| `my-lisp` | Unit-Tests (`src/parser.rs`, `src/environment.rs`, `src/eval.rs`) | 24 | Reader-/Parser-Grenzfälle, Isolation des lexikalischen Scopes, Single-Pass-Auswertung, Makro-Expansion |
+| `my-lisp` | Unit-Tests (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 24 | Reader-/Parser-Grenzfälle, Isolation des lexikalischen Scopes, Single-Pass-Auswertung, Makro-Expansion |
 | `my-lisp` | `tests/mccarthy.rs` | 12 | die sieben McCarthy-Primitive, exakte/inexakte Arithmetik, Lambda-Semantik, strukturierte Fehler |
 | `my-lisp` | `tests/stack_safety.rs` | 4 | Tail-Rekursion und Clone/Drop tiefer Listen mit konstantem Rust-Stack |
 | `my-lisp-cli` | `tests/cli.rs` | 8 | die kompilierte Binärdatei durchgängig: `--version`/`--help`, Dateiausführung, Exit-Codes bei Parse-/Eval-Fehlern, fehlende Datei, Vorladen von `lib/core.my` |
