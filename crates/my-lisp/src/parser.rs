@@ -184,3 +184,112 @@ impl Parser<'_> {
         LanguageError::new(ErrorKind::Parse, message, Span { start, end })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_one(source: &str) -> Expr {
+        let expressions = parse(source).expect("parsing should succeed");
+        assert_eq!(expressions.len(), 1, "expected exactly one top-level form");
+        expressions.into_iter().next().unwrap()
+    }
+
+    #[test]
+    fn parses_integers_and_floats_as_numbers() {
+        assert!(matches!(parse_one("42").kind, ExprKind::Number(n) if n == 42.0));
+        assert!(matches!(parse_one("-3.5").kind, ExprKind::Number(n) if n == -3.5));
+    }
+
+    #[test]
+    fn parses_slash_notation_as_exact_rational() {
+        let ExprKind::Rational(rational) = parse_one("5/336").kind else {
+            panic!("expected a rational literal");
+        };
+        assert_eq!((rational.numerator, rational.denominator), (5, 336));
+    }
+
+    #[test]
+    fn zero_denominator_falls_back_to_a_plain_symbol() {
+        // `1/0` is not a valid Rational (see value::Rational::new), so the reader
+        // treats it as an ordinary symbol instead of failing the whole parse.
+        // `1/0` не є коректним Rational (див. value::Rational::new), тому reader
+        // трактує його як звичайний символ, а не провалює весь парсинг.
+        // `1/0` ist kein gültiges Rational (siehe value::Rational::new), daher
+        // behandelt der Reader es als gewöhnliches Symbol statt das Parsing scheitern zu lassen.
+        assert!(matches!(parse_one("1/0").kind, ExprKind::Symbol(s) if &*s == "1/0"));
+    }
+
+    #[test]
+    fn parses_symbols() {
+        assert!(matches!(parse_one("foo-bar?").kind, ExprKind::Symbol(s) if &*s == "foo-bar?"));
+    }
+
+    #[test]
+    fn parses_strings_with_escapes() {
+        let ExprKind::String(value) = parse_one(r#""line\n\ttab\"quote""#).kind else {
+            panic!("expected a string literal");
+        };
+        assert_eq!(&*value, "line\n\ttab\"quote");
+    }
+
+    #[test]
+    fn unclosed_string_is_a_parse_error() {
+        let error = parse(r#""unterminated"#).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::Parse);
+    }
+
+    #[test]
+    fn parses_nested_lists() {
+        let ExprKind::List(items) = parse_one("(1 (2 3) 4)").kind else {
+            panic!("expected a list");
+        };
+        assert_eq!(items.len(), 3);
+        assert!(matches!(&items[1].kind, ExprKind::List(inner) if inner.len() == 2));
+    }
+
+    #[test]
+    fn unclosed_list_is_a_parse_error() {
+        let error = parse("(1 2 3").unwrap_err();
+        assert_eq!(error.kind, ErrorKind::Parse);
+    }
+
+    #[test]
+    fn unexpected_closing_paren_is_a_parse_error() {
+        let error = parse(")").unwrap_err();
+        assert_eq!(error.kind, ErrorKind::Parse);
+    }
+
+    #[test]
+    fn quote_sugar_desugars_to_quote_form() {
+        let ExprKind::List(items) = parse_one("'(1 2)").kind else {
+            panic!("expected a list");
+        };
+        assert_eq!(items.len(), 2);
+        assert!(matches!(&items[0].kind, ExprKind::Symbol(s) if &**s == "quote"));
+    }
+
+    #[test]
+    fn semicolon_comments_are_skipped() {
+        let expressions = parse("; a comment\n42 ; trailing comment").expect("should parse");
+        assert_eq!(expressions.len(), 1);
+        assert!(matches!(expressions[0].kind, ExprKind::Number(n) if n == 42.0));
+    }
+
+    #[test]
+    fn unicode_symbols_and_comments_are_supported() {
+        let expressions = parse("; коментар\nпривіт").expect("should parse");
+        assert!(matches!(&expressions[0].kind, ExprKind::Symbol(s) if &**s == "привіт"));
+    }
+
+    #[test]
+    fn parses_multiple_top_level_expressions() {
+        let expressions = parse("1 2 3").expect("should parse");
+        assert_eq!(expressions.len(), 3);
+    }
+
+    #[test]
+    fn empty_source_parses_to_no_expressions() {
+        assert_eq!(parse("   ; only a comment\n").expect("should parse"), vec![]);
+    }
+}

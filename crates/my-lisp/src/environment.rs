@@ -64,3 +64,67 @@ impl Default for Session {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_predefines_t_as_true() {
+        let root = Environment::root();
+        assert_eq!(root.get("t"), Some(Value::Bool(true)));
+    }
+
+    #[test]
+    fn define_then_get_returns_the_value() {
+        let root = Environment::root();
+        root.define("x", Value::Number(1.0));
+        assert_eq!(root.get("x"), Some(Value::Number(1.0)));
+    }
+
+    #[test]
+    fn get_on_unknown_name_returns_none() {
+        let root = Environment::root();
+        assert_eq!(root.get("does-not-exist"), None);
+    }
+
+    #[test]
+    fn child_reads_bindings_from_its_parent() {
+        let root = Environment::root();
+        root.define("x", Value::Number(1.0));
+        let child = root.child();
+        assert_eq!(child.get("x"), Some(Value::Number(1.0)));
+    }
+
+    #[test]
+    fn child_definitions_do_not_leak_into_the_parent() {
+        // Lexical scoping requires that a child frame's bindings stay local:
+        // a closure's parameters must never become visible outside its call.
+        // Лексичний скоуп вимагає, щоб зв’язування дочірнього фрейму лишались
+        // локальними: параметри замикання не повинні ставати видимими зовні виклику.
+        // Lexikalischer Scope verlangt, dass Bindungen eines Kind-Frames lokal
+        // bleiben: Parameter einer Closure dürfen außerhalb ihres Aufrufs nie sichtbar werden.
+        let root = Environment::root();
+        let child = root.child();
+        child.define("local", Value::Number(2.0));
+        assert_eq!(root.get("local"), None);
+    }
+
+    #[test]
+    fn child_binding_shadows_the_parent_without_mutating_it() {
+        let root = Environment::root();
+        root.define("x", Value::Number(1.0));
+        let child = root.child();
+        child.define("x", Value::Number(2.0));
+        assert_eq!(child.get("x"), Some(Value::Number(2.0)));
+        assert_eq!(root.get("x"), Some(Value::Number(1.0)));
+    }
+
+    #[test]
+    fn redefining_in_the_same_frame_overwrites_the_previous_value() {
+        let root = Environment::root();
+        root.define("x", Value::Number(1.0));
+        root.define("x", Value::Number(2.0));
+        assert_eq!(root.get("x"), Some(Value::Number(2.0)));
+    }
+}
