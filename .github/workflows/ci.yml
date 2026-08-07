@@ -25,6 +25,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+      - name: Build standalone my-lisp-cli-web.html · Зібрати my-lisp-cli-web.html · my-lisp-cli-web.html bauen
+        run: node scripts/make-portable-web.mjs dist/my-lisp-cli-web.html my-lisp-cli-web.html
       - name: Install Playwright Browsers · Встановити браузери Playwright · Playwright-Browser installieren
         run: npx playwright install chromium --with-deps
       - run: npm test
