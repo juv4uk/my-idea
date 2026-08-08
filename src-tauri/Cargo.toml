@@ -18,8 +18,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-my-lisp = { path = "../crates/my-lisp" }
-my-lisp-literate = { path = "../crates/my-lisp-literate" }
+my-lisp = { git = "https://github.com/juv4uk/my-lisp.git", branch = "main" }
+my-lisp-literate = { git = "https://github.com/juv4uk/my-lisp.git", branch = "main" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
