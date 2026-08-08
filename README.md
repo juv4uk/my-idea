@@ -18,11 +18,11 @@ No installation and no account: **[download the standalone Web IDE](https://gith
 
 Ohne Installation und Benutzerkonto: **[die eigenständige Web-IDE herunterladen](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** und die geladene `.html`-Datei im Browser öffnen. Editor, Themes, Programmiersprachenumschalter und my-lisp Language Lab befinden sich in dieser einen portablen Datei und laufen lokal.
 
-Just the language, no editor: **[download the standalone my-lisp CLI REPL](https://github.com/juv4uk/my-idea/releases/latest/download/my-lisp-cli-web.html)** — a single portable `.html` file with a terminal-style REPL for the my-lisp core, running entirely in your browser. See [`docs/quote-tutorial.md`](docs/quote-tutorial.md) for a first walkthrough.
+Just the language, no editor: **[download the standalone my-lisp CLI REPL](https://github.com/juv4uk/my-lisp/releases/latest/download/my-lisp-cli-web.html)** — a single portable `.html` file with a terminal-style REPL for the my-lisp core, running entirely in your browser. See [`docs/quote-tutorial.md`](docs/quote-tutorial.md) for a first walkthrough.
 
-Лише мова, без редактора: **[завантажте автономний my-lisp CLI REPL](https://github.com/juv4uk/my-idea/releases/latest/download/my-lisp-cli-web.html)** — один portable-файл `.html` з термінальним REPL для ядра my-lisp, що працює повністю в браузері. Перший огляд — у [`docs/quote-tutorial.md`](docs/quote-tutorial.md).
+Лише мова, без редактора: **[завантажте автономний my-lisp CLI REPL](https://github.com/juv4uk/my-lisp/releases/latest/download/my-lisp-cli-web.html)** — один portable-файл `.html` з термінальним REPL для ядра my-lisp, що працює повністю в браузері. Перший огляд — у [`docs/quote-tutorial.md`](docs/quote-tutorial.md).
 
-Nur die Sprache, ohne Editor: **[den eigenständigen my-lisp-CLI-REPL herunterladen](https://github.com/juv4uk/my-idea/releases/latest/download/my-lisp-cli-web.html)** — eine einzelne portable `.html`-Datei mit einem terminalartigen REPL für den my-lisp-Kern, die vollständig im Browser läuft. Ein erster Rundgang steht in [`docs/quote-tutorial.md`](docs/quote-tutorial.md).
+Nur die Sprache, ohne Editor: **[den eigenständigen my-lisp-CLI-REPL herunterladen](https://github.com/juv4uk/my-lisp/releases/latest/download/my-lisp-cli-web.html)** — eine einzelne portable `.html`-Datei mit einem terminalartigen REPL für den my-lisp-Kern, die vollständig im Browser läuft. Ein erster Rundgang steht in [`docs/quote-tutorial.md`](docs/quote-tutorial.md).
 
 ## Repository history · Історія репозиторію · Repository-Verlauf
 

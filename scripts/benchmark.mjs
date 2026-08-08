@@ -14,7 +14,9 @@ function run(command, args) {
 }
 
 const outputs = [
-  run('cargo', ['run', '--quiet', '--release', '--manifest-path', 'crates/my-lisp/Cargo.toml', '--example', 'benchmark']),
+  // my-lisp now lives in the external/my-lisp git submodule (github.com/juv4uk/my-lisp).
+  // my-lisp тепер живе в git submodule external/my-lisp (github.com/juv4uk/my-lisp).
+  run('cargo', ['run', '--quiet', '--release', '--manifest-path', 'external/my-lisp/crates/my-lisp/Cargo.toml', '--example', 'benchmark']),
 ];
 const rows = outputs.flatMap(output => output.split(/\r?\n/))
   .filter(line => line.startsWith('BENCH_RESULT\t'))

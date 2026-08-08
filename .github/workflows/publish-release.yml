@@ -47,6 +47,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+          submodules: true
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -112,6 +113,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+          submodules: true
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -155,6 +157,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+          submodules: true
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -218,6 +221,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+          submodules: true
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -289,6 +293,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+          submodules: true
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
@@ -310,18 +315,10 @@ jobs:
         run: |
           node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
           test -s my-idea-web.html
-      - name: Create and verify standalone my-lisp-cli-web.html
-        run: |
-          node scripts/make-portable-web.mjs dist/my-lisp-cli-web.html my-lisp-cli-web.html
-          test -s my-lisp-cli-web.html
       - name: Upload portable Web file
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$RELEASE_TAG" my-idea-web.html --clobber
-      - name: Upload standalone my-lisp-cli-web.html
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" my-lisp-cli-web.html --clobber
 
   build-android:
     name: Android · signed APK and AAB
@@ -331,6 +328,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_TAG }}
+          submodules: true
       - name: Check signing gate · Перевірити підпис · Signatur prüfen
         id: signing
         env:

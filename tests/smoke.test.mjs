@@ -63,7 +63,7 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
-  assert.match(cargo, /my-lisp\s*=\s*\{\s*path\s*=\s*"\.\.\/crates\/my-lisp"/);
+  assert.match(cargo, /my-lisp\s*=\s*\{\s*git\s*=\s*"https:\/\/github\.com\/juv4uk\/my-lisp\.git"/);
   assert.match(rust, /fn evaluate_my_lisp/);
   assert.match(core, /invoke! "evaluate_my_lisp"/);
   // ClojureScript prototype is removed — WASM is the only web engine
@@ -73,8 +73,11 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
 });
 
 test('WASM crate and ClojureScript bindings are present and correctly wired', () => {
-  const wasmCargo = readFileSync('crates/my-lisp-wasm/Cargo.toml', 'utf8');
-  const wasmLib = readFileSync('crates/my-lisp-wasm/src/lib.rs', 'utf8');
+  // my-lisp-wasm lives in the external/my-lisp git submodule (github.com/juv4uk/my-lisp),
+  // not a local crates/ directory — wasm-pack needs a real checkout, which a Cargo git
+  // dependency alone can't provide (see scripts/build.mjs).
+  const wasmCargo = readFileSync('external/my-lisp/crates/my-lisp-wasm/Cargo.toml', 'utf8');
+  const wasmLib = readFileSync('external/my-lisp/crates/my-lisp-wasm/src/lib.rs', 'utf8');
   const wasmCljs = readFileSync('src-cljs/my_idea/wasm.cljs', 'utf8');
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   // Crate is a cdylib that depends on my-lisp and wasm-bindgen
@@ -147,30 +150,12 @@ test('active document programming language switches from the bottom status bar',
 
 test('Rust benchmarks the my-lisp programs', () => {
   const runner = readFileSync('scripts/benchmark.mjs', 'utf8');
-  const rust = readFileSync('crates/my-lisp/examples/benchmark.rs', 'utf8');
+  const rust = readFileSync('external/my-lisp/crates/my-lisp/examples/benchmark.rs', 'utf8');
   for (const name of ['arithmetic', 'lists', 'recursion', 'closures', 'parser']) {
     assert.match(readFileSync(`benchmarks/${name}.my`, 'utf8'), /·/);
   }
   assert.match(runner, /MY_LISP_BENCH_ITERATIONS/);
   assert.match(rust, /BENCH_RESULT/);
-});
-
-test('my-lisp-cli-web.html is wired into build, release, and docs', () => {
-  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
-  const workflow = readFileSync('.github/workflows/publish-release.yml', 'utf8');
-  const readme = readFileSync('README.md', 'utf8');
-  const releaseAssets = readFileSync('docs/release-assets.md', 'utf8');
-  const gitignore = readFileSync('.gitignore', 'utf8');
-  assert.match(ci, /make-portable-web\.mjs dist\/my-lisp-cli-web\.html my-lisp-cli-web\.html/);
-  assert.match(workflow, /make-portable-web\.mjs dist\/my-lisp-cli-web\.html my-lisp-cli-web\.html/);
-  assert.match(workflow, /gh release upload "\$RELEASE_TAG" my-lisp-cli-web\.html/);
-  assert.match(readme, /releases\/latest\/download\/my-lisp-cli-web\.html/);
-  assert.match(releaseAssets, /my-lisp-cli-web\.html/);
-  // Anchored with a leading `/` so it only matches the generated root artifact,
-  // not the public/my-lisp-cli-web.html source template (a bug this test guards against).
-  // Прив'язано `/`, щоб зачіпало лише згенерований кореневий артефакт, а не вихідний
-  // шаблон public/my-lisp-cli-web.html (баг, від якого захищає цей тест).
-  assert.match(gitignore, /^\/my-lisp-cli-web\.html$/m);
 });
 
 test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds', () => {

@@ -39,8 +39,10 @@ keystore_base64.txt
 # Local release-script backup / Локальна резервна копія / Lokale Sicherung
 scripts/release1.ps1
 
-# Private local project memory / Приватна локальна пам'ять / Privater lokaler Projektspeicher
-docs/PROJECT_MEMORY.md
+# Private local files: project memory, personal profile, Android signing key
+# Приватні локальні файли: пам'ять проєкту, особистий профіль, ключ підпису Android
+# Private lokale Dateien: Projektgedächtnis, persönliches Profil, Android-Signaturschlüssel
+/private/
 
 # Generated Android resources (icons, mipmap)
 src-tauri/gen/android/app/src/main/res/mipmap-*/
@@ -50,4 +52,3 @@ src-tauri/gen/android/app/src/main/res/mipmap-anydpi-v26/
 # Standalone Web HTML (згенерований артефакт)
 # Standalone Web HTML (generiertes Artefakt)
 /my-idea-web.html
-/my-lisp-cli-web.html

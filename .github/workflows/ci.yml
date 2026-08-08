@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: true
       - uses: actions/setup-node@v6
         with:
           node-version: 20
@@ -25,15 +27,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
-      - name: Build standalone my-lisp-cli-web.html · Зібрати my-lisp-cli-web.html · my-lisp-cli-web.html bauen
-        run: node scripts/make-portable-web.mjs dist/my-lisp-cli-web.html my-lisp-cli-web.html
       - name: Install Playwright Browsers · Встановити браузери Playwright · Playwright-Browser installieren
         run: npx playwright install chromium --with-deps
       - run: npm test
       - run: npm run check
-      - name: Test my-lisp Rust core · Тест Rust-ядра my-lisp · my-lisp-Rust-Kern testen
-        run: cargo test --manifest-path crates/my-lisp/Cargo.toml
-      - name: Test my-lisp CLI · Тест CLI my-lisp · my-lisp-CLI testen
-        run: cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
-      - name: Test my-lisp-literate · Тест my-lisp-literate · my-lisp-literate testen
-        run: cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
+      - name: Check my-idea against the my-lisp git dependency · Перевірити my-idea проти git-залежності my-lisp · my-idea gegen die my-lisp-Git-Abhängigkeit prüfen
+        run: cargo check --manifest-path src-tauri/Cargo.toml
