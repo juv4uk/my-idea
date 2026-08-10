@@ -10,6 +10,7 @@
 - [Remove the apostrophe · Приберіть апостроф · Entfernen Sie das Apostroph](quote-tutorial.md)
 - [Android releases · Android-релізи · Android-Releases](android-release.md)
 - [Platform roadmap · Дорожня карта платформ · Plattform-Roadmap](platform-roadmap.md)
+- [my-idea as System Observatory (vision) · my-idea як Обсерваторія (бачення) · my-idea als System-Observatorium (Vision)](system-observatory-vision.md)
 
 ## Product boundary · Межі продукту · Produktgrenze
 
