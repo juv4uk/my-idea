@@ -1,5 +1,5 @@
 (ns my-idea.core
-  (:require [cljs.pprint :as pprint] [clojure.string :as str]
+  (:require [clojure.string :as str]
             [my-idea.editor :as editor]
             [my-idea.preview :as preview]
             [my-idea.wasm :as wasm] [my-idea.workspace :as workspace]))
@@ -20,13 +20,14 @@
                       :open-paths []
                       :active-path nil
                       :documents {}
-                      :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
+                      :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
+                      :ecosystem nil}))
 (def messages
-  {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview"
+  {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :ecosystem "Ecosystem"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
-   "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд"
+   "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд" :ecosystem "Екосистема"
          :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія" "signal" "Сигнал" "amber" "Бурштин" "forest" "Ліс"}}
-   "de" {:open "Ordner öffnen" :new-file "Neue Datei" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau"
+   "de" {:open "Ordner öffnen" :new-file "Neue Datei" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau" :ecosystem "Ökosystem"
          :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia" "signal" "Signal" "amber" "Bernstein" "forest" "Wald"}}})
 (defn- t [key] (get-in messages [(:language @state) key]))
 (defn- esc [x] (-> (str x) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
@@ -149,9 +150,57 @@
 (defn- check-ecosystem! []
   (-> (workspace/invoke! "ecosystem_status" {})
       (.then #(let [status (js->clj % :keywordize-keys true)]
-                (swap! state assoc :output [(with-out-str (pprint/pprint status))] :error? false)
+                (swap! state assoc :ecosystem status
+                       :output ["Ecosystem check complete · Перевірку екосистеми завершено"] :error? false)
                 (render!)))
       (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
+
+(def result-icon {"pass" "✓" "fail" "✗" "skip" "·"})
+
+(defn- repo-summary-html [repo contract]
+  (str "<div class='eco-repo'><strong>" (esc (:name repo)) "</strong> "
+       (if (:found repo)
+         (str "<span class='eco-branch'>" (esc (:branch repo)) "@" (esc (:sha repo)) "</span>")
+         "<span class='eco-missing'>not found on disk</span>")
+       (when contract
+         (str " <span class='eco-version'>v" (get-in contract [:version :major]) "."
+              (get-in contract [:version :minor]) "</span>"))
+       "</div>"))
+
+(defn- evidence-cell-html [row impl-key]
+  (if-let [rec (get-in row [:byImplementation impl-key])]
+    (str "<td class='eco-cell eco-" (esc (:result rec)) "' title='"
+         (esc (str (:fixture rec) " — expected " (:expected rec) ", actual " (:actual rec)
+                    " (" (:commit rec) ", " (:timestamp rec) ")"
+                    (when (:note rec) (str " — " (:note rec)))))
+         "'>" (get result-icon (:result rec) "?") "</td>")
+    "<td class='eco-cell eco-none'>—</td>"))
+
+(defn- evidence-matrix-html [matrix]
+  (str "<table class='eco-matrix'><thead><tr><th>Req</th><th>my-lisp</th><th>cml</th><th>fpga-lisp</th></tr></thead><tbody>"
+       (apply str (map (fn [row]
+                          (str "<tr><td>" (esc (:requirement row)) "</td>"
+                               (evidence-cell-html row :my-lisp)
+                               (evidence-cell-html row :cml)
+                               (evidence-cell-html row :fpga-lisp)
+                               "</tr>"))
+                        matrix))
+       "</tbody></table>"))
+
+(defn- compatibility-html [compat]
+  (when compat
+    (str "<div class='eco-compat'>language "
+         (if (:languageMatch compat) "✓" "✗")
+         " · isa " (if (:isaMatch compat) "✓" "✗") "</div>")))
+
+(defn- ecosystem-html [eco]
+  (str "<div class='eco'>"
+       (repo-summary-html (:myLisp eco) (:myLispContract eco))
+       (repo-summary-html (:cml eco) nil)
+       (repo-summary-html (:fpgaLisp eco) (:fpgaLispContract eco))
+       (or (compatibility-html (:compatibility eco)) "")
+       (evidence-matrix-html (:evidenceMatrix eco))
+       "</div>"))
 
 (defn- execute! []
   (let [source (editor/source)
@@ -207,8 +256,8 @@
       (render!))))
 
 (defn render! []
-  (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar?]} @state 
-        app (.getElementById js/document "app") 
+  (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar? ecosystem]} @state
+        app (.getElementById js/document "app")
         doc (active-doc)
         mode (or (:language-mode doc) "text")
         preview? (or (= mode "markdown") (= mode "mermaid"))]
@@ -219,9 +268,10 @@
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
-           (if preview?
-             (str "<section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
-             (str "<section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section>"))
+           (cond
+             ecosystem (str "<section class='pane eco-pane'><div class='pane-head'>" (t :ecosystem) "</div>" (ecosystem-html ecosystem) "</section>")
+             preview? (str "<section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
+             :else (str "<section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section>"))
            "</div></main>"
            "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><button id='programming-language' class='status-language' title='Programming language · Мова програмування · Programmiersprache'>"
            (get programming-language-labels mode)
