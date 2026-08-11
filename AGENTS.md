@@ -63,6 +63,30 @@ automatically — export it before `cargo`/`npm` network operations:
 export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
 ```
 
+## Guix features worth using deliberately
+
+Beyond `guix shell -m manifest.scm`, three commands matter most for this
+repo's evidence work:
+
+- `guix shell --pure -m manifest.scm -- <command>` — strips the ambient
+  WSL `$PATH`, so a pass can't be quietly depending on something installed
+  outside the declared environment. Use this, not a bare `guix shell`, when
+  a result is going into an evidence file.
+- `guix describe` — prints the exact Guix commit/channel state; worth
+  capturing alongside a result if you want to reproduce the *environment*
+  later, not just the code (`git` pins the code, this pins the toolchain).
+- `guix time-machine -C channels.scm -- shell -m manifest.scm -- <command>`
+  — reproduces a specific past Guix revision via a pinned `channels.scm`,
+  for when "same manifest, same day" isn't precise enough.
+
+An ecosystem-wide `channels.scm` (one level up, alongside all four repos)
+would let evidence eventually record `(guix-revision ...)` next to
+`(commit ...)` — not implemented yet, and not this repo's call alone: it'd
+mean extending the shared `evidence/README.md` schema across all four
+repos, not something to add unilaterally to `ecosystem::evidence`'s reader.
+If you want this, raise it with whoever owns that schema (currently
+my-lisp) rather than inventing a parallel field here.
+
 ## Agent rule: don't patch the base system
 
 Before installing anything to fix a missing dependency, check whether it
