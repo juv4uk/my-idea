@@ -1,7 +1,9 @@
 mod contracts;
+mod evidence;
 mod git;
 
 use contracts::{CmlCompatibility, CmlStatus, IsaContract, LanguageContract};
+use evidence::RequirementRow;
 use git::RepoInfo;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -24,6 +26,7 @@ pub struct EcosystemStatus {
     pub cml_compatibility: Option<CmlCompatibility>,
     pub compatibility: Option<CompatibilityCheck>,
     pub cml_status: Option<CmlStatus>,
+    pub evidence_matrix: Vec<RequirementRow>,
 }
 
 /// The three ecosystem repos are expected as siblings of `my-idea` on disk, e.g.
@@ -63,6 +66,11 @@ pub fn status() -> EcosystemStatus {
     let cml_compatibility = contracts::read_cml_compatibility(&cml_path);
     let cml_status = contracts::read_cml_status(&my_lisp_path);
 
+    let mut evidence_records = evidence::scan(&my_lisp_path);
+    evidence_records.extend(evidence::scan(&fpga_lisp_path));
+    evidence_records.extend(evidence::scan(&cml_path));
+    let evidence_matrix = evidence::matrix(evidence_records);
+
     let compatibility = cml_compatibility.as_ref().map(|cml_compat| {
         let language_match = my_lisp_contract
             .as_ref()
@@ -89,5 +97,6 @@ pub fn status() -> EcosystemStatus {
         cml_compatibility,
         compatibility,
         cml_status,
+        evidence_matrix,
     }
 }

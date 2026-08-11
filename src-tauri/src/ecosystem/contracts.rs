@@ -31,28 +31,28 @@ pub struct CmlCompatibility {
     pub isa_sha: Option<String>,
 }
 
-fn as_list(expr: &Expr) -> Option<&[Expr]> {
+pub(super) fn as_list(expr: &Expr) -> Option<&[Expr]> {
     match &expr.kind {
         ExprKind::List(items) => Some(items),
         _ => None,
     }
 }
 
-fn symbol_name(expr: &Expr) -> Option<&str> {
+pub(super) fn symbol_name(expr: &Expr) -> Option<&str> {
     match &expr.kind {
         ExprKind::Symbol(name) => Some(name),
         _ => None,
     }
 }
 
-fn number(expr: &Expr) -> Option<i64> {
+pub(super) fn number(expr: &Expr) -> Option<i64> {
     match &expr.kind {
         ExprKind::Number(value) => Some(value.round() as i64),
         _ => None,
     }
 }
 
-fn string_value(expr: &Expr) -> Option<String> {
+pub(super) fn string_value(expr: &Expr) -> Option<String> {
     match &expr.kind {
         ExprKind::String(value) => Some(value.to_string()),
         _ => None,
@@ -65,7 +65,7 @@ fn string_value(expr: &Expr) -> Option<String> {
 /// Шукає `(key . value)` в alist-контракті так, як його токенізує
 /// власний парсер my-lisp — три плоскі елементи, оскільки цей парсер не
 /// будує справжні dotted-пари для крапки читача.
-fn assoc<'a>(items: &'a [Expr], key: &str) -> Option<&'a Expr> {
+pub(super) fn assoc<'a>(items: &'a [Expr], key: &str) -> Option<&'a Expr> {
     items.iter().find_map(|item| {
         let pair = as_list(item)?;
         if pair.len() == 3 && symbol_name(&pair[0])? == key && symbol_name(&pair[1])? == "." {
@@ -90,7 +90,7 @@ fn version2(expr: &Expr) -> Option<Version2> {
 /// Парсить єдину верхньорівневу форму файлу контракту як вихідний код
 /// my-lisp і повертає її alist-записи, використовуючи власний reader
 /// мови замість саморобного сканування рядків.
-fn parse_alist(source: &str) -> Option<Vec<Expr>> {
+pub(super) fn parse_alist(source: &str) -> Option<Vec<Expr>> {
     let forms = parse(source).ok()?;
     let top = forms.into_iter().next()?;
     as_list(&top).map(|items| items.to_vec())
