@@ -33,8 +33,10 @@ Backend-агрегатор у `src-tauri/src/ecosystem/`:
 
 `src-tauri/src/oracle.rs` — одноразовий TCP-клієнт до my-lisp's
 `--tcp --protocol=sexpr` REPL: одне з'єднання на запит (той самий oracle,
-що й evidence-протокол, не message bus — див. my-lisp AGENTS.md), сирий
-`(response ...)` повертається як є.
+що й evidence-протокол, не message bus — див. my-lisp AGENTS.md), з
+ретраями на з'єднання (оракул міг щойно стартувати). Відповідь парситься
+тим самим reader'ом my-lisp (status/kind/message), а не показується як
+сирий `(response ...)`.
 
 Обидва модулі підключені як `#[tauri::command]`:
 
@@ -48,8 +50,12 @@ Frontend (`src-cljs/my_idea/core.cljs`):
   замість AST/preview: branch/SHA + версія контракту на репо,
   language/ISA compatibility, і повна evidence-таблиця (G1–G8/S1–S3 ×
   my-lisp/cml/fpga-lisp, ✓/✗/·, тултип із fixture/expected/actual/commit).
+  Клік на рядок requirement відкриває fixture drill-down: джерело fixture
+  плюс badge/expected/actual/commit/note по кожній реалізації, з кнопкою
+  "← matrix" назад.
 - Кнопка **🔮 Oracle** шле вміст активного файлу як `eval`-запит до живого
-  my-lisp TCP REPL і показує сиру відповідь у консольній панелі.
+  my-lisp TCP REPL і показує value при успіху або "oracle: error (kind) —
+  message" при помилці — не сирий `(response ...)`.
 - Стилі `.eco-*` у `public/styles.css`, узгоджені зі світлою/темною/sepia
   темами через наявні CSS-змінні.
 
@@ -62,8 +68,6 @@ Frontend (`src-cljs/my_idea/core.cljs`):
   контракти й evidence з диска — не запускає тести/CML/simulator сама.
 - Compatibility Lens / вибір гілки для кожного репо — немає, показується
   лише поточний стан робочої копії.
-- `oracle_query` — без ретраїв і без явного статусу "oracle не запущений";
-  помилка з'єднання показується як сирий текст помилки.
 
 ## Залежність від my-lisp
 
