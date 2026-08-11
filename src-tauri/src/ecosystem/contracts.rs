@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::fs;
 use std::path::Path;
 
-#[derive(Serialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Version2 {
     pub major: i64,
     pub minor: i64,
@@ -177,4 +177,91 @@ pub fn read_cml_compatibility(repo: &Path) -> Option<CmlCompatibility> {
         isa_contract,
         isa_sha,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn write_temp(name: &str, contents: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("my-idea-contracts-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(name);
+        fs::write(&path, contents).unwrap();
+        dir
+    }
+
+    #[test]
+    fn reads_language_contract_major_minor() {
+        let repo = write_temp(
+            "language-contract.my",
+            r#"((major . 1) (minor . 0)
+ (note . "bare integer literals are exact")
+ (covers . (G1 G2)))"#,
+        );
+        let contract = read_language_contract(&repo).expect("should parse");
+        assert_eq!(contract.version.major, 1);
+        assert_eq!(contract.version.minor, 0);
+    }
+
+    #[test]
+    fn reads_isa_contract_version() {
+        let repo = write_temp(
+            "isa-contract.my",
+            r#"((kind . isa-contract) (version . (0 2)) (notes . nil))"#,
+        );
+        let contract = read_isa_contract(&repo).expect("should parse");
+        assert_eq!(contract.version.major, 0);
+        assert_eq!(contract.version.minor, 2);
+    }
+
+    #[test]
+    fn reads_cml_compatibility_versions_and_shas() {
+        let repo = write_temp(
+            "compatibility.my",
+            r#"((kind . cml-compatibility)
+ (compiler-version . (0 1 0))
+ (language . ((repository . juv4uk/my-lisp)
+              (contract . (1 0))
+              (tested-sha . "ed10151")))
+ (target . ((repository . juv4uk/fpga-lisp)
+            (isa . (0 2))
+            (tested-sha . "01bb01a"))))"#,
+        );
+        let compat = read_cml_compatibility(&repo).expect("should parse");
+        assert_eq!(compat.compiler_version, (0, 1, 0));
+        assert_eq!(compat.language_contract, Version2 { major: 1, minor: 0 });
+        assert_eq!(compat.language_sha.as_deref(), Some("ed10151"));
+        assert_eq!(compat.isa_contract, Version2 { major: 0, minor: 2 });
+        assert_eq!(compat.isa_sha.as_deref(), Some("01bb01a"));
+    }
+
+    #[test]
+    fn reads_cml_status_from_ecosystem_status() {
+        let repo = write_temp(
+            "ecosystem-status.my",
+            r#"((kind . ecosystem-status)
+ (as-of . "2026-08-11")
+ (repositories .
+  ((my-lisp . ((role . semantic-source-of-truth)))
+   (cml .
+    ((role . aot-compiler)
+     (tier-1-skips-remaining . 0)
+     (ci-status . green)
+     (equal-status . merged-machine-verified)
+     (defmacro-status . merged-machine-verified))))))"#,
+        );
+        let status = read_cml_status(&repo).expect("should parse");
+        assert_eq!(status.tier1_skips_remaining, 0);
+        assert_eq!(status.ci_status, "green");
+        assert_eq!(status.equal_status, "merged-machine-verified");
+        assert_eq!(status.defmacro_status, "merged-machine-verified");
+    }
+
+    #[test]
+    fn missing_file_returns_none() {
+        let repo = write_temp("unrelated.my", "()");
+        assert!(read_language_contract(&repo).is_none());
+    }
 }
