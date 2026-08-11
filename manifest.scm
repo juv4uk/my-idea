@@ -14,4 +14,4 @@
    ;; Tauri's Linux runtime deps (webkitgtk, gtk, etc.)
    "webkitgtk"
    "gtk+"
-   "libayatana-appindicator"))
+   "libappindicator"))
