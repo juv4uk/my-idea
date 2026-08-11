@@ -45,9 +45,18 @@ fn symbol_name(expr: &Expr) -> Option<&str> {
     }
 }
 
+/// Accepts only values that are exact integers in `i64` range — a contract
+/// version field like `(major . 0.5)` or one beyond `i64::MAX` is malformed,
+/// not something to silently round or saturate.
 fn number(expr: &Expr) -> Option<i64> {
     match &expr.kind {
-        ExprKind::Number(value) => Some(value.round() as i64),
+        ExprKind::Number(value) if value.fract() == 0.0 && value.is_finite() => {
+            if *value < i64::MIN as f64 || *value > i64::MAX as f64 {
+                None
+            } else {
+                Some(*value as i64)
+            }
+        }
         _ => None,
     }
 }
@@ -76,24 +85,35 @@ fn assoc<'a>(items: &'a [Expr], key: &str) -> Option<&'a Expr> {
     })
 }
 
+/// Requires exactly two components — `(1 0 2)` or `(1)` is a malformed
+/// version, not one to be read leniently and have its extras ignored.
 fn version2(expr: &Expr) -> Option<Version2> {
     let items = as_list(expr)?;
+    if items.len() != 2 {
+        return None;
+    }
     Some(Version2 {
-        major: number(items.first()?)?,
-        minor: number(items.get(1)?)?,
+        major: number(&items[0])?,
+        minor: number(&items[1])?,
     })
 }
 
 /// Parses a contract file's single top-level form as my-lisp source and
 /// returns its alist entries, using the language's own reader instead of
-/// hand-rolled string scanning.
+/// hand-rolled string scanning. A file with more than one top-level form
+/// is malformed, not "read the first one and ignore the rest" — matches
+/// AGENT_MEMORY.md's "fail on fixture parse loss instead of silently
+/// continuing".
 /// Парсить єдину верхньорівневу форму файлу контракту як вихідний код
 /// my-lisp і повертає її alist-записи, використовуючи власний reader
-/// мови замість саморобного сканування рядків.
+/// мови замість саморобного сканування рядків. Файл з більш ніж однією
+/// верхньорівневою формою вважається неправильним.
 fn parse_alist(source: &str) -> Option<Vec<Expr>> {
-    let forms = parse(source).ok()?;
-    let top = forms.into_iter().next()?;
-    as_list(&top).map(|items| items.to_vec())
+    let mut forms = parse(source).ok()?;
+    if forms.len() != 1 {
+        return None;
+    }
+    as_list(&forms.remove(0)).map(|items| items.to_vec())
 }
 
 /// Reads `language-contract.my`: `((major . 1) (minor . 0) ...)`.
@@ -241,17 +261,44 @@ pub fn read_cml_compatibility(repo: &Path) -> Option<CmlCompatibility> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-    fn write_temp(name: &str, contents: &str) -> PathBuf {
-        let dir =
-            std::env::temp_dir().join(format!("my-idea-contracts-test-{}", std::process::id()));
+    /// Removes its directory on drop so parallel `cargo test` runs never see
+    /// each other's fixture files and %TEMP% doesn't accumulate test debris.
+    struct TempRepo(PathBuf);
+
+    impl std::ops::Deref for TempRepo {
+        type Target = Path;
+        fn deref(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Drop for TempRepo {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn temp_repo() -> TempRepo {
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!(
+            "my-idea-contracts-test-{}-{n}",
+            std::process::id()
+        ));
         fs::create_dir_all(&dir).unwrap();
-        let path = dir.join(name);
+        TempRepo(dir)
+    }
+
+    fn write_temp(name: &str, contents: &str) -> TempRepo {
+        let repo = temp_repo();
+        let path = repo.join(name);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).unwrap();
         }
         fs::write(&path, contents).unwrap();
-        dir
+        repo
     }
 
     #[test]
@@ -324,6 +371,59 @@ mod tests {
     #[test]
     fn missing_file_returns_none() {
         let repo = write_temp("unrelated.my", "()");
+        assert!(read_language_contract(&repo).is_none());
+    }
+
+    #[test]
+    fn missing_file_does_not_see_sibling_files() {
+        // Regression test for the parallel-test race OpenCode flagged: every
+        // temp_repo() call now gets its own directory, so a test that only
+        // wrote an unrelated file can never observe another test's contract.
+        let repo = write_temp("language-contract.my", "((major . 1) (minor . 0))");
+        let other = write_temp("unrelated.my", "()");
+        assert!(read_language_contract(&other).is_none());
+        assert!(read_language_contract(&repo).is_some());
+    }
+
+    #[test]
+    fn rejects_multiple_top_level_forms() {
+        let repo = write_temp(
+            "language-contract.my",
+            "((major . 1) (minor . 0)) ((major . 2) (minor . 0))",
+        );
+        assert!(read_language_contract(&repo).is_none());
+    }
+
+    #[test]
+    fn rejects_non_integer_version_components() {
+        let repo = write_temp("language-contract.my", "((major . 0.5) (minor . 0))");
+        assert!(read_language_contract(&repo).is_none());
+
+        let repo = write_temp("isa-contract.my", "((version . (1.5 0)))");
+        assert!(read_isa_contract(&repo).is_none());
+    }
+
+    #[test]
+    fn rejects_overflowing_numbers() {
+        let repo = write_temp(
+            "language-contract.my",
+            "((major . 100000000000000000000) (minor . 0))",
+        );
+        assert!(read_language_contract(&repo).is_none());
+    }
+
+    #[test]
+    fn version_requires_exactly_two_components() {
+        let repo = write_temp("isa-contract.my", "((version . (0 2 1)))");
+        assert!(read_isa_contract(&repo).is_none());
+
+        let repo = write_temp("isa-contract.my", "((version . (0)))");
+        assert!(read_isa_contract(&repo).is_none());
+    }
+
+    #[test]
+    fn empty_and_comment_only_files_are_none() {
+        let repo = write_temp("language-contract.my", "; just a comment\n");
         assert!(read_language_contract(&repo).is_none());
     }
 

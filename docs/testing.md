@@ -10,13 +10,20 @@ Before the web tests or release build, install dependencies with `npm ci` and bu
 
 | Crate | Suite | Tests | Covers |
 |---|---|---:|---|
-| `my-lisp` | unit tests (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 24 | reader/parser edge cases, lexical-scope isolation, single-pass evaluation, macro expansion |
-| `my-lisp` | `tests/mccarthy.rs` | 12 | the seven McCarthy primitives, exact/inexact arithmetic, lambda semantics, structured errors |
-| `my-lisp` | `tests/stack_safety.rs` | 4 | tail recursion and deep list clone/drop use constant Rust stack |
-| `my-lisp-cli` | `tests/cli.rs` | 8 | the compiled binary end-to-end: `--version`/`--help`, file execution, parse/eval error exit codes, missing-file handling, `lib/core.my` preloading |
+| `my-lisp` | unit tests (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 35 | reader/parser edge cases, lexical-scope isolation, single-pass evaluation, macro expansion |
+| `my-lisp` | `tests/forward.rs` | 26 | `lib/forward.my` — CLIPS-style forward-chaining rule engine |
+| `my-lisp` | `tests/knowledge.rs` | 8 | `lib/knowledge.my` knowledge packages over core, unify, reason |
+| `my-lisp` | `tests/mccarthy.rs` | 27 | the seven McCarthy primitives, exact/inexact arithmetic, lambda semantics, structured errors |
+| `my-lisp` | `tests/meta_eval.rs` | 9 | `lib/meta-eval.my` metacircular evaluator via `(my-eval (read "...") env)` |
+| `my-lisp` | `tests/narrate.rs` | 5 | `lib/narrate.my` — the "structure → text" half of the knowledge bridge |
+| `my-lisp` | `tests/reason.rs` | 13 | `lib/reason.my` symbolic inference engine (Advice Taker style) |
+| `my-lisp` | `tests/stack_safety.rs` | 5 | tail recursion and deep list clone/drop use constant Rust stack |
+| `my-lisp` | `tests/understand.rs` | 5 | `lib/understand.my` — the "word list → knowledge clause" half of the bridge |
+| `my-lisp` | `tests/unify.rs` | 12 | `lib/unify.my` unification primitive behind backward-chaining reasoning |
+| `my-lisp-cli` | `tests/cli.rs` | 10 | the compiled binary end-to-end: `--version`/`--help`, file execution, parse/eval error exit codes, missing-file handling, `lib/core.my` preloading |
 | `my-lisp-literate` | `tests/literate_offsets.rs` | 4 | literate-Markdown source-offset mapping |
 | `src-tauri` | unit tests (`src/lib.rs`, `src/ecosystem/contracts.rs`) | 8 | native evaluator, workspace path boundaries, contract readers, ordered fixture inventory |
-| **Rust total** | | **60** | |
+| **Rust total** | | **167** | |
 
 ```powershell
 cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
@@ -41,12 +48,13 @@ npm test
 
 ### Grand total
 
-**94 automated tests** (60 Rust + 34 Web/JS) are declared across the project. Verification on 2026-08-11 is recorded below; totals should only be described as passing when every listed command completes in the current environment.
+**201 automated tests** (167 Rust + 34 Web/JS) are declared across the project. Verification on 2026-08-11 is recorded below; totals should only be described as passing when every listed command completes in the current environment.
 
 ### Latest verification (2026-08-11, Windows x86_64)
 
 - `npm ci`: passed; dependencies installed from `package-lock.json`.
 - `npm run wasm`: passed; `wasm-pack` built the vendored engine into `public/wasm`.
+- `cargo test` (my-lisp, my-lisp-cli, my-lisp-literate, src-tauri): 167 passed, 0 failed.
 - `node --test tests/*.test.mjs`: 34 passed, 0 failed, 0 skipped.
 
 ## Українська
@@ -57,13 +65,20 @@ npm test
 
 | Крейт | Набір | Тестів | Покриває |
 |---|---|---:|---|
-| `my-lisp` | unit-тести (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 24 | межові випадки reader/parser, ізоляцію лексичного скоупу, однопрохідне обчислення, розкриття макросів |
-| `my-lisp` | `tests/mccarthy.rs` | 12 | сім примітивів Маккарті, точну/неточну арифметику, семантику lambda, структуровані помилки |
-| `my-lisp` | `tests/stack_safety.rs` | 4 | хвостову рекурсію та clone/drop глибоких списків зі сталим Rust-стеком |
-| `my-lisp-cli` | `tests/cli.rs` | 8 | скомпільований бінарник наскрізно: `--version`/`--help`, виконання файлу, коди виходу при помилках парсингу/обчислення, відсутній файл, попереднє завантаження `lib/core.my` |
+| `my-lisp` | unit-тести (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 35 | межові випадки reader/parser, ізоляцію лексичного скоупу, однопрохідне обчислення, розкриття макросів |
+| `my-lisp` | `tests/forward.rs` | 26 | `lib/forward.my` — forward-chaining рушій правил у стилі CLIPS |
+| `my-lisp` | `tests/knowledge.rs` | 8 | knowledge-пакети `lib/knowledge.my` поверх core, unify, reason |
+| `my-lisp` | `tests/mccarthy.rs` | 27 | сім примітивів Маккарті, точну/неточну арифметику, семантику lambda, структуровані помилки |
+| `my-lisp` | `tests/meta_eval.rs` | 9 | метациркулярний evaluator `lib/meta-eval.my` через `(my-eval (read "...") env)` |
+| `my-lisp` | `tests/narrate.rs` | 5 | `lib/narrate.my` — половина «структура → текст» містка знань |
+| `my-lisp` | `tests/reason.rs` | 13 | `lib/reason.my` — символьний рушій висновків (у дусі Advice Taker) |
+| `my-lisp` | `tests/stack_safety.rs` | 5 | хвостову рекурсію та clone/drop глибоких списків зі сталим Rust-стеком |
+| `my-lisp` | `tests/understand.rs` | 5 | `lib/understand.my` — половина «список слів → клауза знання» містка |
+| `my-lisp` | `tests/unify.rs` | 12 | `lib/unify.my` — примітив уніфікації для backward-chaining міркувань |
+| `my-lisp-cli` | `tests/cli.rs` | 10 | скомпільований бінарник наскрізно: `--version`/`--help`, виконання файлу, коди виходу при помилках парсингу/обчислення, відсутній файл, попереднє завантаження `lib/core.my` |
 | `my-lisp-literate` | `tests/literate_offsets.rs` | 4 | зіставлення зміщень початкового коду literate-Markdown |
 | `src-tauri` | unit-тести (`src/lib.rs`, `src/ecosystem/contracts.rs`) | 8 | нативний evaluator, межі шляхів workspace, читання контрактів, впорядкований fixture inventory |
-| **Разом Rust** | | **60** | |
+| **Разом Rust** | | **167** | |
 
 ```powershell
 cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
@@ -88,7 +103,7 @@ npm test
 
 ### Загальний підсумок
 
-**94 автотести** (60 Rust + 34 Web/JS) оголошено у проєкті. Перевірено 2026-08-11 на Windows x86_64: `npm ci` і `npm run wasm` проходять; `node --test tests/*.test.mjs` — 34 пройдено, 0 провалів, 0 пропущено.
+**201 автотест** (167 Rust + 34 Web/JS) оголошено у проєкті. Перевірено 2026-08-11 на Windows x86_64: `npm ci` і `npm run wasm` проходять; `cargo test` — 167 пройдено, 0 провалів; `node --test tests/*.test.mjs` — 34 пройдено, 0 провалів, 0 пропущено.
 
 ## Deutsch
 
@@ -98,13 +113,20 @@ Das Projekt hat zwei unabhängige Testebenen: die Rust-Crates unter `crates/` (a
 
 | Crate | Suite | Tests | Deckt ab |
 |---|---|---:|---|
-| `my-lisp` | Unit-Tests (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 24 | Reader-/Parser-Grenzfälle, Isolation des lexikalischen Scopes, Single-Pass-Auswertung, Makro-Expansion |
-| `my-lisp` | `tests/mccarthy.rs` | 12 | die sieben McCarthy-Primitive, exakte/inexakte Arithmetik, Lambda-Semantik, strukturierte Fehler |
-| `my-lisp` | `tests/stack_safety.rs` | 4 | Tail-Rekursion und Clone/Drop tiefer Listen mit konstantem Rust-Stack |
-| `my-lisp-cli` | `tests/cli.rs` | 8 | die kompilierte Binärdatei durchgängig: `--version`/`--help`, Dateiausführung, Exit-Codes bei Parse-/Eval-Fehlern, fehlende Datei, Vorladen von `lib/core.my` |
+| `my-lisp` | Unit-Tests (`src/parser.rs`, `src/environment.rs`, `src/eval/mod.rs`) | 35 | Reader-/Parser-Grenzfälle, Isolation des lexikalischen Scopes, Single-Pass-Auswertung, Makro-Expansion |
+| `my-lisp` | `tests/forward.rs` | 26 | `lib/forward.my` — CLIPS-artige Forward-Chaining-Regel-Engine |
+| `my-lisp` | `tests/knowledge.rs` | 8 | `lib/knowledge.my`-Wissenspakete auf core, unify, reason |
+| `my-lisp` | `tests/mccarthy.rs` | 27 | die sieben McCarthy-Primitive, exakte/inexakte Arithmetik, Lambda-Semantik, strukturierte Fehler |
+| `my-lisp` | `tests/meta_eval.rs` | 9 | metazirkulärer Evaluator `lib/meta-eval.my` via `(my-eval (read "...") env)` |
+| `my-lisp` | `tests/narrate.rs` | 5 | `lib/narrate.my` — die „Struktur → Text“-Hälfte der Wissensbrücke |
+| `my-lisp` | `tests/reason.rs` | 13 | `lib/reason.my` — symbolische Inferenz-Engine (Advice-Taker-Stil) |
+| `my-lisp` | `tests/stack_safety.rs` | 5 | Tail-Rekursion und Clone/Drop tiefer Listen mit konstantem Rust-Stack |
+| `my-lisp` | `tests/understand.rs` | 5 | `lib/understand.my` — die „Wortliste → Wissensklausel“-Hälfte der Brücke |
+| `my-lisp` | `tests/unify.rs` | 12 | `lib/unify.my`-Unifikationsprimitive hinter Backward-Chaining-Reasoning |
+| `my-lisp-cli` | `tests/cli.rs` | 10 | die kompilierte Binärdatei durchgängig: `--version`/`--help`, Dateiausführung, Exit-Codes bei Parse-/Eval-Fehlern, fehlende Datei, Vorladen von `lib/core.my` |
 | `my-lisp-literate` | `tests/literate_offsets.rs` | 4 | Offset-Zuordnung von literate-Markdown-Quellcode |
 | `src-tauri` | Unit-Tests (`src/lib.rs`, `src/ecosystem/contracts.rs`) | 8 | nativer Evaluator, Workspace-Pfadgrenzen, Contract-Reader, geordnetes Fixture-Inventar |
-| **Rust gesamt** | | **60** | |
+| **Rust gesamt** | | **167** | |
 
 ```powershell
 cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
@@ -129,4 +151,4 @@ npm test
 
 ### Gesamtsumme
 
-**94 automatisierte Tests** (60 Rust + 34 Web/JS) sind im Projekt deklariert. Verifiziert am 11.08.2026 unter Windows x86_64: `npm ci` und `npm run wasm` erfolgreich; `node --test tests/*.test.mjs` — 34 bestanden, 0 fehlgeschlagen, 0 übersprungen.
+**201 automatisierte Tests** (167 Rust + 34 Web/JS) sind im Projekt deklariert. Verifiziert am 11.08.2026 unter Windows x86_64: `npm ci` und `npm run wasm` erfolgreich; `cargo test` — 167 bestanden, 0 fehlgeschlagen; `node --test tests/*.test.mjs` — 34 bestanden, 0 fehlgeschlagen, 0 übersprungen.
