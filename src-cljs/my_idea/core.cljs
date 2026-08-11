@@ -155,6 +155,14 @@
                 (render!)))
       (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
 
+(defn- ask-oracle! []
+  (when-let [doc (active-doc)]
+    (swap! state assoc :ecosystem nil :output ["Asking my-lisp oracle (127.0.0.1:9999)… · Питаємо оракула my-lisp…"] :error? false)
+    (render!)
+    (-> (workspace/invoke! "oracle_query" {:source (:contents doc) :op "eval"})
+        (.then #(do (swap! state assoc :output [%] :error? false) (render!)))
+        (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))
+
 (def result-icon {"pass" "✓" "fail" "✗" "skip" "·"})
 
 (defn- repo-summary-html [repo contract]
@@ -264,7 +272,7 @@
     (apply-theme! theme)
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
-           "<div class='actions'><button id='language' title='Language'>" (get language-labels language) "</button><button id='theme' title='Theme'>" (get theme-icons theme) " " (get-in messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>" (when (workspace/native?) "<button id='ecosystem' title='Run ecosystem check'>🔭 Ecosystem</button>") "<button class='run' id='run'>▶ " (t :run) "</button></div></header>"
+           "<div class='actions'><button id='language' title='Language'>" (get language-labels language) "</button><button id='theme' title='Theme'>" (get theme-icons theme) " " (get-in messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>" (when (workspace/native?) "<button id='ecosystem' title='Run ecosystem check'>🔭 Ecosystem</button><button id='oracle' title='Ask the live my-lisp TCP oracle (127.0.0.1:9999)'>🔮 Oracle</button>") "<button class='run' id='run'>▶ " (t :run) "</button></div></header>"
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
@@ -289,6 +297,7 @@
     (.addEventListener (.getElementById js/document "save-as") "click" save-as!)
     (.addEventListener (.getElementById js/document "run") "click" execute!)
     (when-let [el (.getElementById js/document "ecosystem")] (.addEventListener el "click" check-ecosystem!))
+    (when-let [el (.getElementById js/document "oracle")] (.addEventListener el "click" ask-oracle!))
     (.addEventListener (.getElementById js/document "programming-language") "click" cycle-programming-language!)
     (.addEventListener (.getElementById js/document "menu") "click" #(do (swap! state update :sidebar? not) (render!)))
     (.addEventListener (.getElementById js/document "language") "click"

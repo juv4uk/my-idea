@@ -1,4 +1,5 @@
 mod ecosystem;
+mod oracle;
 
 use my_lisp::Session;
 use my_lisp_literate::SourceMode;
@@ -68,6 +69,20 @@ fn evaluate_my_lisp(source: String, mode: Option<String>) -> Result<LispEvaluati
 #[tauri::command]
 fn ecosystem_status() -> ecosystem::EcosystemStatus {
     ecosystem::status()
+}
+
+/// Queries a running my-lisp `--tcp --protocol=sexpr` instance as a live
+/// semantic oracle — `eval`/`diagnose`/`parse`/`contract-version` only, one
+/// connection per call (the oracle isolates state per connection, so this
+/// is a one-shot query, not a persistent session). Returns the raw
+/// `(response ...)` s-expression; the frontend renders it as-is rather than
+/// this backend re-interpreting my-lisp's own answer.
+///
+/// Запитує запущений my-lisp `--tcp --protocol=sexpr` як живий semantic
+/// oracle. Повертає сиру `(response ...)` s-expression.
+#[tauri::command]
+fn oracle_query(source: String, op: Option<String>, port: Option<u16>) -> Result<String, String> {
+    oracle::query(op.as_deref().unwrap_or("eval"), &source, port)
 }
 
 #[cfg(test)]
@@ -287,7 +302,8 @@ pub fn run() {
             save_workspace_file,
             save_as_dialog,
             evaluate_my_lisp,
-            ecosystem_status
+            ecosystem_status,
+            oracle_query
         ])
         .run(tauri::generate_context!())
         .expect("error while running my-idea");
