@@ -20,7 +20,8 @@
                       :open-paths []
                       :active-path nil
                       :documents {}
-                      :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
+                      :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
+                      :observatory nil}))
 (def messages
   {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
@@ -149,9 +150,45 @@
 (defn- check-ecosystem! []
   (-> (workspace/invoke! "ecosystem_status" {})
       (.then #(let [status (js->clj % :keywordize-keys true)]
-                (swap! state assoc :output [(with-out-str (pprint/pprint status))] :error? false)
+                (swap! state assoc :observatory status :error? false)
                 (render!)))
       (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
+
+(defn- version-label [version]
+  (if version (str (:major version) "." (:minor version)) "—"))
+
+(defn- repo-card [repo title detail-label detail]
+  (str "<article class='repo-card'><div class='repo-card-head'><span class='repo-dot "
+       (if (:found repo) "found" "missing") "'></span><h2>" title "</h2></div>"
+       "<dl><dt>Status</dt><dd>" (if (:found repo) "Local repository" "Not found") "</dd>"
+       "<dt>Branch</dt><dd><code>" (esc (or (:branch repo) "—")) "</code></dd>"
+       "<dt>Commit</dt><dd><code>" (esc (or (:sha repo) "—")) "</code></dd>"
+       "<dt>" detail-label "</dt><dd>" (esc detail) "</dd></dl>"
+       "<small class='repo-path'>" (esc (:path repo)) "</small></article>"))
+
+(defn- observatory-html [status]
+  (let [{:keys [my-lisp my-lisp-contract cml cml-compatibility cml-status
+                fpga-lisp fpga-lisp-contract compatibility]} status
+        language-ok (:language-match compatibility)
+        isa-ok (:isa-match compatibility)
+        compatible? (and language-ok isa-ok)
+        compiler (or (:compiler-version cml-compatibility) [])]
+    (str "<section class='observatory'><div class='observatory-title'><div><span class='eyebrow'>SYSTEM OBSERVATORY</span>"
+         "<h1>Ecosystem snapshot</h1><p>Local, offline-first view of contracts and revisions.</p></div>"
+         "<div class='observatory-actions'><button id='close-observatory'>← Editor</button><button id='refresh-ecosystem' class='run'>↻ Run ecosystem check</button></div></div>"
+         "<div class='repo-grid'>"
+         (repo-card my-lisp "my-lisp" "Language contract" (version-label (:version my-lisp-contract)))
+         (repo-card cml "cml" "Compiler" (if (seq compiler) (str/join "." compiler) "—"))
+         (repo-card fpga-lisp "fpga-lisp" "ISA contract" (version-label (:version fpga-lisp-contract)))
+         "</div><section class='compatibility-card " (if compatible? "compatible" "mismatch") "'>"
+         "<div><span class='compatibility-icon'>" (if compatible? "✓" "!") "</span><div><span class='eyebrow'>COMPATIBILITY</span><h2>"
+         (if compatible? "Contracts agree" "Contract mismatch") "</h2></div></div>"
+         "<div class='compatibility-checks'><span>" (if language-ok "✓" "×") " Language "
+         (version-label (:language-contract cml-compatibility)) " → " (version-label (:version my-lisp-contract)) "</span>"
+         "<span>" (if isa-ok "✓" "×") " ISA " (version-label (:isa-contract cml-compatibility)) " → "
+         (version-label (:version fpga-lisp-contract)) "</span>"
+         (when cml-status (str "<span>Tier-1 skips: " (:tier1-skips-remaining cml-status) " · CI: " (esc (:ci-status cml-status)) "</span>"))
+         "</div></section></section>")))
 
 (defn- execute! []
   (let [source (editor/source)
@@ -211,30 +248,35 @@
         app (.getElementById js/document "app") 
         doc (active-doc)
         mode (or (:language-mode doc) "text")
-        preview? (or (= mode "markdown") (= mode "mermaid"))]
+        preview? (or (= mode "markdown") (= mode "mermaid"))
+        observatory (:observatory @state)]
     (apply-theme! theme)
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
            "<div class='actions'><button id='language' title='Language'>" (get language-labels language) "</button><button id='theme' title='Theme'>" (get theme-icons theme) " " (get-in messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>" (when (workspace/native?) "<button id='ecosystem' title='Run ecosystem check'>🔭 Ecosystem</button>") "<button class='run' id='run'>▶ " (t :run) "</button></div></header>"
-           "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
+           (if observatory
+             (str "<main class='observatory-workspace'>" (observatory-html observatory) "</main>")
+             (str "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
            (if preview?
              (str "<section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
              (str "<section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section>"))
-           "</div></main>"
+           "</div></main>"))
            "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><button id='programming-language' class='status-language' title='Programming language · Мова програмування · Programmiersprache'>"
            (get programming-language-labels mode)
            "</button><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
-    (when doc 
+    (when (and doc (not observatory))
       (editor/mount! (.getElementById js/document "editor") (:contents doc) mode wasm/diagnose
                      #(do (swap! state workspace/update-active %)
                           (when preview? (preview/render! % mode (.getElementById js/document "preview-content")))))
       (when preview?
         (preview/render! (:contents doc) mode (.getElementById js/document "preview-content"))))
+    (when-let [el (.getElementById js/document "close-observatory")] (.addEventListener el "click" #(do (swap! state assoc :observatory nil) (render!))))
+    (when-let [el (.getElementById js/document "refresh-ecosystem")] (.addEventListener el "click" check-ecosystem!))
     (.addEventListener (.getElementById js/document "open") "click" choose-workspace!)
-    (.addEventListener (.getElementById js/document "new-file") "click" new-file!)
-    (.addEventListener (.getElementById js/document "open-sidebar") "click" choose-workspace!)
+    (when-let [el (.getElementById js/document "new-file")] (.addEventListener el "click" new-file!))
+    (when-let [el (.getElementById js/document "open-sidebar")] (.addEventListener el "click" choose-workspace!))
     (.addEventListener (.getElementById js/document "save") "click" save!)
     (.addEventListener (.getElementById js/document "save-as") "click" save-as!)
     (.addEventListener (.getElementById js/document "run") "click" execute!)

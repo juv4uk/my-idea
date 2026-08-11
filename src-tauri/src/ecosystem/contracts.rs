@@ -128,6 +128,64 @@ pub struct CmlStatus {
     pub defmacro_status: String,
 }
 
+#[derive(Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Fixture {
+    pub index: usize,
+    pub expr: String,
+    pub expected: Option<String>,
+    pub error: Option<String>,
+    pub tier: Option<i64>,
+    pub axioms: Vec<String>,
+    pub role: Option<String>,
+    pub note: Option<String>,
+}
+
+fn symbol_list(expr: &Expr) -> Option<Vec<String>> {
+    as_list(expr)?
+        .iter()
+        .map(symbol_name)
+        .map(|name| name.map(str::to_string))
+        .collect()
+}
+
+/// Reads the canonical, ordered fixture inventory from my-lisp. The inventory
+/// deliberately contains contract facts and classification tags only; execution
+/// results and their evidence are added by the later pipeline stage.
+pub fn read_fixture_inventory(repo: &Path) -> Vec<Fixture> {
+    let Ok(raw) = fs::read_to_string(repo.join("tests/fixtures/conformance.my")) else {
+        return Vec::new();
+    };
+    let Ok(forms) = parse(&raw) else {
+        return Vec::new();
+    };
+
+    forms
+        .iter()
+        .enumerate()
+        .filter_map(|(offset, form)| {
+            let items = as_list(form)?;
+            let expected = assoc(items, "expected").and_then(string_value);
+            let error = assoc(items, "error").and_then(string_value);
+            if expected.is_some() == error.is_some() {
+                return None;
+            }
+            Some(Fixture {
+                index: offset + 1,
+                expr: string_value(assoc(items, "expr")?)?,
+                expected,
+                error,
+                tier: assoc(items, "tier").and_then(number),
+                axioms: assoc(items, "axioms")
+                    .and_then(symbol_list)
+                    .unwrap_or_default(),
+                role: assoc(items, "role").and_then(string_value),
+                note: assoc(items, "note").and_then(string_value),
+            })
+        })
+        .collect()
+}
+
 /// Reads `ecosystem-status.my`'s `cml` entry from the `repositories` alist:
 /// the hand-refreshed snapshot of cml's Tier-1 fixture progress and CI state.
 /// Читає запис `cml` з alist `repositories` у `ecosystem-status.my`: знімок
@@ -185,9 +243,13 @@ mod tests {
     use std::path::PathBuf;
 
     fn write_temp(name: &str, contents: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("my-idea-contracts-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("my-idea-contracts-test-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join(name);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
         fs::write(&path, contents).unwrap();
         dir
     }
@@ -263,5 +325,34 @@ mod tests {
     fn missing_file_returns_none() {
         let repo = write_temp("unrelated.my", "()");
         assert!(read_language_contract(&repo).is_none());
+    }
+
+    #[test]
+    fn reads_ordered_fixture_inventory_with_success_and_error_cases() {
+        let repo = write_temp(
+            "tests/fixtures/conformance.my",
+            r#"; canonical fixtures
+((expr . "(quote radio)") (expected . "radio") (tier . 1) (axioms . (G3)) (role . "constitutive"))
+((expr . "(car 5)") (error . "Type") (tier . 1) (axioms . (S2)) (note . "type evidence"))"#,
+        );
+        let fixtures = read_fixture_inventory(&repo);
+        assert_eq!(fixtures.len(), 2);
+        assert_eq!(fixtures[0].index, 1);
+        assert_eq!(fixtures[0].expr, "(quote radio)");
+        assert_eq!(fixtures[0].expected.as_deref(), Some("radio"));
+        assert_eq!(fixtures[0].axioms, vec!["G3"]);
+        assert_eq!(fixtures[0].role.as_deref(), Some("constitutive"));
+        assert_eq!(fixtures[1].index, 2);
+        assert_eq!(fixtures[1].error.as_deref(), Some("Type"));
+        assert_eq!(fixtures[1].note.as_deref(), Some("type evidence"));
+    }
+
+    #[test]
+    fn missing_or_invalid_fixture_inventory_is_empty() {
+        let repo = write_temp("unrelated.my", "()");
+        assert!(read_fixture_inventory(&repo).is_empty());
+
+        let repo = write_temp("tests/fixtures/conformance.my", "not (");
+        assert!(read_fixture_inventory(&repo).is_empty());
     }
 }

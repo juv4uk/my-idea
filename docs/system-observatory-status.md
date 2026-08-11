@@ -23,19 +23,28 @@ Backend-агрегатор у `src-tauri/src/ecosystem/`:
 - `mod.rs` — збирає все в `EcosystemStatus`, звіряє версії контрактів cml
   очікує проти версій, які my-lisp/fpga-lisp фактично надають
   (`CompatibilityCheck.language_match` / `isa_match`).
+- Fixture inventory — читає впорядковані записи з канонічного sibling-файлу
+  `my-lisp/tests/fixtures/conformance.my` через reader `my_lisp` і повертає
+  `expr`, `expected`/`error`, `tier`, `axioms`, `role`, `note`. Відсутній або
+  невалідний файл дає порожній список, не ламаючи решту status-відповіді.
 
 Викликається наскрізь заново при кожному запиті — без кешування, тому
 результат завжди відповідає стану на диску.
 
+## Видимий MVP
+
+- `ecosystem_status` зареєстровано як Tauri-команду та викликається кнопкою **🔭 Ecosystem**.
+- Окремий екран показує три картки: `my-lisp`, `cml`, `fpga-lisp` — наявність локального clone, branch, SHA і версію відповідного контракту/компілятора.
+- Блок сумісності окремо показує збіг language contract та ISA contract; повторний **Run ecosystem check** читає стан із диска заново.
+- Екран адаптується до вузького вікна й використовує наявні теми IDE.
+
 ## Що ще НЕ реалізовано
 
-- Немає `#[tauri::command]` обгортки — `status()` поки не викликається з
-  фронтенду. Немає Svelte UI (System Map, fixture-панелі, evidence graph
-  тощо з vision-документа).
 - Не запускає тести/CML/simulator — лише читає статичні контракти.
-  Пункт 5 MVP-плану ("кнопка Run ecosystem check") не почато.
+  Кнопка оновлює агрегований знімок, але ще не запускає pipeline.
 - Не читає `fpga-lisp`'s hardware-verified-milestones чи fixture-рівневі
-  дані з `ecosystem-status.my` — лише `cml`-запис.
+  результати з `ecosystem-status.my`: inventory контракту вже є, але статусів
+  виконання Rust/FPGA/CML та evidence ще немає.
 
 ## Залежність від my-lisp
 
@@ -49,6 +58,5 @@ lockfile.
 
 ## Наступний крок
 
-Додати `#[tauri::command] fn ecosystem_status() -> EcosystemStatus` і
-мінімальний Svelte-екран, що показує три колонки (branch/SHA, contract
-versions, compatibility match) — перший видимий шматок MVP-плану.
+Додати fixture-рівневі результати та evidence: запуск Rust/CML/simulator,
+три колонки результатів і перехід від кожного статусу до його доказу.

@@ -108,6 +108,18 @@ test('WASM crate and ClojureScript bindings are present and correctly wired', ()
 
 });
 
+test('WASM npm script targets the vendored crate and System Observatory renders three cards', () => {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const styles = readFileSync('public/styles.css', 'utf8');
+  assert.match(pkg.scripts.wasm, /external\/my-lisp\/crates\/my-lisp-wasm/);
+  assert.match(pkg.scripts.wasm, /\.\.\/\.\.\/\.\.\/\.\.\/public\/wasm/);
+  for (const repo of ['my-lisp', 'cml', 'fpga-lisp']) assert.match(core, new RegExp(`repo-card [^\\n]*"${repo}"`));
+  assert.match(core, /compatibility-card/);
+  assert.match(core, /Run ecosystem check/);
+  assert.match(styles, /\.repo-grid/);
+});
+
 test('open and save work in both browser and Tauri modes', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');

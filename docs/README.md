@@ -11,6 +11,7 @@
 - [Android releases · Android-релізи · Android-Releases](android-release.md)
 - [Platform roadmap · Дорожня карта платформ · Plattform-Roadmap](platform-roadmap.md)
 - [my-idea as System Observatory (vision) · my-idea як Обсерваторія (бачення) · my-idea als System-Observatorium (Vision)](system-observatory-vision.md)
+- [System Observatory implementation status · Стан реалізації System Observatory · Implementierungsstand des System Observatory](system-observatory-status.md)
 
 ## Product boundary · Межі продукту · Produktgrenze
 
@@ -35,7 +36,15 @@ flowchart LR
 - `src-cljs/my_idea/editor.cljs` owns the reusable CodeMirror 6 integration.
 - `src-cljs/my_idea/core.cljs` renders the current workspace.
 - `src-tauri/` is the native boundary for the desktop shell.
-- `crates/my-lisp-wasm` and `crates/my-lisp` encapsulate the canonical Rust evaluator for the Web.
+- `external/my-lisp/crates/my-lisp-wasm` and `external/my-lisp/crates/my-lisp` encapsulate the canonical Rust evaluator for the Web. Run `npm run wasm` from the repository root to rebuild `public/wasm`.
+
+## System Observatory MVP · MVP Обсерваторії · System-Observatory-MVP
+
+The desktop-only **🔭 Ecosystem** action scans the sibling `my-lisp`, `cml`, and `fpga-lisp` repositories without a network request. Its first visible MVP shows one card per repository (availability, branch, SHA, and contract/compiler version) plus a compatibility block comparing the language and ISA contracts expected by CML with the versions currently provided on disk. **Run ecosystem check** refreshes the snapshot.
+
+Десктопна дія **🔭 Ecosystem** без мережевих запитів сканує сусідні репозиторії `my-lisp`, `cml` і `fpga-lisp`. Перший видимий MVP показує картку кожного репозиторію (наявність, гілка, SHA та версія контракту/компілятора) і блок сумісності, що порівнює очікувані CML контракти мови та ISA з поточними локальними версіями. **Run ecosystem check** оновлює знімок.
+
+Die Desktop-Aktion **🔭 Ecosystem** scannt die benachbarten Repositories `my-lisp`, `cml` und `fpga-lisp` ohne Netzwerkanfrage. Das erste sichtbare MVP zeigt je eine Karte mit Verfügbarkeit, Branch, SHA und Vertrags-/Compiler-Version sowie einen Kompatibilitätsblock für die von CML erwarteten und lokal bereitgestellten Sprach- und ISA-Verträge. **Run ecosystem check** aktualisiert die Momentaufnahme.
 
 ## Runtime policy · Політика виконання · Laufzeitrichtlinie
 
