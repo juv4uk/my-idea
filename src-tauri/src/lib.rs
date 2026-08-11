@@ -1,3 +1,5 @@
+mod ecosystem;
+
 use my_lisp::Session;
 use my_lisp_literate::SourceMode;
 use serde::Serialize;
@@ -55,6 +57,17 @@ fn evaluate_my_lisp(source: String, mode: Option<String>) -> Result<LispEvaluati
         ast: format!("{forms:#?}"),
         engine: "my-lisp · Rust",
     })
+}
+
+/// Scans sibling repos (my-lisp, fpga-lisp, cml) and their machine-readable
+/// contracts to report whether the ecosystem is currently coherent. System
+/// Observatory MVP — see docs/system-observatory-vision.md.
+///
+/// Сканує сусідні репо (my-lisp, fpga-lisp, cml) та їхні машинно-читані
+/// контракти, щоб показати, чи узгоджена зараз екосистема.
+#[tauri::command]
+fn ecosystem_status() -> ecosystem::EcosystemStatus {
+    ecosystem::status()
 }
 
 #[cfg(test)]
@@ -273,7 +286,8 @@ pub fn run() {
             read_workspace_file,
             save_workspace_file,
             save_as_dialog,
-            evaluate_my_lisp
+            evaluate_my_lisp,
+            ecosystem_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running my-idea");
