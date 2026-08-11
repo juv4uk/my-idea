@@ -161,7 +161,16 @@
     (render!)
     (-> (workspace/invoke! "oracle_query" {:source (:contents doc) :op "eval"})
         (.then #(do (swap! state assoc :output [%] :error? false) (render!)))
-        (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))
+        (.catch #(let [message (str %)
+                       not-running? (str/includes? message "could not connect")]
+                   (swap! state assoc
+                          :output [(if not-running?
+                                     (str "Oracle not reachable on 127.0.0.1:9999 · Оракул недоступний на 127.0.0.1:9999\n"
+                                          "Start it in the my-lisp repo · Запустіть його в репо my-lisp:\n"
+                                          "  cargo run -p my-lisp-cli -- --tcp --protocol=sexpr\n\n" message)
+                                     message)]
+                          :error? true)
+                   (render!))))))
 
 (def result-icon {"pass" "✓" "fail" "✗" "skip" "·"})
 
