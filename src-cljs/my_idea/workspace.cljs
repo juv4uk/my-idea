@@ -155,8 +155,16 @@
     (-> model (assoc :open-paths paths)
         (assoc :active-path (if (= path (:active-path model)) (last paths) (:active-path model))))))
 
+(defn- escape-html [value]
+  (-> (str value)
+      (str/replace "&" "&amp;")
+      (str/replace "<" "&lt;")
+      (str/replace ">" "&gt;")
+      (str/replace "\"" "&quot;")
+      (str/replace "'" "&#39;")))
+
 (defn tree-html [nodes]
   (apply str (map (fn [{:keys [name path directory children]}]
                     (if directory
-                      (str "<details open><summary>▾ " name "</summary><div>" (tree-html children) "</div></details>")
-                      (str "<button class='file' data-path='" path "'>" name "</button>"))) nodes)))
+                      (str "<details open><summary>▾ " (escape-html name) "</summary><div>" (tree-html children) "</div></details>")
+                      (str "<button class='file' data-path='" (escape-html path) "'>" (escape-html name) "</button>"))) nodes)))
