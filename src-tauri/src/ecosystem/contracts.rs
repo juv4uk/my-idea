@@ -119,6 +119,34 @@ pub fn read_isa_contract(repo: &Path) -> Option<IsaContract> {
     })
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CmlStatus {
+    pub tier1_skips_remaining: i64,
+    pub ci_status: String,
+    pub equal_status: String,
+    pub defmacro_status: String,
+}
+
+/// Reads `ecosystem-status.my`'s `cml` entry from the `repositories` alist:
+/// the hand-refreshed snapshot of cml's Tier-1 fixture progress and CI state.
+/// Читає запис `cml` з alist `repositories` у `ecosystem-status.my`: знімок
+/// прогресу Tier-1 фікстур cml і стану CI, що оновлюється вручну.
+pub fn read_cml_status(repo: &Path) -> Option<CmlStatus> {
+    let raw = fs::read_to_string(repo.join("ecosystem-status.my")).ok()?;
+    let items = parse_alist(&raw)?;
+
+    let repositories = as_list(assoc(&items, "repositories")?)?;
+    let cml = as_list(assoc(repositories, "cml")?)?;
+
+    Some(CmlStatus {
+        tier1_skips_remaining: number(assoc(cml, "tier-1-skips-remaining")?)?,
+        ci_status: symbol_name(assoc(cml, "ci-status")?)?.to_string(),
+        equal_status: symbol_name(assoc(cml, "equal-status")?)?.to_string(),
+        defmacro_status: symbol_name(assoc(cml, "defmacro-status")?)?.to_string(),
+    })
+}
+
 /// Reads `compatibility.my`, the CML boundary contract: compiler version plus the
 /// language-contract and ISA versions it was last tested against.
 /// Читає `compatibility.my`, контракт межі CML: версію компілятора та версії
