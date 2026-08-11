@@ -81,7 +81,7 @@ fn ecosystem_status() -> ecosystem::EcosystemStatus {
 /// Запитує запущений my-lisp `--tcp --protocol=sexpr` як живий semantic
 /// oracle. Повертає сиру `(response ...)` s-expression.
 #[tauri::command]
-fn oracle_query(source: String, op: Option<String>, port: Option<u16>) -> Result<String, String> {
+fn oracle_query(source: String, op: Option<String>, port: Option<u16>) -> Result<oracle::OracleResponse, String> {
     oracle::query(op.as_deref().unwrap_or("eval"), &source, port)
 }
 

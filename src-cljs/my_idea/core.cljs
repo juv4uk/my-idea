@@ -160,7 +160,14 @@
     (swap! state assoc :ecosystem nil :output ["Asking my-lisp oracle (127.0.0.1:9999)… · Питаємо оракула my-lisp…"] :error? false)
     (render!)
     (-> (workspace/invoke! "oracle_query" {:source (:contents doc) :op "eval"})
-        (.then #(do (swap! state assoc :output [%] :error? false) (render!)))
+        (.then #(let [{:keys [status kind message raw]} (js->clj % :keywordize-keys true)
+                      ok? (= status "ok")
+                      lines (if ok?
+                              [raw]
+                              [(str "oracle: " status (when kind (str " (" kind ")")))
+                               (or message raw)])]
+                  (swap! state assoc :output lines :error? (not ok?))
+                  (render!)))
         (.catch #(let [message (str %)
                        not-running? (str/includes? message "could not connect")]
                    (swap! state assoc
