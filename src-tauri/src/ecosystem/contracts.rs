@@ -1,7 +1,7 @@
 use my_lisp::{parse, Expr, ExprKind};
 use serde::Serialize;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Version2 {
@@ -116,6 +116,38 @@ fn parse_alist(source: &str) -> Option<Vec<Expr>> {
     as_list(&forms.remove(0)).map(|items| items.to_vec())
 }
 
+/// Like `parse_alist`, but for a form headed by a tag symbol —
+/// `(evidence (fixture . ...) (requirement . G8) ...)` — rather than a bare
+/// alist. Returns the entries after the tag, requiring the tag to match.
+fn parse_tagged_alist(source: &str, tag: &str) -> Option<Vec<Expr>> {
+    let mut forms = parse(source).ok()?;
+    if forms.len() != 1 {
+        return None;
+    }
+    let items = as_list(&forms.remove(0))?.to_vec();
+    let (head, rest) = items.split_first()?;
+    if symbol_name(head)? != tag {
+        return None;
+    }
+    Some(rest.to_vec())
+}
+
+/// A scalar evidence field's printed form — `expected`/`actual`/`commit`
+/// can be a string, a symbol, or a number depending on the fixture
+/// (`(expected . "zero-is-truthy")` vs `(expected . 3)`).
+fn scalar(expr: &Expr) -> Option<String> {
+    match &expr.kind {
+        ExprKind::String(value) => Some(value.to_string()),
+        ExprKind::Symbol(value) => Some(value.to_string()),
+        ExprKind::Number(value) => Some(if value.fract() == 0.0 {
+            format!("{}", *value as i64)
+        } else {
+            value.to_string()
+        }),
+        _ => None,
+    }
+}
+
 /// Reads `language-contract.my`: `((major . 1) (minor . 0) ...)`.
 /// Читає `language-contract.my`: `((major . 1) (minor . 0) ...)`.
 pub fn read_language_contract(repo: &Path) -> Option<LanguageContract> {
@@ -201,6 +233,65 @@ pub fn read_fixture_inventory(repo: &Path) -> Vec<Fixture> {
                     .unwrap_or_default(),
                 role: assoc(items, "role").and_then(string_value),
                 note: assoc(items, "note").and_then(string_value),
+            })
+        })
+        .collect()
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Evidence {
+    pub requirement: String,
+    pub implementation: String,
+    pub commit: String,
+    pub runner: Option<String>,
+    pub fixture: Option<String>,
+    pub expected: Option<String>,
+    pub actual: Option<String>,
+    pub result: String,
+    pub timestamp: Option<String>,
+    pub note: Option<String>,
+}
+
+fn collect_my_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_my_files(&path, out);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("my") {
+            out.push(path);
+        }
+    }
+}
+
+/// Reads every `evidence/<requirement>/<implementation>/<sha>.my` file under
+/// a repo's `evidence/` directory (protocol defined in that repo's own
+/// `evidence/README.md`). A malformed or unparsable file is skipped, not
+/// fatal to the rest of the scan — one bad file shouldn't blank the matrix.
+pub fn read_evidence(repo: &Path) -> Vec<Evidence> {
+    let mut files = Vec::new();
+    collect_my_files(&repo.join("evidence"), &mut files);
+    files.sort();
+
+    files
+        .iter()
+        .filter_map(|path| {
+            let raw = fs::read_to_string(path).ok()?;
+            let items = parse_tagged_alist(&raw, "evidence")?;
+            Some(Evidence {
+                requirement: symbol_name(assoc(&items, "requirement")?)?.to_string(),
+                implementation: symbol_name(assoc(&items, "implementation")?)?.to_string(),
+                commit: scalar(assoc(&items, "commit")?)?,
+                runner: assoc(&items, "runner").and_then(scalar),
+                fixture: assoc(&items, "fixture").and_then(scalar),
+                expected: assoc(&items, "expected").and_then(scalar),
+                actual: assoc(&items, "actual").and_then(scalar),
+                result: symbol_name(assoc(&items, "result")?)?.to_string(),
+                timestamp: assoc(&items, "timestamp").and_then(scalar),
+                note: assoc(&items, "note").and_then(scalar),
             })
         })
         .collect()
@@ -301,6 +392,14 @@ mod tests {
         repo
     }
 
+    fn write_temp_in(repo: &TempRepo, name: &str, contents: &str) {
+        let path = repo.join(name);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(&path, contents).unwrap();
+    }
+
     #[test]
     fn reads_language_contract_major_minor() {
         let repo = write_temp(
@@ -372,6 +471,63 @@ mod tests {
     fn missing_file_returns_none() {
         let repo = write_temp("unrelated.my", "()");
         assert!(read_language_contract(&repo).is_none());
+    }
+
+    #[test]
+    fn reads_evidence_with_string_and_numeric_values() {
+        let repo = write_temp(
+            "evidence/G8/fpga-lisp/3673875.my",
+            r#"(evidence
+  (fixture . "(cond (0 'zero-is-truthy) (t 'wrong))")
+  (requirement . G8)
+  (implementation . fpga-lisp)
+  (commit . "3673875")
+  (runner . iverilog)
+  (expected . "zero-is-truthy")
+  (actual . "zero-is-truthy")
+  (result . pass)
+  (timestamp . "2026-08-11")
+  (note . "ISA 0.2 -> 1.0"))"#,
+        );
+        write_temp_in(
+            &repo,
+            "evidence/G5/fpga-lisp/7542682.my",
+            r#"(evidence
+  (fixture . "(length '(a b c))")
+  (requirement . G5)
+  (implementation . fpga-lisp)
+  (commit . "7542682")
+  (runner . iverilog)
+  (expected . 3)
+  (actual . 3)
+  (result . pass)
+  (timestamp . "2026-08-11"))"#,
+        );
+        let mut evidence = read_evidence(&repo);
+        evidence.sort_by(|a, b| a.requirement.cmp(&b.requirement));
+
+        assert_eq!(evidence.len(), 2);
+        assert_eq!(evidence[0].requirement, "G5");
+        assert_eq!(evidence[0].expected.as_deref(), Some("3"));
+        assert_eq!(evidence[0].actual.as_deref(), Some("3"));
+        assert_eq!(evidence[1].requirement, "G8");
+        assert_eq!(evidence[1].implementation, "fpga-lisp");
+        assert_eq!(evidence[1].commit, "3673875");
+        assert_eq!(evidence[1].result, "pass");
+        assert_eq!(evidence[1].expected.as_deref(), Some("zero-is-truthy"));
+        assert_eq!(evidence[1].note.as_deref(), Some("ISA 0.2 -> 1.0"));
+    }
+
+    #[test]
+    fn missing_evidence_dir_is_empty() {
+        let repo = write_temp("unrelated.my", "()");
+        assert!(read_evidence(&repo).is_empty());
+    }
+
+    #[test]
+    fn malformed_evidence_file_is_skipped_not_fatal() {
+        let repo = write_temp("evidence/G1/my-lisp/badsha.my", "not an evidence form");
+        assert!(read_evidence(&repo).is_empty());
     }
 
     #[test]

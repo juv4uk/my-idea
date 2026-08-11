@@ -1,7 +1,7 @@
 mod contracts;
 mod git;
 
-use contracts::{CmlCompatibility, CmlStatus, Fixture, IsaContract, LanguageContract};
+use contracts::{CmlCompatibility, CmlStatus, Evidence, Fixture, IsaContract, LanguageContract};
 use git::RepoInfo;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -25,6 +25,7 @@ pub struct EcosystemStatus {
     pub compatibility: Option<CompatibilityCheck>,
     pub cml_status: Option<CmlStatus>,
     pub fixtures: Vec<Fixture>,
+    pub evidence: Vec<Evidence>,
 }
 
 /// The three ecosystem repos are expected as siblings of `my-idea` on disk, e.g.
@@ -54,6 +55,7 @@ pub fn status() -> EcosystemStatus {
         .map(|r| r.join("fpga-lisp"))
         .unwrap_or_default();
     let cml_path = root.as_ref().map(|r| r.join("cml")).unwrap_or_default();
+    let my_idea_path = root.as_ref().map(|r| r.join("my-idea")).unwrap_or_default();
 
     let my_lisp = git::repo_info("my-lisp", &my_lisp_path);
     let fpga_lisp = git::repo_info("fpga-lisp", &fpga_lisp_path);
@@ -64,6 +66,10 @@ pub fn status() -> EcosystemStatus {
     let cml_compatibility = contracts::read_cml_compatibility(&cml_path);
     let cml_status = contracts::read_cml_status(&my_lisp_path);
     let fixtures = contracts::read_fixture_inventory(&my_lisp_path);
+    let evidence = [&my_lisp_path, &fpga_lisp_path, &cml_path, &my_idea_path]
+        .into_iter()
+        .flat_map(|repo| contracts::read_evidence(repo))
+        .collect();
 
     let compatibility = cml_compatibility.as_ref().map(|cml_compat| {
         let language_match = my_lisp_contract
@@ -92,5 +98,6 @@ pub fn status() -> EcosystemStatus {
         compatibility,
         cml_status,
         fixtures,
+        evidence,
     }
 }

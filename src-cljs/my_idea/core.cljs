@@ -166,9 +166,37 @@
        "<dt>" detail-label "</dt><dd>" (esc detail) "</dd></dl>"
        "<small class='repo-path'>" (esc (:path repo)) "</small></article>"))
 
+(defn- evidence-symbol [result]
+  (case result "pass" "✓" "fail" "✗" "skip" "…" "?"))
+
+(defn- evidence-matrix-html [evidence]
+  (let [implementations ["my-lisp" "cml" "fpga-lisp" "my-idea"]
+        requirements (->> evidence (map :requirement) distinct sort)
+        by-cell (into {} (map (fn [e] [[(:requirement e) (:implementation e)] e]) evidence))]
+    (if (empty? evidence)
+      ""
+      (str "<section class='evidence-card'><div><span class='eyebrow'>EVIDENCE</span><h2>Requirements × implementations</h2></div>"
+           "<table class='evidence-matrix'><thead><tr><th>Req</th>"
+           (apply str (map #(str "<th>" % "</th>") implementations))
+           "</tr></thead><tbody>"
+           (apply str
+             (for [req requirements]
+               (str "<tr><td>" (esc req) "</td>"
+                    (apply str
+                      (for [impl implementations]
+                        (if-let [e (get by-cell [req impl])]
+                          (str "<td class='evidence-" (:result e) "' title='"
+                               (esc (str (:fixture e) " · " (:commit e)
+                                         (when (:expected e) (str " · expected " (:expected e)))
+                                         (when (:actual e) (str " · actual " (:actual e)))))
+                               "'>" (evidence-symbol (:result e)) "</td>")
+                          "<td class='evidence-none'>—</td>")))
+                    "</tr>")))
+           "</tbody></table></section>"))))
+
 (defn- observatory-html [status]
   (let [{:keys [my-lisp my-lisp-contract cml cml-compatibility cml-status
-                fpga-lisp fpga-lisp-contract compatibility]} status
+                fpga-lisp fpga-lisp-contract compatibility evidence]} status
         language-ok (:language-match compatibility)
         isa-ok (:isa-match compatibility)
         compatible? (and language-ok isa-ok)
@@ -188,7 +216,9 @@
          "<span>" (if isa-ok "✓" "×") " ISA " (version-label (:isa-contract cml-compatibility)) " → "
          (version-label (:version fpga-lisp-contract)) "</span>"
          (when cml-status (str "<span>Tier-1 skips: " (:tier1-skips-remaining cml-status) " · CI: " (esc (:ci-status cml-status)) "</span>"))
-         "</div></section></section>")))
+         "</div></section>"
+         (evidence-matrix-html evidence)
+         "</section>")))
 
 (defn- execute! []
   (let [source (editor/source)
