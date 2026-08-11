@@ -161,8 +161,10 @@ pub fn read_language_contract(repo: &Path) -> Option<LanguageContract> {
     })
 }
 
-/// Reads `isa-contract.my`: `(version . (0 2))`.
-/// Читає `isa-contract.my`: `(version . (0 2))`.
+/// Reads `isa-contract.my`: `(version . (major minor))`, e.g. `(1 0)` after
+/// fpga-lisp's G8/JF fix (commit `3673875`, up from the earlier `(0 2)`).
+/// Читає `isa-contract.my`: `(version . (major minor))`, наприклад `(1 0)`
+/// після фіксу G8/JF у fpga-lisp (комміт `3673875`, раніше було `(0 2)`).
 pub fn read_isa_contract(repo: &Path) -> Option<IsaContract> {
     let raw = fs::read_to_string(repo.join("isa-contract.my")).ok()?;
     let items = parse_alist(&raw)?;
