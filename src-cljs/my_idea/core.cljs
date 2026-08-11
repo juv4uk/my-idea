@@ -21,7 +21,7 @@
                       :active-path nil
                       :documents {}
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
-                      :ecosystem nil}))
+                      :ecosystem nil :selected-requirement nil}))
 (def messages
   {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :ecosystem "Ecosystem"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
@@ -150,7 +150,7 @@
 (defn- check-ecosystem! []
   (-> (workspace/invoke! "ecosystem_status" {})
       (.then #(let [status (js->clj % :keywordize-keys true)]
-                (swap! state assoc :ecosystem status
+                (swap! state assoc :ecosystem status :selected-requirement nil
                        :output ["Ecosystem check complete · Перевірку екосистеми завершено"] :error? false)
                 (render!)))
       (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
@@ -196,7 +196,7 @@
 (defn- evidence-matrix-html [matrix]
   (str "<table class='eco-matrix'><thead><tr><th>Req</th><th>my-lisp</th><th>cml</th><th>fpga-lisp</th></tr></thead><tbody>"
        (apply str (map (fn [row]
-                          (str "<tr><td>" (esc (:requirement row)) "</td>"
+                          (str "<tr class='eco-row' data-req='" (esc (:requirement row)) "'><td>" (esc (:requirement row)) "</td>"
                                (evidence-cell-html row :my-lisp)
                                (evidence-cell-html row :cml)
                                (evidence-cell-html row :fpga-lisp)
@@ -204,20 +204,48 @@
                         matrix))
        "</tbody></table>"))
 
+(defn- fixture-record-html [impl-name rec]
+  (str "<div class='eco-fixture-impl'><strong>" (esc impl-name) "</strong> "
+       (if rec
+         (str "<span class='eco-cell eco-" (esc (:result rec)) "'>" (get result-icon (:result rec) "?") " " (esc (:result rec)) "</span>"
+              "<dl>"
+              "<dt>expected</dt><dd><code>" (esc (:expected rec)) "</code></dd>"
+              "<dt>actual</dt><dd><code>" (esc (:actual rec)) "</code></dd>"
+              "<dt>commit</dt><dd>" (esc (:commit rec)) " · " (esc (:runner rec)) " · " (esc (:timestamp rec)) "</dd>"
+              (when (:note rec) (str "<dt>note</dt><dd>" (esc (:note rec)) "</dd>"))
+              "</dl>")
+         "<span class='eco-cell eco-none'>— no evidence</span>")
+       "</div>"))
+
+(defn- fixture-detail-html [row]
+  (let [by-impl (:byImplementation row)
+        any-rec (or (:my-lisp by-impl) (:cml by-impl) (:fpga-lisp by-impl))]
+    (str "<div class='eco-fixture'>"
+         "<button id='eco-back' class='eco-back'>← matrix</button>"
+         "<h3>" (esc (:requirement row)) "</h3>"
+         (when any-rec (str "<pre class='eco-fixture-source'>" (esc (:fixture any-rec)) "</pre>"))
+         (fixture-record-html "my-lisp" (:my-lisp by-impl))
+         (fixture-record-html "cml" (:cml by-impl))
+         (fixture-record-html "fpga-lisp" (:fpga-lisp by-impl))
+         "</div>")))
+
 (defn- compatibility-html [compat]
   (when compat
     (str "<div class='eco-compat'>language "
          (if (:languageMatch compat) "✓" "✗")
          " · isa " (if (:isaMatch compat) "✓" "✗") "</div>")))
 
-(defn- ecosystem-html [eco]
-  (str "<div class='eco'>"
-       (repo-summary-html (:myLisp eco) (:myLispContract eco))
-       (repo-summary-html (:cml eco) nil)
-       (repo-summary-html (:fpgaLisp eco) (:fpgaLispContract eco))
-       (or (compatibility-html (:compatibility eco)) "")
-       (evidence-matrix-html (:evidenceMatrix eco))
-       "</div>"))
+(defn- ecosystem-html [eco selected-requirement]
+  (if-let [row (and selected-requirement
+                     (first (filter #(= (:requirement %) selected-requirement) (:evidenceMatrix eco))))]
+    (str "<div class='eco'>" (fixture-detail-html row) "</div>")
+    (str "<div class='eco'>"
+         (repo-summary-html (:myLisp eco) (:myLispContract eco))
+         (repo-summary-html (:cml eco) nil)
+         (repo-summary-html (:fpgaLisp eco) (:fpgaLispContract eco))
+         (or (compatibility-html (:compatibility eco)) "")
+         (evidence-matrix-html (:evidenceMatrix eco))
+         "</div>")))
 
 (defn- execute! []
   (let [source (editor/source)
@@ -273,7 +301,7 @@
       (render!))))
 
 (defn render! []
-  (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar? ecosystem]} @state
+  (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar? ecosystem selected-requirement]} @state
         app (.getElementById js/document "app")
         doc (active-doc)
         mode (or (:language-mode doc) "text")
@@ -286,7 +314,7 @@
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
            (cond
-             ecosystem (str "<section class='pane eco-pane'><div class='pane-head'>" (t :ecosystem) "</div>" (ecosystem-html ecosystem) "</section>")
+             ecosystem (str "<section class='pane eco-pane'><div class='pane-head'>" (t :ecosystem) "</div>" (ecosystem-html ecosystem selected-requirement) "</section>")
              preview? (str "<section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
              :else (str "<section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section>"))
            "</div></main>"
@@ -307,6 +335,10 @@
     (.addEventListener (.getElementById js/document "run") "click" execute!)
     (when-let [el (.getElementById js/document "ecosystem")] (.addEventListener el "click" check-ecosystem!))
     (when-let [el (.getElementById js/document "oracle")] (.addEventListener el "click" ask-oracle!))
+    (when-let [el (.getElementById js/document "eco-back")]
+      (.addEventListener el "click" #(do (swap! state assoc :selected-requirement nil) (render!))))
+    (doseq [el (.querySelectorAll js/document "[data-req]")]
+      (.addEventListener el "click" #(do (swap! state assoc :selected-requirement (.. % -currentTarget -dataset -req)) (render!))))
     (.addEventListener (.getElementById js/document "programming-language") "click" cycle-programming-language!)
     (.addEventListener (.getElementById js/document "menu") "click" #(do (swap! state update :sidebar? not) (render!)))
     (.addEventListener (.getElementById js/document "language") "click"
