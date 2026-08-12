@@ -3,6 +3,7 @@
             [my-idea.editor :as editor]
             [my-idea.i18n :as i18n]
             [my-idea.preview :as preview]
+            [my-idea.util :as util]
             [my-idea.wasm :as wasm] [my-idea.workspace :as workspace]))
 
 (def demo-source
@@ -24,11 +25,9 @@
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
                       :ecosystem nil :selected-requirement nil}))
 (defn- t [key] (i18n/t (:language @state) key))
-(defn- esc [x] (-> (str x) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
+(defn- esc [x] (util/esc x))
 (defn- active-doc [] (get-in @state [:documents (:active-path @state)]))
-(defn- next-value [values current]
-  (let [index (or (first (keep-indexed #(when (= %2 current) %1) values)) -1)]
-    (get values (mod (inc index) (count values)))))
+(defn- next-value [values current] (util/next-value values current))
 (defn- apply-theme! [theme]
   (set! (.. js/document -documentElement -dataset -theme) theme)
   (.setItem js/localStorage "my-idea:theme" theme))
