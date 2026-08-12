@@ -46,9 +46,10 @@ cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path crates/my-lisp/Cargo.toml
 cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
 cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
-npm test
-npm run check
-npm run build
+bun install --frozen-lockfile
+bun run test
+bun run check
+bun run build
 
 git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
 git commit -m "release: v$VERSION"
