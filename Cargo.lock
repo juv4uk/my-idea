@@ -2009,6 +2009,7 @@ dependencies = [
 name = "my-idea"
 version = "0.10.0"
 dependencies = [
+ "indexmap 1.9.3",
  "my-lisp",
  "my-lisp-literate",
  "serde",

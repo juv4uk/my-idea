@@ -16,6 +16,15 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+# indexmap 1.9.3 (pulled in transitively by tauri-build -> schemars 0.8) detects
+# `std` availability via a build.rs autocfg probe when its own `std` Cargo
+# feature isn't requested by anyone — that probe fails under this Guix rust
+# toolchain, so `IndexMap` compiles with no default third type parameter and
+# schemars's `IndexMap<K, V>` usage no longer type-checks. Declaring it here
+# with `features = ["std"]` sidesteps the probe entirely (build-dependency
+# feature unification is separate from regular deps under the edition-2021
+# resolver, so this has to live in [build-dependencies], not [dependencies]).
+indexmap = { version = "1.9", features = ["std"] }
 
 [dependencies]
 my-lisp = { git = "https://github.com/juv4uk/my-lisp.git", branch = "main" }

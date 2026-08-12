@@ -7,10 +7,9 @@
 ;; then, since nss-certs doesn't wire itself in automatically:
 ;;   export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
 ;;
-;; Known blocker (2026-08-12): Guix's `rust` is 1.85.1; several transitive
-;; deps of the Tauri stack (darling, icu_*, time, zbus, plist) need 1.86-1.88.
-;; `cargo check` fails until either Guix ships a newer rust or Cargo.lock
-;; pins those crates back to 1.85.1-compatible versions.
+;; rustc-too-old blocker: see AGENTS.md's "If `cargo check` fails with
+;; 'rustc X is not supported'" — resolved via `guix time-machine` against
+;; ../my-lisp/channels.scm, not by changing this manifest.
 
 (specifications->manifest
  '("rust"
@@ -20,7 +19,10 @@
    "openjdk"          ; shadow-cljs runs on the JVM
    "git"
    "pkg-config"
-   ;; Tauri's Linux runtime deps (webkitgtk, gtk, etc.)
-   "webkitgtk"
+   ;; Tauri v2's Linux runtime deps. Plain "webkitgtk" resolves to the
+   ;; GTK4/WebKit6 build (javascriptcoregtk-6.0.pc) — Tauri's
+   ;; javascriptcore-rs-sys wants the GTK3 line (javascriptcoregtk-4.1.pc),
+   ;; provided by "webkitgtk-for-gtk3" specifically.
+   "webkitgtk-for-gtk3"
    "gtk+"
    "libappindicator"))
