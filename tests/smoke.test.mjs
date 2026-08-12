@@ -5,9 +5,11 @@ import test from 'node:test';
 test('Shadow CLJS entry point and trilingual interface exist', () => {
   const source = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
   assert.match(source, /Tauri \+ ClojureScript/);
-  assert.match(source, /"en"/);
-  assert.match(source, /"uk"/);
-  assert.match(source, /"de"/);
+  // Trilingual message tables live in i18n.cljs, not core.cljs.
+  const i18n = readFileSync('src-cljs/my_idea/i18n.cljs', 'utf8');
+  assert.match(i18n, /"en"/);
+  assert.match(i18n, /"uk"/);
+  assert.match(i18n, /"de"/);
 });
 
 test('Tauri serves the compiled dist directory', () => {
@@ -121,11 +123,13 @@ test('open and save work in both browser and Tauri modes', () => {
 
 test('language and eye-comfort themes use simple cycling buttons', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const i18n = readFileSync('src-cljs/my_idea/i18n.cljs', 'utf8');
+  const util = readFileSync('src-cljs/my_idea/util.cljs', 'utf8');
   const styles = readFileSync('public/styles.css', 'utf8');
-  assert.match(core, /def languages \["uk" "de" "en"\]/);
-  assert.match(core, /def themes \["auto" "light" "dark" "sepia" "signal" "amber" "forest"\]/);
+  assert.match(i18n, /def languages \["uk" "de" "en"\]/);
+  assert.match(i18n, /def themes \["auto" "light" "dark" "sepia" "signal" "amber" "forest"\]/);
   assert.match(core, /id='theme'/);
-  assert.match(core, /keep-indexed/);
+  assert.match(util, /keep-indexed/);
   assert.match(core, /Hello · Привіт · Hallo/);
   assert.match(styles, /data-theme=sepia/);
   assert.match(styles, /data-theme=signal/);
@@ -133,8 +137,9 @@ test('language and eye-comfort themes use simple cycling buttons', () => {
 
 test('active document programming language switches from the bottom status bar', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const i18n = readFileSync('src-cljs/my_idea/i18n.cljs', 'utf8');
   const editor = readFileSync('src-cljs/my_idea/editor.cljs', 'utf8');
-  assert.match(core, /def programming-languages \["my-lisp" "clojurescript" "rust" "markdown" "mermaid" "text"\]/);
+  assert.match(i18n, /def programming-languages \["my-lisp" "clojurescript" "rust" "markdown" "mermaid" "text"\]/);
   assert.match(core, /id='programming-language'/);
   assert.match(core, /cycle-programming-language!/);
   assert.match(core, /language-mode/);
