@@ -267,6 +267,30 @@
          "<span class='eco-cell eco-none'>— no evidence</span>")
        "</div>"))
 
+(defn- causal-chain-html [by-impl]
+  (let [my-lisp (:my-lisp by-impl)
+        cml (:cml by-impl)
+        fpga (:fpga-lisp by-impl)
+        all-three? (and my-lisp cml fpga)
+        all-pass? (and all-three? (every? #(= (:result %) "pass") [my-lisp cml fpga]))
+        agree? (and all-pass? (= (:actual my-lisp) (:actual cml) (:actual fpga)))]
+    (when all-three?
+      (str "<div class='eco-chain" (when agree? " eco-chain-agree") "'>"
+           "<div class='eco-chain-row'>"
+           "<span class='eco-chain-step'>SOURCE</span>"
+           "<span class='eco-chain-arrow'>→</span>"
+           "<span class='eco-chain-step'>my-lisp oracle<br><code>" (esc (:actual my-lisp)) "</code> "
+           (get result-icon (:result my-lisp) "?") "</span>"
+           "<span class='eco-chain-arrow'>→</span>"
+           "<span class='eco-chain-step'>cml compile<br><code>" (esc (:actual cml)) "</code> "
+           (get result-icon (:result cml) "?") "</span>"
+           "<span class='eco-chain-arrow'>→</span>"
+           "<span class='eco-chain-step'>fpga-lisp execute<br><code>" (esc (:actual fpga)) "</code> "
+           (get result-icon (:result fpga) "?") "</span>"
+           "</div>"
+           "<div class='eco-chain-verdict'>" (if agree? "✓ SEMANTIC AGREEMENT" "✗ MISMATCH") "</div>"
+           "</div>"))))
+
 (defn- fixture-detail-html [row]
   (let [by-impl (:byImplementation row)
         any-rec (or (:my-lisp by-impl) (:cml by-impl) (:fpga-lisp by-impl))]
@@ -274,6 +298,7 @@
          "<button id='eco-back' class='eco-back'>← matrix</button>"
          "<h3>" (esc (:requirement row)) "</h3>"
          (when any-rec (str "<pre class='eco-fixture-source'>" (esc (:fixture any-rec)) "</pre>"))
+         (or (causal-chain-html by-impl) "")
          (fixture-record-html "my-lisp" (:my-lisp by-impl))
          (fixture-record-html "cml" (:cml by-impl))
          (fixture-record-html "fpga-lisp" (:fpga-lisp by-impl))
