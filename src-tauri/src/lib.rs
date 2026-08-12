@@ -1,5 +1,6 @@
 mod ecosystem;
 mod oracle;
+mod swarm;
 
 use my_lisp::Session;
 use my_lisp_literate::SourceMode;
@@ -83,6 +84,20 @@ fn ecosystem_status() -> ecosystem::EcosystemStatus {
 #[tauri::command]
 fn oracle_query(source: String, op: Option<String>, port: Option<u16>) -> Result<oracle::OracleResponse, String> {
     oracle::query(op.as_deref().unwrap_or("eval"), &source, port)
+}
+
+/// Queries this app's own `swarm-node` (coordination-plane P2P mesh, see
+/// my-lisp's `docs/swarm-mesh-v2.md` — separate from the `:9999` semantic
+/// oracle) for its `(status)`: this node's identity/epoch/sync state, the
+/// full peer presence list, `list-members`, and the task registry. Raw
+/// s-expression, rendered as-is by the frontend — swarm-node's op set
+/// (`status`/`list-members`/`presence`) is still evolving, so this
+/// deliberately doesn't try to parse it into a fixed shape yet.
+///
+/// Запитує власний `swarm-node` цього застосунку на `(status)`.
+#[tauri::command]
+fn swarm_status(port: Option<u16>) -> Result<String, String> {
+    swarm::query("(status)", port)
 }
 
 #[cfg(test)]
@@ -303,7 +318,8 @@ pub fn run() {
             save_as_dialog,
             evaluate_my_lisp,
             ecosystem_status,
-            oracle_query
+            oracle_query,
+            swarm_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running my-idea");
