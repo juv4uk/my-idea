@@ -108,16 +108,24 @@ mount needs `--no-bin-links` (DrvFs doesn't support the `chmod` npm's
 bin-linking step needs) — invoke installed CLI tools directly via `node
 node_modules/<pkg>/<entry>.js` rather than `npx` when bin-links are absent.
 
-## Known blocker: rustc version
+## If `cargo check` fails with "rustc X is not supported"
 
-Guix's `rust` package is 1.85.1; several transitive Tauri dependencies
-(`darling`, `icu_*`, `time`, `zbus`, `plist`) need 1.86–1.88. `cargo check
---workspace` fails until either the Guix channel is updated (`guix pull`,
-in progress ecosystem-wide as of 2026-08-12 — check the TCP mailbox or
-`docs/AGENT_MEMORY.md` for status before re-attempting) or those crates are
-pinned back with `cargo update --precise`. Frontend work (`shadow-cljs
-compile app`) is unaffected and can be verified independently — it doesn't
-depend on the Rust toolchain version.
+Tauri's dependency tree moves faster than Guix's packaged `rust`; a
+transitive dependency can require a newer rustc than the channel commit
+your `guix pull` last landed on provides. Two independent fixes, not
+mutually exclusive:
+
+- `guix time-machine -C <path-to-channels.scm> -- shell -m manifest.scm --
+  <command>` — `my-lisp` maintains an ecosystem-wide `channels.scm` (its
+  repo root) pinned to a Guix revision verified to build all four repos.
+  Point at it directly rather than running your own `guix pull` first; a
+  per-user `guix pull` only updates *that* user's channel state, not the
+  shared profile or other users.
+- `cargo update -p <crate> --precise <version>` as a narrower, temporary
+  pin if you don't want to move the whole toolchain.
+
+Frontend work (`shadow-cljs compile app`) doesn't depend on the Rust
+toolchain version and can be verified independently of this.
 
 ## Reproducibility / evidence
 

@@ -23,10 +23,18 @@ Backend-агрегатор у `src-tauri/src/ecosystem/`:
 - `evidence.rs` — сканує `evidence/<requirement>/<implementation>/*.my` у
   всіх трьох сусідніх репо (my-lisp, fpga-lisp, cml), парсить кожен запис
   тим самим reader'ом, і зводить їх у requirement-матрицю (G1–G8/S1–S3 ×
-  implementation), лишаючи найновіший запис на пару.
-- `mod.rs` — збирає все в `EcosystemStatus` (включно з `evidence_matrix`),
-  звіряє версії контрактів cml очікує проти версій, які my-lisp/fpga-lisp
-  фактично надають (`CompatibilityCheck.language_match` / `isa_match`).
+  implementation), лишаючи найновіший запис на пару. Читає й опційне поле
+  `environment` (`guix-revision`/`channels`/`manifest`) — додане в
+  `evidence/README.md` за пропозицією my-idea (commit `c2080f6` у
+  my-lisp), відсутнє на старіших записах без помилки.
+- `git.rs::embedded_dependency_sha` — читає з `Cargo.lock` цього workspace
+  pinned SHA embedded-двигуна (`my-lisp` як git-залежність), окремо від
+  SHA сусіднього репо `my-lisp` на диску — щоб було видно розбіжність між
+  "з чим зібраний застосунок" і "що зараз у робочій копії my-lisp".
+- `mod.rs` — збирає все в `EcosystemStatus` (включно з `evidence_matrix`,
+  `embedded_my_lisp_sha`), звіряє версії контрактів cml очікує проти
+  версій, які my-lisp/fpga-lisp фактично надають
+  (`CompatibilityCheck.language_match` / `isa_match`).
 
 Викликається наскрізь заново при кожному запиті — без кешування, тому
 результат завжди відповідає стану на диску.
@@ -44,30 +52,43 @@ Backend-агрегатор у `src-tauri/src/ecosystem/`:
 - `oracle_query(source, op, port)` — запитує живий my-lisp TCP REPL
   (`eval` за замовчуванням, порт 9999 за замовчуванням).
 
-Frontend (`src-cljs/my_idea/core.cljs`):
+Frontend (`src-cljs/my_idea/`):
 
+- `i18n.cljs` — messages/languages/themes/programming-language таблиці й
+  `t`-lookup, винесені з `core.cljs` як перший крок його розбиття (файл
+  переріс ~25KB і мав тенденцію ставати місцем для кожної нової фічі).
 - Кнопка **🔭 Ecosystem** викликає `ecosystem_status` і рендерить панель
-  замість AST/preview: branch/SHA + версія контракту на репо,
-  language/ISA compatibility, і повна evidence-таблиця (G1–G8/S1–S3 ×
-  my-lisp/cml/fpga-lisp, ✓/✗/·, тултип із fixture/expected/actual/commit).
-  Клік на рядок requirement відкриває fixture drill-down: джерело fixture
-  плюс badge/expected/actual/commit/note по кожній реалізації, з кнопкою
-  "← matrix" назад.
+  замість AST/preview: branch/SHA + версія контракту на репо, SHA
+  embedded-двигуна з попередженням про розбіжність, якщо він відрізняється
+  від my-lisp на диску, language/ISA compatibility, і повна
+  evidence-таблиця (G1–G8/S1–S3 × my-lisp/cml/fpga-lisp, ✓/✗/·, тултип із
+  fixture/expected/actual/commit). Клік на рядок requirement відкриває
+  fixture drill-down: джерело fixture плюс badge/expected/actual/commit/
+  environment/note по кожній реалізації, з кнопкою "← matrix" назад.
 - Кнопка **🔮 Oracle** шле вміст активного файлу як `eval`-запит до живого
   my-lisp TCP REPL і показує value при успіху або "oracle: error (kind) —
   message" при помилці — не сирий `(response ...)`.
+- Кнопка **⚖ Compare** запускає той самий вираз паралельно через
+  embedded-двигун (`evaluate_my_lisp`) і живий TCP oracle, показує обидва
+  значення й позначає збіг/розбіжність — мінімальна версія
+  "Run with ALL evaluators / SEMANTIC AGREEMENT" з vision-документа (поки
+  лише два шляхи з трьох — CML→FPGA чекає на end-to-end fixture).
 - Стилі `.eco-*` у `public/styles.css`, узгоджені зі світлою/темною/sepia
   темами через наявні CSS-змінні.
 
 ## Що ще НЕ реалізовано
 
-- Fixture-рівневий Graph/Timeline/Decisions-панелі з vision-документа —
-  зроблено лише плоска requirement-матриця, без drill-down у конкретний
-  fixture, без графа проходження виразу через parser → cml → fpga.
+- Timeline/Decisions-панелі з vision-документа, і граф проходження виразу
+  через parser → cml → fpga (fixture drill-down уже є, повного графа
+  немає).
 - Кнопка "Run ecosystem check" (пункт 5 MVP-плану) досі читає лише
   контракти й evidence з диска — не запускає тести/CML/simulator сама.
 - Compatibility Lens / вибір гілки для кожного репо — немає, показується
   лише поточний стан робочої копії.
+- ⚖ Compare показує лише embedded-двигун vs oracle (два шляхи), не третій
+  (CML→FPGA) — залежить від fpga-lisp/cml, не від `my-idea`.
+- `core.cljs` (~25KB) все ще великий — виділено лише `i18n.cljs`;
+  state/commands/views ще не розділені.
 
 ## Залежність від my-lisp
 
@@ -83,11 +104,15 @@ lockfile.
 
 `my-idea` тепер працює з WSL2 + Guix (`manifest.scm` у корені репо,
 `guix shell -m manifest.scm`, користувач `my-idea` в WSL Ubuntu, робоча
-директорія лишається `/mnt/c/GitHub/my-idea`). Відомий блокер:
-Guix-канал дає `rust` 1.85.1, а кілька транзитивних залежностей
-Tauri-стека (`darling`, `icu_*`, `time`, `zbus`, `plist`) вимагають
-1.86–1.88 — `cargo check --workspace` не проходить, доки це не вирішено
-(`guix pull` на новіший канал або точкове пінування версій крейтів).
+директорія лишається `/mnt/c/GitHub/my-idea`). rustc-версійний блокер
+(Tauri-стек вимагав 1.86–1.88, поточний канал давав 1.85.1) вирішено
+екосистемно: `my-lisp` зробив `guix pull` до каналу з rust 1.93.0 і додав
+`channels.scm`/`evidence/README.md`'s `environment`-поле (commit `c2080f6`
+у my-lisp). Пер-юзерний `guix pull` не поширюється автоматично на інших
+користувачів WSL — `guix time-machine -C ../my-lisp/channels.scm -- shell
+-m manifest.scm -- <command>` дає той самий канал без повторного `guix
+pull`. `cargo check --workspace` для `my-idea` під цим каналом на момент
+цього запису ще перевіряється (див. AGENTS.md за актуальною командою).
 
 ## Наступний крок
 
