@@ -1,4 +1,5 @@
-use super::contracts::{as_list, assoc, number, parse_alist, string_value, symbol_name};
+use super::contracts::{as_list, assoc, parse_alist, string_value, symbol_name};
+use my_lisp::Expr;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;
@@ -17,6 +18,34 @@ pub struct EvidenceRecord {
     pub result: String,
     pub timestamp: String,
     pub note: Option<String>,
+    pub environment: Option<EvidenceEnvironment>,
+}
+
+/// Optional per `evidence/README.md`'s "Optional `environment` field":
+/// pins the toolchain state (Guix) a run was produced under, on top of
+/// `commit` pinning the code state. Absent on evidence files written before
+/// this was added — that's expected, not a parse failure.
+/// Опційне поле `environment`: фіксує стан toolchain (Guix), на додачу
+/// до `commit`, що фіксує стан коду. Відсутнє в старіших evidence-файлах
+/// — це очікувано, не помилка парсингу.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceEnvironment {
+    pub guix_revision: Option<String>,
+    pub channels: Option<String>,
+    pub manifest: Option<String>,
+}
+
+/// Finds `(tag (key . value) ...)` among `items` — a nested tagged list,
+/// as opposed to `assoc`'s flat `(key . value)` pairs. `environment` is
+/// shaped this way, same as the outer `(evidence ...)` wrapper itself.
+/// Шукає `(tag (key . value) ...)` серед `items` — вкладений тегований
+/// список, на відміну від пласких пар `assoc`.
+fn tagged_list<'a>(items: &'a [Expr], tag: &str) -> Option<&'a [Expr]> {
+    items.iter().find_map(|item| {
+        let sub = as_list(item)?;
+        (symbol_name(sub.first()?)? == tag).then_some(sub)
+    })
 }
 
 /// Parses one `evidence/<requirement>/<implementation>/<sha>.my` file, per the
@@ -40,6 +69,11 @@ fn parse_record(raw: &str) -> Option<EvidenceRecord> {
         result: symbol_name(assoc(&items, "result")?)?.to_string(),
         timestamp: string_value(assoc(&items, "timestamp")?)?,
         note: assoc(&items, "note").and_then(string_value),
+        environment: tagged_list(&items, "environment").map(|env| EvidenceEnvironment {
+            guix_revision: assoc(env, "guix-revision").and_then(string_value),
+            channels: assoc(env, "channels").and_then(string_value),
+            manifest: assoc(env, "manifest").and_then(string_value),
+        }),
     })
 }
 

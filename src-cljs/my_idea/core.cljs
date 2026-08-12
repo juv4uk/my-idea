@@ -257,6 +257,12 @@
               "<dt>expected</dt><dd><code>" (esc (:expected rec)) "</code></dd>"
               "<dt>actual</dt><dd><code>" (esc (:actual rec)) "</code></dd>"
               "<dt>commit</dt><dd>" (esc (:commit rec)) " · " (esc (:runner rec)) " · " (esc (:timestamp rec)) "</dd>"
+              (when-let [env (:environment rec)]
+                (str "<dt>environment</dt><dd>"
+                     (str/join " · " (remove nil? [(when-let [r (:guixRevision env)] (str "guix " (subs r 0 (min 7 (count r)))))
+                                                    (:channels env)
+                                                    (:manifest env)]))
+                     "</dd>"))
               (when (:note rec) (str "<dt>note</dt><dd>" (esc (:note rec)) "</dd>"))
               "</dl>")
          "<span class='eco-cell eco-none'>— no evidence</span>")
