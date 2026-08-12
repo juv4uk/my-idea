@@ -1,6 +1,7 @@
 (ns my-idea.core
   (:require [clojure.string :as str]
             [my-idea.editor :as editor]
+            [my-idea.i18n :as i18n]
             [my-idea.preview :as preview]
             [my-idea.wasm :as wasm] [my-idea.workspace :as workspace]))
 
@@ -22,22 +23,9 @@
                       :documents {}
                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
                       :ecosystem nil :selected-requirement nil}))
-(def messages
-  {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :ecosystem "Ecosystem"
-         :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
-   "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд" :ecosystem "Екосистема"
-         :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія" "signal" "Сигнал" "amber" "Бурштин" "forest" "Ліс"}}
-   "de" {:open "Ordner öffnen" :new-file "Neue Datei" :save "Speichern" :save-as "Speichern unter" :run "Starten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau" :ecosystem "Ökosystem"
-         :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia" "signal" "Signal" "amber" "Bernstein" "forest" "Wald"}}})
-(defn- t [key] (get-in messages [(:language @state) key]))
+(defn- t [key] (i18n/t (:language @state) key))
 (defn- esc [x] (-> (str x) (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
 (defn- active-doc [] (get-in @state [:documents (:active-path @state)]))
-(def languages ["uk" "de" "en"])
-(def themes ["auto" "light" "dark" "sepia" "signal" "amber" "forest"])
-(def programming-languages ["my-lisp" "clojurescript" "rust" "markdown" "mermaid" "text"])
-(def programming-language-labels {"my-lisp" "my-lisp" "clojurescript" "ClojureScript" "rust" "Rust" "markdown" "Markdown" "mermaid" "Mermaid" "text" "Text"})
-(def language-labels {"uk" "UA" "de" "DE" "en" "EN"})
-(def theme-icons {"auto" "◐" "light" "☀" "dark" "☾" "sepia" "◉" "signal" "⌁" "amber" "◆" "forest" "♣"})
 (defn- next-value [values current]
   (let [index (or (first (keep-indexed #(when (= %2 current) %1) values)) -1)]
     (get values (mod (inc index) (count values)))))
@@ -345,7 +333,7 @@
                  :output ["my-lisp WASM engine is loading… · очікуйте завершення завантаження · WASM wird geladen…"]
                  :error? false)))
       (swap! state assoc
-             :output [(str (get programming-language-labels mode)
+             :output [(str (get i18n/programming-language-labels mode)
                            " runtime is not connected yet · runtime ще не підключено · Runtime ist noch nicht verbunden")]
              :error? true))
     (when-not (and (contains? #{"my-lisp" "markdown"} mode) (workspace/native?))
@@ -354,7 +342,7 @@
 (defn- cycle-programming-language! []
   (when-let [path (:active-path @state)]
     (let [current (or (get-in @state [:documents path :language-mode]) "text")
-          next-mode (next-value programming-languages current)]
+          next-mode (next-value i18n/programming-languages current)]
       (swap! state assoc-in [:documents path :language-mode] next-mode)
       (render!))))
 
@@ -367,7 +355,7 @@
     (apply-theme! theme)
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
-           "<div class='actions'><button id='language' title='Language'>" (get language-labels language) "</button><button id='theme' title='Theme'>" (get theme-icons theme) " " (get-in messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>" (when (workspace/native?) "<button id='ecosystem' title='Run ecosystem check'>🔭 Ecosystem</button><button id='oracle' title='Ask the live my-lisp TCP oracle (127.0.0.1:9999)'>🔮 Oracle</button><button id='compare' title='Compare the embedded Rust engine against the live my-lisp TCP oracle'>⚖ Compare</button>") "<button class='run' id='run'>▶ " (t :run) "</button></div></header>"
+           "<div class='actions'><button id='language' title='Language'>" (get i18n/language-labels language) "</button><button id='theme' title='Theme'>" (get i18n/theme-icons theme) " " (get-in i18n/messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>" (when (workspace/native?) "<button id='ecosystem' title='Run ecosystem check'>🔭 Ecosystem</button><button id='oracle' title='Ask the live my-lisp TCP oracle (127.0.0.1:9999)'>🔮 Oracle</button><button id='compare' title='Compare the embedded Rust engine against the live my-lisp TCP oracle'>⚖ Compare</button>") "<button class='run' id='run'>▶ " (t :run) "</button></div></header>"
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" % "'>" (workspace/filename %) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" % "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            "<div class='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
@@ -377,7 +365,7 @@
              :else (str "<section class='pane ast'><div class='pane-head'>" (t :ast) "</div><pre>" (esc ast) "</pre></section>"))
            "</div></main>"
            "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><button id='programming-language' class='status-language' title='Programming language · Мова програмування · Programmiersprache'>"
-           (get programming-language-labels mode)
+           (get i18n/programming-language-labels mode)
            "</button><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
     (when doc 
       (editor/mount! (.getElementById js/document "editor") (:contents doc) mode wasm/diagnose
@@ -401,12 +389,12 @@
     (.addEventListener (.getElementById js/document "programming-language") "click" cycle-programming-language!)
     (.addEventListener (.getElementById js/document "menu") "click" #(do (swap! state update :sidebar? not) (render!)))
     (.addEventListener (.getElementById js/document "language") "click"
-                       #(let [value (next-value languages (:language @state))]
+                       #(let [value (next-value i18n/languages (:language @state))]
                           (.setItem js/localStorage "my-idea:language" value)
                           (swap! state assoc :language value)
                           (render!)))
     (.addEventListener (.getElementById js/document "theme") "click"
-                       #(let [value (next-value themes (:theme @state))]
+                       #(let [value (next-value i18n/themes (:theme @state))]
                           (swap! state assoc :theme value)
                           (render!)))
     (doseq [el (.querySelectorAll js/document "[data-path]")] (.addEventListener el "click" #(open-file! (.. % -currentTarget -dataset -path))))
