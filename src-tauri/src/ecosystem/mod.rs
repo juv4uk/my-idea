@@ -6,7 +6,7 @@ use contracts::{CmlCompatibility, CmlStatus, IsaContract, LanguageContract};
 use evidence::RequirementRow;
 use git::RepoInfo;
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,14 +27,22 @@ pub struct EcosystemStatus {
     pub compatibility: Option<CompatibilityCheck>,
     pub cml_status: Option<CmlStatus>,
     pub evidence_matrix: Vec<RequirementRow>,
+    /// The git SHA the desktop app's own embedded my-lisp engine
+    /// (`evaluate_my_lisp`) was built against — from this workspace's
+    /// `Cargo.lock`, not the sibling `my-lisp` repo's current checkout.
+    pub embedded_my_lisp_sha: Option<String>,
 }
 
 /// The three ecosystem repos are expected as siblings of `my-idea` on disk, e.g.
 /// `~/Documents/GitHub/{my-idea,my-lisp,fpga-lisp,cml}` — offline-first, no GitHub API.
 /// Три репо екосистеми очікуються поруч із `my-idea` на диску, офлайн-first, без GitHub API.
-fn siblings_root() -> Option<PathBuf> {
+fn my_idea_root() -> Option<PathBuf> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")); // .../my-idea/src-tauri
-    let my_idea_dir = manifest_dir.parent()?; // .../my-idea
+    manifest_dir.parent().map(Path::to_path_buf) // .../my-idea
+}
+
+fn siblings_root() -> Option<PathBuf> {
+    let my_idea_dir = my_idea_root()?;
     let github_root = my_idea_dir.parent()?; // .../GitHub
     Some(github_root.to_path_buf())
 }
@@ -71,6 +79,9 @@ pub fn status() -> EcosystemStatus {
     evidence_records.extend(evidence::scan(&cml_path));
     let evidence_matrix = evidence::matrix(evidence_records);
 
+    let embedded_my_lisp_sha = my_idea_root()
+        .and_then(|root| git::embedded_dependency_sha(&root, "my-lisp"));
+
     let compatibility = cml_compatibility.as_ref().map(|cml_compat| {
         let language_match = my_lisp_contract
             .as_ref()
@@ -98,5 +109,6 @@ pub fn status() -> EcosystemStatus {
         compatibility,
         cml_status,
         evidence_matrix,
+        embedded_my_lisp_sha,
     }
 }

@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 
@@ -50,4 +51,44 @@ pub fn repo_info(name: &str, path: &Path) -> RepoInfo {
         branch,
         sha,
     }
+}
+
+/// Reads the pinned git SHA for `package_name` out of this workspace's
+/// `Cargo.lock` — a `[[package]] name = ".." source = "git+...#SHA"` block.
+/// This is the commit the *embedded* desktop engine (`evaluate_my_lisp`)
+/// was actually built against, which can drift from whatever's checked out
+/// in the sibling `my-lisp` repo on disk (see AGENTS.md's "two different
+/// my-lisp" note) — surfaced so that drift is visible, not silently assumed
+/// away. String-scanned rather than pulling in a TOML crate for one field.
+///
+/// Читає закріплений git SHA для `package_name` з `Cargo.lock` цього
+/// workspace — той коміт, проти якого реально зібраний embedded-двигун
+/// (`evaluate_my_lisp`), який може розійтись із checkout сусіднього
+/// репо `my-lisp` на диску.
+pub fn embedded_dependency_sha(workspace_root: &Path, package_name: &str) -> Option<String> {
+    let lockfile = fs::read_to_string(workspace_root.join("Cargo.lock")).ok()?;
+    let mut lines = lockfile.lines();
+    while let Some(line) = lines.next() {
+        if line.trim() != "[[package]]" {
+            continue;
+        }
+        let name_line = lines.next()?;
+        if name_line.trim() != format!("name = \"{package_name}\"") {
+            continue;
+        }
+        for candidate in lines.by_ref().take(6) {
+            if let Some(source) = candidate.trim().strip_prefix("source = \"") {
+                return source
+                    .trim_end_matches('"')
+                    .rsplit('#')
+                    .next()
+                    .map(|sha| sha.chars().take(7).collect());
+            }
+            if candidate.trim().is_empty() {
+                break;
+            }
+        }
+        return None;
+    }
+    None
 }
