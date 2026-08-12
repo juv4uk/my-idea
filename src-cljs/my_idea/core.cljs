@@ -4,6 +4,7 @@
             [my-idea.editor :as editor]
             [my-idea.i18n :as i18n]
             [my-idea.preview :as preview]
+            [my-idea.state :refer [state]]
             [my-idea.util :as util]
             [my-idea.wasm :as wasm] [my-idea.workspace :as workspace]))
 
@@ -16,15 +17,6 @@
 (def mermaid-demo
   "graph TD\n    A[Welcome] -->|Evaluate| B(my-lisp)\n    B --> C{Platform}\n    C -->|Desktop| D[Tauri]\n    C -->|Web| E[WASM]\n")
 
-(defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
-                      :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
-                      :root nil
-                      :tree []
-                      :open-paths []
-                      :active-path nil
-                      :documents {}
-                      :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
-                      :ecosystem nil :selected-requirement nil}))
 (defn- t [key] (i18n/t (:language @state) key))
 (defn- esc [x] (util/esc x))
 (defn- active-doc [] (get-in @state [:documents (:active-path @state)]))
