@@ -23,6 +23,9 @@ fi
 echo "Preparing my-idea v$VERSION"
 
 # Node updates JSON without fragile quote-sensitive sed expressions.
+# bun.lock doesn't store the root package's own version (only name +
+# dependencies), so there's no lockfile to keep in sync here — unlike the
+# old package-lock.json, which this repo no longer uses.
 node -e '
   const fs = require("node:fs");
   const version = process.argv[1];
@@ -31,11 +34,6 @@ node -e '
     data.version = version;
     fs.writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`);
   }
-  const lockPath = "package-lock.json";
-  const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
-  lock.version = version;
-  lock.packages[""].version = version;
-  fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
 ' "$VERSION"
 
 # Only the first version assignment is the application package version.
@@ -51,7 +49,7 @@ bun run test
 bun run check
 bun run build
 
-git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
 git commit -m "release: v$VERSION"
 git tag -a "v$VERSION" -m "my-idea v$VERSION | Версія v$VERSION | Veröffentlichung v$VERSION"
 

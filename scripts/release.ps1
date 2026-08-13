@@ -29,13 +29,21 @@ if ($LASTEXITCODE -eq 0) { throw "Tag v$Version already exists." }
 
 Write-Host "Preparing my-idea v$Version" -ForegroundColor Cyan
 
-# EN: npm keeps package.json and the root package-lock.json versions consistent.
-# UK: npm uzghodzhuie versii u package.json ta koreni package-lock.json.
-# DE: npm halt die Versionen in package.json und package-lock.json konsistent.
-npm.cmd version $Version --no-git-tag-version
-if ($LASTEXITCODE -ne 0) { throw 'npm version failed.' }
-
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+
+# EN: bun.lock doesn't store the root package's own version (only name +
+# dependencies), so there's no lockfile to keep in sync here — unlike the
+# old package-lock.json, which this repo no longer uses. Set package.json's
+# version directly instead of shelling out to npm.
+# UK: bun.lock не зберігає версію кореневого пакета, тому синхронізувати
+# lockfile тут не потрібно — на відміну від колишнього package-lock.json.
+# DE: bun.lock speichert die Version des Root-Pakets nicht, daher muss hier
+# keine Lockfile synchronisiert werden.
+$packageJsonPath = 'package.json'
+$packageJson = Get-Content -LiteralPath $packageJsonPath -Raw | ConvertFrom-Json
+$packageJson.version = $Version
+$packageJsonText = $packageJson | ConvertTo-Json -Depth 100
+[System.IO.File]::WriteAllText($packageJsonPath, "$packageJsonText`n", $utf8NoBom)
 
 function Set-FirstRegexMatch {
     param(
@@ -82,7 +90,7 @@ if ($LASTEXITCODE -ne 0) { throw 'bun run build failed.' }
 # EN: Refuse to publish changes outside the five version files.
 # UK: Ne publikuvaty zminy poza piatma failamy versii.
 # DE: Anderungen ausserhalb der funf Versionsdateien nicht veroffentlichen.
-$releaseFiles = @('package.json', 'package-lock.json', 'src-tauri/Cargo.toml', 'Cargo.lock', 'src-tauri/tauri.conf.json')
+$releaseFiles = @('package.json', 'src-tauri/Cargo.toml', 'Cargo.lock', 'src-tauri/tauri.conf.json')
 $changedFiles = @(git status --porcelain | ForEach-Object { $_.Substring(3) })
 $unexpectedFiles = @($changedFiles | Where-Object { $_ -notin $releaseFiles })
 if ($unexpectedFiles.Count -gt 0) { throw "Unexpected changed files: $($unexpectedFiles -join ', ')" }
