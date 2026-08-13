@@ -108,6 +108,37 @@ mount needs `--no-bin-links` (DrvFs doesn't support the `chmod` npm's
 bin-linking step needs) — invoke installed CLI tools directly via `node
 node_modules/<pkg>/<entry>.js` rather than `npx` when bin-links are absent.
 
+## Known fix: `cargo check`/`cargo build` need CARGO_TARGET_DIR off DrvFs
+
+`cargo check --workspace` (and any Cargo build) for this repo fails with a
+bare `Operation not permitted (os error 1)` in `tauri-build`'s ACL
+permission-file generation when `target/` lives on the DrvFs mount
+(`/mnt/c/GitHub/my-idea/target`, the default). Root-caused via `strace`
+(2026-08-12, `IDEA-CARGO-CHECK`/`IDEA-STRACE-EPERM`): the exact failing
+syscall is `fchmod(fd, 0100777)` on a file `tauri-build` just created in
+`OUT_DIR` — DrvFs doesn't support `fchmod`/`chmod` (confirmed
+independently: `chmod 777` on a DrvFs file fails, the same op on native
+WSL ext4 succeeds — same underlying DrvFs limitation as npm's
+`--no-bin-links` and Bun's lockfile `fchmod`, documented elsewhere in this
+file, just hitting a third spot).
+
+Fix — redirect `CARGO_TARGET_DIR` to native WSL filesystem, everything
+else (repo location, source tree) stays on `/mnt/c/GitHub/my-idea` as
+usual:
+
+```bash
+export CARGO_TARGET_DIR="$HOME/.cache/my-idea-target"
+mkdir -p "$CARGO_TARGET_DIR"
+cargo check --workspace   # clean pass, verified 2026-08-12
+```
+
+Earlier attempts at this exact redirect appeared to still fail identically
+— that was environment contamination from a stale/partial target dir or a
+misapplied env var in that specific invocation, not a real counter-example;
+a clean `CARGO_TARGET_DIR` on native fs passes reliably. Set this
+`export` before any `cargo build`/`cargo check`/`cargo test` in this repo,
+not just for one-off verification.
+
 ## If `cargo check` fails with "rustc X is not supported"
 
 Tauri's dependency tree moves faster than Guix's packaged `rust`; a
