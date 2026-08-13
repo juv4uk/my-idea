@@ -70,12 +70,14 @@ cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
 if ($LASTEXITCODE -ne 0) { throw 'cargo test (my-lisp-cli) failed.' }
 cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 if ($LASTEXITCODE -ne 0) { throw 'cargo test (my-lisp-literate) failed.' }
-npm.cmd test
-if ($LASTEXITCODE -ne 0) { throw 'npm test failed.' }
-npm.cmd run check
-if ($LASTEXITCODE -ne 0) { throw 'npm run check failed.' }
-npm.cmd run build
-if ($LASTEXITCODE -ne 0) { throw 'npm run build failed.' }
+bun install --frozen-lockfile
+if ($LASTEXITCODE -ne 0) { throw 'bun install --frozen-lockfile failed.' }
+bun run test
+if ($LASTEXITCODE -ne 0) { throw 'bun run test failed.' }
+bun run check
+if ($LASTEXITCODE -ne 0) { throw 'bun run check failed.' }
+bun run build
+if ($LASTEXITCODE -ne 0) { throw 'bun run build failed.' }
 
 # EN: Refuse to publish changes outside the five version files.
 # UK: Ne publikuvaty zminy poza piatma failamy versii.

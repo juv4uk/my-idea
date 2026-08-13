@@ -14,6 +14,14 @@
 ;; rustc-too-old blocker: see AGENTS.md's "If `cargo check` fails with
 ;; 'rustc X is not supported'" — resolved via `guix time-machine` against
 ;; ../my-lisp/channels.scm, not by changing this manifest.
+;;
+;; Bun (the JS package manager/runner, see AGENTS.md) is NOT in this list —
+;; `guix search bun` finds nothing in this channel as of 2026-08-12, so it
+;; isn't packaged here yet. Install it via the official installer instead
+;; (https://bun.sh/install) and put ~/.bun/bin on $PATH; `node`/`npm` stay
+;; in this manifest since `bun run build`/`bun run test` still shell out to
+;; `node` internally (see AGENTS.md's Bun section). Packaging Bun for Guix
+;; is a real follow-up, not done as part of this migration.
 
 (specifications->manifest
  '("rust"

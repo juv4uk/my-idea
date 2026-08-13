@@ -2,7 +2,7 @@
 
 ## English
 
-The project has two independent test layers: the Rust crates under `crates/` (run with `cargo test`), and the Node/Playwright suite that exercises the ClojureScript frontend, the WASM engine, and the standalone web artifacts (run with `npm test`). There is no cross-suite coverage tool configured yet; this table is the current source of truth and should be refreshed whenever a suite gains or loses tests.
+The project has two independent test layers: the Rust crates under `crates/` (run with `cargo test`), and the Node/Playwright suite that exercises the ClojureScript frontend, the WASM engine, and the standalone web artifacts (run with `bun run test`). There is no cross-suite coverage tool configured yet; this table is the current source of truth and should be refreshed whenever a suite gains or loses tests.
 
 ### Rust crates — `cargo test`
 
@@ -21,7 +21,7 @@ cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
 cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 ```
 
-### Web/JS suite — `npm test` (`node --test tests/*.test.mjs`)
+### Web/JS suite — `bun run test` (`node --test tests/*.test.mjs`)
 
 | File | Tests | Covers |
 |---|---:|---|
@@ -30,10 +30,10 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 | `tests/my-lisp-cli-web.test.mjs` | 5 | Playwright end-to-end checks on `public/my-lisp-cli-web.html`: plain arithmetic, definitions persisting across REPL lines, `lib/core.my` preloading, exact rational arithmetic, and an error not corrupting the session |
 | **Web/JS total** | **39** | |
 
-`npm test` additionally runs `shadow-cljs compile test`, a ClojureScript test-compilation step that currently contains 0 assertions (reserved for future CLJS-level unit tests; the Node suite above is where actual coverage lives today).
+`bun run test` additionally runs `shadow-cljs compile test`, a ClojureScript test-compilation step that currently contains 0 assertions (reserved for future CLJS-level unit tests; the Node suite above is where actual coverage lives today).
 
 ```powershell
-npm test
+bun run test
 ```
 
 ### Grand total
@@ -42,7 +42,7 @@ npm test
 
 ## Українська
 
-Проєкт має два незалежні шари тестів: Rust-крейти в `crates/` (запуск через `cargo test`) і Node/Playwright-набір, що перевіряє ClojureScript-фронтенд, WASM-рушій і standalone web-артефакти (запуск через `npm test`). Інструмент для наскрізного покриття між шарами поки не налаштовано; ця таблиця є поточним джерелом правди й має оновлюватися щоразу, коли набір отримує або втрачає тести.
+Проєкт має два незалежні шари тестів: Rust-крейти в `crates/` (запуск через `cargo test`) і Node/Playwright-набір, що перевіряє ClojureScript-фронтенд, WASM-рушій і standalone web-артефакти (запуск через `bun run test`). Інструмент для наскрізного покриття між шарами поки не налаштовано; ця таблиця є поточним джерелом правди й має оновлюватися щоразу, коли набір отримує або втрачає тести.
 
 ### Rust-крейти — `cargo test`
 
@@ -61,7 +61,7 @@ cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
 cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 ```
 
-### Web/JS-набір — `npm test` (`node --test tests/*.test.mjs`)
+### Web/JS-набір — `bun run test` (`node --test tests/*.test.mjs`)
 
 | Файл | Тестів | Покриває |
 |---|---:|---|
@@ -70,10 +70,10 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 | `tests/my-lisp-cli-web.test.mjs` | 5 | Playwright end-to-end перевірки `public/my-lisp-cli-web.html`: звичайна арифметика, збереження визначень між рядками REPL, попереднє завантаження `lib/core.my`, точна раціональна арифметика, і що помилка не псує сесію |
 | **Разом Web/JS** | **39** | |
 
-`npm test` додатково запускає `shadow-cljs compile test` — крок компіляції ClojureScript-тестів, що наразі містить 0 тверджень (зарезервовано під майбутні CLJS-unit-тести; реальне покриття сьогодні живе в Node-наборі вище).
+`bun run test` додатково запускає `shadow-cljs compile test` — крок компіляції ClojureScript-тестів, що наразі містить 0 тверджень (зарезервовано під майбутні CLJS-unit-тести; реальне покриття сьогодні живе в Node-наборі вище).
 
 ```powershell
-npm test
+bun run test
 ```
 
 ### Загальний підсумок
@@ -82,7 +82,7 @@ npm test
 
 ## Deutsch
 
-Das Projekt hat zwei unabhängige Testebenen: die Rust-Crates unter `crates/` (ausgeführt mit `cargo test`) und die Node/Playwright-Suite, die das ClojureScript-Frontend, die WASM-Engine und die eigenständigen Web-Artefakte prüft (ausgeführt mit `npm test`). Ein ebenenübergreifendes Coverage-Werkzeug ist noch nicht eingerichtet; diese Tabelle ist die aktuelle Quelle der Wahrheit und sollte aktualisiert werden, sobald eine Suite Tests gewinnt oder verliert.
+Das Projekt hat zwei unabhängige Testebenen: die Rust-Crates unter `crates/` (ausgeführt mit `cargo test`) und die Node/Playwright-Suite, die das ClojureScript-Frontend, die WASM-Engine und die eigenständigen Web-Artefakte prüft (ausgeführt mit `bun run test`). Ein ebenenübergreifendes Coverage-Werkzeug ist noch nicht eingerichtet; diese Tabelle ist die aktuelle Quelle der Wahrheit und sollte aktualisiert werden, sobald eine Suite Tests gewinnt oder verliert.
 
 ### Rust-Crates — `cargo test`
 
@@ -101,7 +101,7 @@ cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
 cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 ```
 
-### Web/JS-Suite — `npm test` (`node --test tests/*.test.mjs`)
+### Web/JS-Suite — `bun run test` (`node --test tests/*.test.mjs`)
 
 | Datei | Tests | Deckt ab |
 |---|---:|---|
@@ -110,10 +110,10 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 | `tests/my-lisp-cli-web.test.mjs` | 5 | Playwright-End-to-End-Prüfungen von `public/my-lisp-cli-web.html`: einfache Arithmetik, über REPL-Zeilen persistente Definitionen, Vorladen von `lib/core.my`, exakte rationale Arithmetik und dass ein Fehler die Sitzung nicht beschädigt |
 | **Web/JS gesamt** | **39** | |
 
-`npm test` führt zusätzlich `shadow-cljs compile test` aus, einen ClojureScript-Testkompilierungsschritt, der derzeit 0 Assertions enthält (reserviert für künftige CLJS-Unit-Tests; die tatsächliche Abdeckung liegt heute in der obigen Node-Suite).
+`bun run test` führt zusätzlich `shadow-cljs compile test` aus, einen ClojureScript-Testkompilierungsschritt, der derzeit 0 Assertions enthält (reserviert für künftige CLJS-Unit-Tests; die tatsächliche Abdeckung liegt heute in der obigen Node-Suite).
 
 ```powershell
-npm test
+bun run test
 ```
 
 ### Gesamtsumme

@@ -87,6 +87,61 @@ repos, not something to add unilaterally to `ecosystem::evidence`'s reader.
 If you want this, raise it with whoever owns that schema (currently
 my-lisp) rather than inventing a parallel field here.
 
+## JavaScript package manager: Bun
+
+This repo uses [Bun](https://bun.sh) (`packageManager: "bun@1.3.8"` in
+`package.json`) as the JavaScript package manager and script runner —
+not npm, yarn, or pnpm.
+
+- Use `bun install`, not `npm install`. Don't create `package-lock.json`.
+- Use `bun install --frozen-lockfile` in reproducible/CI contexts — never
+  let a release or CI run silently change `bun.lock`.
+- Use `bun run <script>` for `package.json` scripts (`bun run check`,
+  `bun run test`, `bun run build`, `bun run tauri dev`, ...).
+- Don't update `bun.lock` unless a dependency change is actually intended
+  — an incidental `bun install` without `--frozen-lockfile` can drift it.
+- Bun is the package manager and script runner, not a replacement for
+  `shadow-cljs`, Cargo, or `wasm-pack` — don't try to make it compile
+  ClojureScript, Rust, or WASM directly.
+- `build` and `test` still shell out to `node` internally (`node
+  scripts/build.mjs`; `node --test tests/*.test.mjs && shadow-cljs
+  compile test`) — this is intentional, not a leftover. `bun run test`
+  produces byte-identical results to the old `npm test` (verified:
+  13 pass / 2 known pre-existing failures, same two). Swapping the
+  underlying runner to `bun test` was evaluated and deliberately not
+  done — do it only after directly comparing `node --test` vs `bun test`
+  output for this suite, per the migration record in
+  `docs/bun-migration.md`.
+- Bun's own binary (`~/.bun/bin/bun` after the official install script;
+  not currently packaged in this Guix channel — `guix search bun` finds
+  nothing) needs `~/.bun/bin` on `$PATH`.
+
+### Known DrvFs limitation: `bun install`'s lockfile write
+
+On this repo's filesystem mount (`/mnt/c/GitHub/my-idea`, DrvFs — see
+"Repository location" above), a plain `bun install` crashes partway
+through with `EPERM: Operation not permitted: failed to change lockfile
+permissions (fchmod)` — the same class of DrvFs `chmod`/`fchmod`
+limitation as the npm `--no-bin-links` issue below, just hitting Bun's
+lockfile write instead of npm's bin-linking step. Workaround, verified
+live:
+
+```bash
+# once, or whenever bun.lock needs regenerating — on native WSL filesystem,
+# where fchmod works:
+mkdir -p ~/bun-lockgen-tmp && cp package.json ~/bun-lockgen-tmp/
+cd ~/bun-lockgen-tmp && bun install   # writes a clean bun.lock here
+cp bun.lock /mnt/c/GitHub/my-idea/bun.lock
+
+# back on DrvFs — --frozen-lockfile never rewrites the lockfile, so it
+# doesn't hit the fchmod path and installs node_modules cleanly:
+cd /mnt/c/GitHub/my-idea && bun install --frozen-lockfile
+```
+
+This is also why CI/release should always use `--frozen-lockfile` rather
+than a bare `bun install` — it sidesteps this class of issue entirely,
+not just as a DrvFs workaround.
+
 ## Agent rule: don't patch the base system
 
 Before installing anything to fix a missing dependency, check whether it
@@ -99,14 +154,19 @@ npm install -g shadow-cljs
 
 # Preferred
 # add the package to manifest.scm, then:
-guix shell -m manifest.scm -- npx shadow-cljs compile app
+guix shell -m manifest.scm -- bun run check
 ```
 
 A missing dependency should normally become a `manifest.scm` change, not
-an undocumented machine-local install. `npm install` on this filesystem
-mount needs `--no-bin-links` (DrvFs doesn't support the `chmod` npm's
-bin-linking step needs) — invoke installed CLI tools directly via `node
-node_modules/<pkg>/<entry>.js` rather than `npx` when bin-links are absent.
+an undocumented machine-local install. The legacy note below about npm's
+`--no-bin-links` is kept for historical context (some scripts still
+invoke `node_modules/<pkg>` binaries directly); day-to-day dependency
+installs go through Bun now, per above.
+
+`npm install` on this filesystem mount needed `--no-bin-links` (DrvFs
+doesn't support the `chmod` npm's bin-linking step needs) — invoke
+installed CLI tools directly via `node node_modules/<pkg>/<entry>.js`
+rather than `npx`/`bunx` when bin-links are absent.
 
 ## Known fix: `cargo check`/`cargo build` need CARGO_TARGET_DIR off DrvFs
 

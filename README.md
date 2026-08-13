@@ -64,18 +64,18 @@ Die Entwicklung eigener Lisp-artiger Sprachen ist unser besonderes eingebautes S
 
 ## Development · Розробка · Entwicklung
 
-Requirements: Node.js 20+, Java 17+ (for Shadow CLJS), and the platform requirements for Tauri.
+Requirements: [Bun](https://bun.sh) 1.3.8 (package manager and script runner), Node.js 20+ (a couple of scripts still shell out to it directly), Java 17+ (for Shadow CLJS), and the platform requirements for Tauri.
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 ```bash
-npm test
-npm run check
-npm run build
-npm run tauri dev
+bun run test
+bun run check
+bun run build
+bun run tauri dev
 ```
 
 Architecture notes and the platform roadmap live in [`docs/README.md`](docs/README.md). Contributions and practical ideas are welcome.
