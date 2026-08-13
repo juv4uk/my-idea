@@ -6,6 +6,10 @@
 ;;   guix shell -m manifest.scm
 ;; then, since nss-certs doesn't wire itself in automatically:
 ;;   export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
+;; and, before any cargo build/check/test (DrvFs fchmod EPERM otherwise —
+;; see AGENTS.md's "Known fix: cargo check/cargo build need CARGO_TARGET_DIR
+;; off DrvFs"):
+;;   export CARGO_TARGET_DIR="$HOME/.cache/my-idea-target"
 ;;
 ;; rustc-too-old blocker: see AGENTS.md's "If `cargo check` fails with
 ;; 'rustc X is not supported'" — resolved via `guix time-machine` against
