@@ -1,4 +1,4 @@
-import { cp, mkdir, rm } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 // Step 1: Compile my-lisp to WebAssembly for the browser/PWA build.
@@ -33,7 +33,19 @@ if (cljs.status !== 0) process.exit(cljs.status ?? 1);
 // Step 3: Assemble clean dist/ for Tauri.
 // Крок 3: Збираємо чистий dist/ для Tauri.
 // Schritt 3: Sauberes dist/-Verzeichnis für Tauri zusammenstellen.
+//
+// Shells out to the system `cp` instead of node:fs/promises' cp/copyFile:
+// on this repo's DrvFs mount, Node's copyFile (via libuv's copy_file_range
+// attempt) fails with EPERM instead of falling back to a plain read+write
+// the way Rust's std::fs::copy does — GNU coreutils' own cp doesn't hit
+// this. Same DrvFs-permission-op class as the other issues documented in
+// AGENTS.md, just a fourth spot.
+//
+// Шеляться до системного `cp` замість node:fs/promises' cp/copyFile: на
+// цьому DrvFs-монтуванні Node's copyFile провалюється з EPERM замість
+// fallback на read+write — GNU coreutils cp цього не має.
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
-await cp('public', 'dist', { recursive: true });
+const copy = spawnSync('cp', ['-r', 'public/.', 'dist/'], { stdio: 'inherit' });
+if (copy.status !== 0) process.exit(copy.status ?? 1);
 console.log('WASM + ClojureScript IDE written to dist/');
