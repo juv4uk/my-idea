@@ -41,9 +41,9 @@ sed -E -i "0,/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/s//version = \"$VERSION\"/" 
 
 # The my-lisp Rust crates ship independently of src-tauri (CLI, WASM); a release must not skip their tests.
 cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path crates/my-lisp/Cargo.toml
-cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
-cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
+cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
+cargo test --manifest-path external/my-lisp/crates/my-lisp-cli/Cargo.toml
+cargo test --manifest-path external/my-lisp/crates/my-lisp-literate/Cargo.toml
 bun install --frozen-lockfile
 bun run test
 bun run check
