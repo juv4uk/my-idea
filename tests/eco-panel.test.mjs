@@ -32,9 +32,9 @@ const MOCK_ECO = {
     {
       requirement: 'list-cons',
       byImplementation: {
-        'my-lisp': { fixture: "(cons 1 '(2))", expected: '(1 2)', actual: '(1 2)', result: 'pass', commit: 'aaa', timestamp: '2026-01-01', runner: 'ci' },
+        'my-lisp': { fixture: "(cons 1 (quote (2)))", expected: '(1 2)', actual: '(1 2)', result: 'pass', commit: 'aaa', timestamp: '2026-01-01', runner: 'ci' },
         'cml': null,
-        'fpga-lisp': { fixture: "(cons 1 '(2))", expected: '(1 2)', actual: '(1 2)', result: 'pass', commit: 'ccc', timestamp: '2026-01-01', runner: 'ci' }
+        'fpga-lisp': { fixture: "(cons 1 (quote (2)))", expected: '(1 2)', actual: '(1 2)', result: 'pass', commit: 'ccc', timestamp: '2026-01-01', runner: 'ci' }
       }
     }
   ]

@@ -25,7 +25,7 @@ test('Conformance alignment tests', async (t) => {
     }
 
     await t.test('WASM adapter does not stack overflow on 100k list', () => {
-        const res = evaluate("(def build (lambda (n acc) (cond ((eq n 0) acc) (t (build (- n 1) (cons n acc)))))) (build 100000 '())");
+        const res = evaluate("(def build (lambda (n acc) (cond ((eq n 0) acc) (t (build (- n 1) (cons n acc)))))) (build 100000 (quote ()))");
         assert.ok(!res.error, "Evaluation should not error out");
         assert.ok(typeof res.value === 'string');
     });
