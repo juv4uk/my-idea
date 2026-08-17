@@ -13,7 +13,8 @@ The project has two independent test layers: the Rust crates under `crates/` (ru
 | `my-lisp` | `tests/stack_safety.rs` | 4 | tail recursion and deep list clone/drop use constant Rust stack |
 | `my-lisp-cli` | `tests/cli.rs` | 8 | the compiled binary end-to-end: `--version`/`--help`, file execution, parse/eval error exit codes, missing-file handling, `lib/core.my` preloading |
 | `my-lisp-literate` | `tests/literate_offsets.rs` | 4 | literate-Markdown source-offset mapping |
-| **Rust total** | | **52** | |
+| `my-idea` | unit tests (`src-tauri/src/lib.rs`) | 1 | native adapter loads bootstrap library and preserves exact values |
+| **Rust total** | | **53** | |
 
 ```powershell
 cargo test --manifest-path crates/my-lisp/Cargo.toml
@@ -26,9 +27,10 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 | File | Tests | Covers |
 |---|---:|---|
 | `tests/conformance.test.mjs` | 19 | implementation-independent fixture cases (`tests/fixtures/conformance.json`) run against the WASM engine directly in Node, plus a 100k-list stack-safety check on the raw WASM adapter |
-| `tests/smoke.test.mjs` | 15 | static wiring checks (trilingual UI, PWA manifest/service worker, Tauri commands, WASM/CLJS bindings, release workflow asset names) plus a Playwright check that `my-idea-web.html` doesn't stack-overflow on a 100k-element list |
+| `tests/smoke.test.mjs` | 14 | static wiring checks (trilingual UI, PWA manifest/service worker, Tauri commands, WASM/CLJS bindings, release workflow asset names, commands.cljs split) plus a Playwright check that `my-idea-web.html` doesn't stack-overflow on a 100k-element list |
+| `tests/eco-panel.test.mjs` | 4 | Playwright checks on `my-idea-web.html`: ecosystem panel renders, repo-summary elements, evidence-matrix table, fixture drill-down with detail view |
 | `tests/my-lisp-cli-web.test.mjs` | 5 | Playwright end-to-end checks on `public/my-lisp-cli-web.html`: plain arithmetic, definitions persisting across REPL lines, `lib/core.my` preloading, exact rational arithmetic, and an error not corrupting the session |
-| **Web/JS total** | **39** | |
+| **Web/JS total** | **42** | |
 
 `bun run test` additionally runs `shadow-cljs compile test`, a ClojureScript test-compilation step that currently contains 0 assertions (reserved for future CLJS-level unit tests; the Node suite above is where actual coverage lives today).
 
@@ -38,7 +40,7 @@ bun run test
 
 ### Grand total
 
-**91 automated tests** (52 Rust + 39 Web/JS) across the project, last recorded run: 2026-08-08, Windows x86_64 — all passing, 0 failed, 0 ignored.
+**95 automated tests** (53 Rust + 42 Web/JS) across the project, last recorded run: 2026-08-17, WSL2 Linux x86_64 — all passing, 0 failed, 0 ignored.
 
 ## Українська
 
@@ -53,7 +55,8 @@ bun run test
 | `my-lisp` | `tests/stack_safety.rs` | 4 | хвостову рекурсію та clone/drop глибоких списків зі сталим Rust-стеком |
 | `my-lisp-cli` | `tests/cli.rs` | 8 | скомпільований бінарник наскрізно: `--version`/`--help`, виконання файлу, коди виходу при помилках парсингу/обчислення, відсутній файл, попереднє завантаження `lib/core.my` |
 | `my-lisp-literate` | `tests/literate_offsets.rs` | 4 | зіставлення зміщень початкового коду literate-Markdown |
-| **Разом Rust** | | **52** | |
+| `my-idea` | unit-тести (`src-tauri/src/lib.rs`) | 1 | нативний адаптер завантажує bootstrap-бібліотеку й зберігає точні значення |
+| **Разом Rust** | | **53** | |
 
 ```powershell
 cargo test --manifest-path crates/my-lisp/Cargo.toml
@@ -66,9 +69,10 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 | Файл | Тестів | Покриває |
 |---|---:|---|
 | `tests/conformance.test.mjs` | 19 | незалежні від реалізації fixture-кейси (`tests/fixtures/conformance.json`), що запускаються проти WASM-рушія напряму в Node, плюс перевірка stack-safety на 100k-списку для сирого WASM-адаптера |
-| `tests/smoke.test.mjs` | 15 | статичні перевірки підключення (трилінгвальний UI, PWA manifest/service worker, Tauri-команди, WASM/CLJS-прив'язки, назви release-asset у workflow) плюс Playwright-перевірка, що `my-idea-web.html` не переповнює стек на 100k-елементному списку |
+| `tests/smoke.test.mjs` | 14 | статичні перевірки підключення (трилінгвальний UI, PWA manifest/service worker, Tauri-команди, WASM/CLJS-прив'язки, назви release-asset у workflow, поділ commands.cljs) плюс Playwright-перевірка, що `my-idea-web.html` не переповнює стек на 100k-елементному списку |
+| `tests/eco-panel.test.mjs` | 4 | Playwright-перевірки `my-idea-web.html`: рендер екосистемної панелі, елементи repo-summary, таблиця evidence-matrix, drill-down фікстур з деталями |
 | `tests/my-lisp-cli-web.test.mjs` | 5 | Playwright end-to-end перевірки `public/my-lisp-cli-web.html`: звичайна арифметика, збереження визначень між рядками REPL, попереднє завантаження `lib/core.my`, точна раціональна арифметика, і що помилка не псує сесію |
-| **Разом Web/JS** | **39** | |
+| **Разом Web/JS** | **42** | |
 
 `bun run test` додатково запускає `shadow-cljs compile test` — крок компіляції ClojureScript-тестів, що наразі містить 0 тверджень (зарезервовано під майбутні CLJS-unit-тести; реальне покриття сьогодні живе в Node-наборі вище).
 
@@ -78,7 +82,7 @@ bun run test
 
 ### Загальний підсумок
 
-**91 автотест** (52 Rust + 39 Web/JS) у проєкті, останній зафіксований запуск: 2026-08-08, Windows x86_64 — усі проходять, 0 провалів, 0 пропущено.
+**95 автотестів** (53 Rust + 42 Web/JS) у проєкті, останній зафіксований запуск: 2026-08-17, WSL2 Linux x86_64 — усі проходять, 0 провалів, 0 пропущено.
 
 ## Deutsch
 
@@ -93,7 +97,8 @@ Das Projekt hat zwei unabhängige Testebenen: die Rust-Crates unter `crates/` (a
 | `my-lisp` | `tests/stack_safety.rs` | 4 | Tail-Rekursion und Clone/Drop tiefer Listen mit konstantem Rust-Stack |
 | `my-lisp-cli` | `tests/cli.rs` | 8 | die kompilierte Binärdatei durchgängig: `--version`/`--help`, Dateiausführung, Exit-Codes bei Parse-/Eval-Fehlern, fehlende Datei, Vorladen von `lib/core.my` |
 | `my-lisp-literate` | `tests/literate_offsets.rs` | 4 | Offset-Zuordnung von literate-Markdown-Quellcode |
-| **Rust gesamt** | | **52** | |
+| `my-idea` | Unit-Tests (`src-tauri/src/lib.rs`) | 1 | nativer Adapter lädt Bootstrap-Bibliothek und erhält exakte Werte |
+| **Rust gesamt** | | **53** | |
 
 ```powershell
 cargo test --manifest-path crates/my-lisp/Cargo.toml
@@ -106,9 +111,10 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 | Datei | Tests | Deckt ab |
 |---|---:|---|
 | `tests/conformance.test.mjs` | 19 | implementierungsunabhängige Fixture-Fälle (`tests/fixtures/conformance.json`), direkt gegen die WASM-Engine in Node ausgeführt, plus eine Stack-Safety-Prüfung mit 100k-Liste am rohen WASM-Adapter |
-| `tests/smoke.test.mjs` | 15 | statische Verdrahtungsprüfungen (dreisprachige UI, PWA-Manifest/Service-Worker, Tauri-Befehle, WASM/CLJS-Bindungen, Release-Workflow-Asset-Namen) plus eine Playwright-Prüfung, dass `my-idea-web.html` bei einer 100k-Elemente-Liste nicht überläuft |
+| `tests/smoke.test.mjs` | 14 | statische Verdrahtungsprüfungen (dreisprachige UI, PWA-Manifest/Service-Worker, Tauri-Befehle, WASM/CLJS-Bindungen, Release-Workflow-Asset-Namen, commands.cljs-Aufspaltung) plus eine Playwright-Prüfung, dass `my-idea-web.html` bei einer 100k-Elemente-Liste nicht überläuft |
+| `tests/eco-panel.test.mjs` | 4 | Playwright-Prüfungen von `my-idea-web.html`: Ökosystem-Panel wird gerendert, Repo-Summary-Elemente, Evidence-Matrix-Tabelle, Fixture-Drill-down mit Detailansicht |
 | `tests/my-lisp-cli-web.test.mjs` | 5 | Playwright-End-to-End-Prüfungen von `public/my-lisp-cli-web.html`: einfache Arithmetik, über REPL-Zeilen persistente Definitionen, Vorladen von `lib/core.my`, exakte rationale Arithmetik und dass ein Fehler die Sitzung nicht beschädigt |
-| **Web/JS gesamt** | **39** | |
+| **Web/JS gesamt** | **42** | |
 
 `bun run test` führt zusätzlich `shadow-cljs compile test` aus, einen ClojureScript-Testkompilierungsschritt, der derzeit 0 Assertions enthält (reserviert für künftige CLJS-Unit-Tests; die tatsächliche Abdeckung liegt heute in der obigen Node-Suite).
 
@@ -118,4 +124,4 @@ bun run test
 
 ### Gesamtsumme
 
-**91 automatisierte Tests** (52 Rust + 39 Web/JS) im Projekt, letzter erfasster Lauf: 08.08.2026, Windows x86_64 — alle bestanden, 0 fehlgeschlagen, 0 übersprungen.
+**95 automatisierte Tests** (53 Rust + 42 Web/JS) im Projekt, letzter erfasster Lauf: 17.08.2026, WSL2 Linux x86_64 — alle bestanden, 0 fehlgeschlagen, 0 übersprungen.

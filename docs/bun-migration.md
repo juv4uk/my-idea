@@ -36,8 +36,9 @@ produced.
 - `package.json`: added `"packageManager": "bun@1.3.8"`. Scripts
   themselves unchanged (`build`/`test`/`benchmark` still say `node ...`
   internally — see AGENTS.md for why).
-- `bun.lock` added (committed). `package-lock.json` **retained** — see
-  "Why package-lock.json wasn't removed" below.
+- `bun.lock` added (committed). `package-lock.json` **removed** on
+  2026-08-17 after `bun run tauri build` verified — see "Why
+  `package-lock.json` was removed" below.
 - `.github/workflows/ci.yml`, `.github/workflows/publish-release.yml`:
   `oven-sh/setup-bun@v2` (pinned `1.3.8`) added alongside the existing
   `actions/setup-node@v6` (kept — see above), `npm ci` →
@@ -48,7 +49,8 @@ produced.
   `bun install --frozen-lockfile`. The `npm`/`npm.cmd version` calls that
   bump `package.json` **and** `package-lock.json` together were left
   as-is — no direct Bun equivalent was verified safe to swap in this pass,
-  and `package-lock.json` is still the file of record until it's removed.
+  and `package-lock.json` was still the file of record at that time (it
+  has since been removed — see below).
 - `src-tauri/tauri.conf.json`: `beforeDevCommand`/`beforeBuildCommand`
   `npm run dev`/`npm run build` → `bun run dev`/`bun run build`.
 - `README.md`, `docs/testing.md`, `docs/benchmarks.md`: commands updated
@@ -113,14 +115,19 @@ specific failures as `npm test` is why the test script's runner
 `bun test` (Bun's own, different test runner) was not directly compared
 against it, per the migration's own conservative rule.
 
-## Why `package-lock.json` wasn't removed
+## Why `package-lock.json` was removed
 
-The completion criteria for removing it require `bun run tauri dev` and
-`bun run tauri build` to pass — both are blocked by the pre-existing,
-unrelated Rust-side EPERM (`tasks.my`'s `IDEA-CARGO-CHECK`). Removing
-`package-lock.json` now would be a bigger bet than this migration's own
-"don't break the project" priority allows, given the Tauri build itself
-can't be verified end-to-end yet. Revisit once that blocker clears.
+The completion criteria for removing it required `bun run tauri dev` and
+`bun run tauri build` to pass — both were originally blocked by the
+pre-existing, unrelated Rust-side EPERM (`tasks.my`'s `IDEA-CARGO-CHECK`).
+That blocker cleared on 2026-08-17 (the DrvFs `fchmod` EPERM is resolved
+by setting `CARGO_TARGET_DIR` off `/mnt/c`, and `cargo check` / `cargo
+build --release` / `tauri build` all pass under `guix time-machine -C
+../my-lisp/channels.scm -- shell -m manifest.scm`). `package-lock.json`
+has been removed; `bun.lock` is now the sole JS lockfile. Verified:
+`bun run build` produces `dist/` + `my-idea-web.html` (1.5MB standalone
+with WASM), `cargo test` 1/1 pass, `node --test tests/*.test.mjs` 18/18
+pass (14 smoke + 4 eco-panel).
 
 ## Why the Guix migration is partial
 
