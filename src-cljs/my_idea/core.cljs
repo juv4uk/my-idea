@@ -63,6 +63,7 @@
     (when-let [el (.getElementById js/document "oracle")] (.addEventListener el "click" cmd/ask-oracle!))
     (when-let [el (.getElementById js/document "compare")] (.addEventListener el "click" cmd/compare-with-oracle!))
     (when-let [el (.getElementById js/document "swarm")] (.addEventListener el "click" cmd/swarm-status!))
+    (when-let [el (.getElementById js/document "eco-run-check")] (.addEventListener el "click" cmd/check-ecosystem!))
     (when-let [el (.getElementById js/document "eco-back")]
       (.addEventListener el "click" #(do (swap! state assoc :selected-requirement nil) (render!))))
     (doseq [el (.querySelectorAll js/document "[data-req]")]

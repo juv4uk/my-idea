@@ -119,6 +119,7 @@
                      (first (filter #(= (:requirement %) selected-requirement) (:evidenceMatrix eco))))]
     (str "<div class='eco'>" (fixture-detail-html row) "</div>")
     (str "<div class='eco'>"
+         "<button id='eco-run-check' class='eco-run-check'>Run Ecosystem Check</button>"
          (repo-summary-html (:myLisp eco) (:myLispContract eco))
          (or (embedded-drift-html (:embeddedMyLispSha eco) (:myLisp eco)) "")
          (repo-summary-html (:cml eco) nil)
