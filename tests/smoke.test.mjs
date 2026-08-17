@@ -64,14 +64,14 @@ test('native file commands are constrained to the selected workspace', () => {
 test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
-  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const commands = readFileSync('src-cljs/my_idea/commands.cljs', 'utf8');
   assert.match(cargo, /my-lisp\s*=\s*\{\s*git\s*=\s*"https:\/\/github\.com\/juv4uk\/my-lisp\.git"/);
   assert.match(rust, /fn evaluate_my_lisp/);
-  assert.match(core, /invoke! "evaluate_my_lisp"/);
+  assert.match(commands, /invoke! "evaluate_my_lisp"/);
   // ClojureScript prototype is removed — WASM is the only web engine
   // ClojureScript-прототип видалено — WASM є єдиним веб-рушієм
-  assert.match(core, /WASM engine is loading/);
-  assert.match(core, /wasm\/ready\?/);
+  assert.match(commands, /WASM engine is loading/);
+  assert.match(commands, /wasm\/ready\?/);
 });
 
 test('WASM crate and ClojureScript bindings are present and correctly wired', () => {
@@ -101,9 +101,10 @@ test('WASM crate and ClojureScript bindings are present and correctly wired', ()
   const wasmLoader = readFileSync('public/wasm-loader.js', 'utf8');
   assert.match(wasmLoader, /\/wasm\/my_lisp_wasm\.js/);
   assert.match(wasmLoader, /loadMyLispWasm/);
-  // core.cljs uses the WASM module in the web branch
-  assert.match(core, /my-idea.wasm/);
-  assert.match(core, /wasm\/evaluate/);
+  // commands.cljs uses the WASM module in the web branch (extracted from core.cljs)
+  const commands = readFileSync('src-cljs/my_idea/commands.cljs', 'utf8');
+  assert.match(commands, /my-idea.wasm/);
+  assert.match(commands, /wasm\/evaluate/);
   // wasm/load! is called only in the web build (when-not native?)
   assert.match(core, /wasm\/load!/);
   assert.match(core, /when-not.*workspace\/native\?/s);
@@ -112,11 +113,12 @@ test('WASM crate and ClojureScript bindings are present and correctly wired', ()
 
 test('open and save work in both browser and Tauri modes', () => {
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const commands = readFileSync('src-cljs/my_idea/commands.cljs', 'utf8');
   const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
   const config = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'));
   assert.equal(config.app.withGlobalTauri, true);
-  assert.match(core, /choose-browser-workspace!/);
-  assert.match(core, /webkitdirectory/);
+  assert.match(commands, /choose-browser-workspace!/);
+  assert.match(commands, /webkitdirectory/);
   assert.match(workspace, /open-browser-workspace/);
   assert.match(workspace, /download!/);
 });
