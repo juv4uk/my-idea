@@ -7,11 +7,16 @@
   rename of every call site).")
 
 (defonce state (atom {:language (or (.getItem js/localStorage "my-idea:language") "uk")
-                      :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
-                      :root nil
-                      :tree []
-                      :open-paths []
-                      :active-path nil
-                      :documents {}
-                      :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
-                      :ecosystem nil :selected-requirement nil}))
+                       :theme (or (.getItem js/localStorage "my-idea:theme") "auto")
+                       :root nil
+                       :tree []
+                       :open-paths []
+                       :active-path nil
+                       :documents {}
+                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
+                       :ecosystem nil :selected-requirement nil}))
+
+(defn active-doc
+  "Returns the currently active document from state, or nil."
+  []
+  (get-in @state [:documents (:active-path @state)]))
