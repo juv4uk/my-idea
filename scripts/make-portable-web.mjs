@@ -16,6 +16,16 @@ let html = await readFile(inputPath, 'utf8');
 html = await replaceAsync(html, /<link\s+rel=["']stylesheet["']\s+href=["']([^"']+)["']\s*\/?>/gi,
   async (_, reference) => `<style>${await readLocal(reference)}</style>`);
 
+// EN: Strip PWA manifest and icon links — they break on file:// (CORS) and
+// aren't needed for the standalone single-file artifact.
+// UK: Прибрати PWA manifest та іконки — вони ламаються на file:// (CORS) і
+// не потрібні для standalone single-file артефакту.
+// DE: PWA-Manifest und Icon-Links entfernen — sie brechen auf file:// (CORS)
+// und werden für das standalone Single-File-Artefakt nicht benötigt.
+html = html.replace(/<link\s+rel=["']manifest["']\s+[^>]*>/gi, '');
+html = html.replace(/<link\s+rel=["']icon["']\s+[^>]*>/gi, '');
+html = html.replace(/<link\s+rel=["']apple-touch-icon["']\s+[^>]*>/gi, '');
+
 // EN: Embed WASM as base64 and replace wasm-loader with embedded version.
 // UK: Вбудувати WASM як base64 і замінити wasm-loader на embedded версію.
 // DE: WASM als base64 einbetten und wasm-loader durch embedded Version ersetzen.
@@ -89,8 +99,13 @@ window.loadMyLispWasm = function() {
   };
   var dynamicImport = new Function('u', 'return import(u)');
   ${wasmJs ? `
-  const wasmJsBlob = new Blob([embeddedWasmJs], { type: 'text/javascript' });
-  const wasmJsUrl = URL.createObjectURL(wasmJsBlob);
+  // EN: Use data: URL instead of blob: URL — blob: URLs are blocked by
+  // CORS on file:// pages, but data: URLs work for ES module imports.
+  // UK: Використовуємо data: URL замість blob: URL — blob: URL блокуються
+  // CORS на file:// сторінках, але data: URL працюють для ES module import.
+  // DE: data: URL statt blob: URL verwenden — blob: URLs werden durch CORS
+  // auf file://-Seiten blockiert, aber data: URLs funktionieren für ES-Module.
+  const wasmJsUrl = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(embeddedWasmJs);
   return dynamicImport(wasmJsUrl).then(function (mod) {` : `return dynamicImport('/wasm/my_lisp_wasm.js').then(function (mod) {`}
     return mod.default().then(function () {
       window.fetch = originalFetch;
