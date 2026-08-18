@@ -1,7 +1,7 @@
 ((tasks . (
   ("MYIDEA-SWARM-CONTRACT-01" . (
-    (priority . 9.0)
-    (description . "Adopt Swarm Contract v0.1: setup repo.my and ecosystem/ folders.")
+    (priority . 9.9)
+    (description . "Adopt Swarm Contract v0.1: setup repo.my and ecosystem/ folders. Priority raised 2026-08-18: three independent sources converged on this as the top next step — docs/knowledge-graph-design.md (written before this priority bump), and two external reviews (docs/my-idea-technical-review.md, docs/my-lisp-ecosystem-review.md, both Manus AI, both independently verified against docs/testing.md's real test counts and found accurate). Role: observer/IDE. Exports: visualized ecosystem status, evidence matrix, knowledge graph. Imports: my-lisp/fpga-lisp/cml contracts and evidence, repo.my declarations. Without this, my-idea itself shows as an undeclared/missing node in its own Knowledge Graph tab.")
     (done . ())
   ))
   ("MYIDEA-SWARM-DASHBOARD" . (
@@ -52,6 +52,11 @@
   ("IDEA-RELEASE-PS1-JSON-VERIFY" . (
     (priority . 3.0)
     (description . "scripts/release.ps1 was changed to bump package.json's version via Get-Content|ConvertFrom-Json/ConvertTo-Json instead of npm.cmd version (package-lock.json is gone). Never dry-run tested on Windows PowerShell 5.1 — ConvertTo-Json's property ordering/formatting/depth-handling on this specific package.json (nested devDependencies, scripts) should be diffed against the original file structure to confirm it doesn't reorder keys or mangle anything before the next real release relies on it.")
+    (done . ())
+  ))
+  ("IDEA-REAL-ECOSYSTEM-INTEGRATION-TEST" . (
+    (priority . 5.0)
+    (description . "Per docs/manus-ai-review-analysis.md (2026-08-18, analyzing external Manus AI reviews): tests/eco-panel.test.mjs only exercises the Playwright UI against mocked data, so it proves layout, not correctness of ecosystem_status/knowledge_graph's actual data derivation from disk. Add a real native Tauri integration test: build a temporary sibling-repo directory layout (fake my-lisp/fpga-lisp/cml/shiva-sutras/my-lisp-panini with known repo.my/contract files), call ecosystem::status()/ecosystem::knowledge_graph() directly, assert on the structured output. Cheap, concrete, catches real regressions in the repo_graph.rs/contracts.rs/evidence.rs parsers that mocked frontend tests cannot.")
     (done . ())
   ))
 )))
