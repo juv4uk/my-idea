@@ -247,3 +247,22 @@ Read `my-lisp/ecosystem-status.my`, `fpga-lisp/ecosystem-status.md`,
 - OpenCode agent (different tool, no direct message channel) coordinates
   via `NOTE-*.md` and maintains a live snapshot at
   `C:\Users\user\Documents\GitHub\docs\AGENT_MEMORY.md` (not a git repo).
+
+## Subagents and specialist models
+
+- Use independent subagents for audits, verification, and adversarial
+  review — not for parallel coding on the same feature. A verifier
+  subagent must never see the preferred answer first; ask it the same
+  cold question you asked yourself, then compare.
+- External specialist models (e.g. Sarvam for Sanskrit/Indic linguistics,
+  relevant when this repo's cross-repo work touches `shiva-sutras`/
+  `my-lisp-panini`) are **hypothesis sources, not authoritative evidence**.
+  Log their output as `HYPOTHESIS`, verify against primary sources before
+  treating it as fact. Full operating notes (MCP vs HTTP proxy, a
+  reasoning-model token-budget bug and its workaround, correct prompt
+  shape for genuine independent checks) live in
+  `shiva-sutras/docs/sarvam-integration-guide.md` — read that before
+  calling Sarvam from this repo rather than re-deriving it here.
+- This repo is the observer/IDE layer — it doesn't decide domain
+  semantics itself, so a subagent or specialist model's output here
+  should inform what's *displayed*, never be recorded as ground truth.

@@ -26,8 +26,8 @@
   ))
   ("IDEA-SUBAGENT-DOCTRINE" . (
     (priority . 6.0)
-    (description . "Add a short 'Subagents and specialist models' section to AGENTS.md: use independent subagents for audits/verification/adversarial review rather than parallel coding, never bias a verifier subagent with the preferred answer, and treat any external specialist model (e.g. Sarvam for Sanskrit/Indic linguistics, relevant to shiva-sutras/my-lisp-panini cross-repo work) as a hypothesis source, never as authoritative evidence. Keep it short (10-15 lines) — this repo is the observer/IDE layer, not where domain semantics get decided.")
-    (done . ())
+    (description . "DONE 2026-08-18. Added 'Subagents and specialist models' section to AGENTS.md: independent subagents for audits/verification not parallel coding, never bias a verifier with the preferred answer, external specialist models (Sarvam etc.) are hypothesis sources not authoritative evidence, points to shiva-sutras/docs/sarvam-integration-guide.md for Sarvam operating details rather than duplicating them here.")
+    (done . t)
   ))
   ("IDEA-APPIMAGE-XDG-UTILS" . (
     (priority . 4.0)
