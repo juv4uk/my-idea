@@ -14,4 +14,29 @@
     (description . "Build Knowledge Graph tab: visualize cross-repo epistemic chains.")
     (done . ())
   ))
+  ("IDEA-PROTOCOL-DRIFT-FIX" . (
+    (priority . 9.8)
+    (description . "P0 per swarm consensus 2026-08-18: AGENTS.md Coordination channels section (line 236-249) only documents the :9999 semantic oracle and calls it coordination; it never mentions the swarm-node P2P mesh (docs/swarm-mesh-v2.md, port 9104) that this repo's own src-tauri/src/swarm.rs already implements. An agent reading only AGENTS.md would join the wrong coordination architecture. Fix: rewrite the Coordination channels section to state plainly that swarm-node is the coordination layer and :9999 is oracle-only (eval/parse/diagnose/contract-version), matching what fpga-lisp/AGENTS.md already says.")
+    (done . ())
+  ))
+  ("IDEA-CONTRACT-VERSION-DRIFT-CHECK" . (
+    (priority . 8.5)
+    (description . "Per swarm rule 'prose never outranks the machine-readable contract': grep my-idea's AGENTS.md, docs/, and README for hardcoded language-contract version claims (e.g. '1.0') and compare against my-lisp's live language-contract.my (currently major 2, minor 0, post apostrophe-quote removal). Update any stale claim or, better, remove the hardcoded number and point to the contract file/oracle's contract-version op instead.")
+    (done . ())
+  ))
+  ("IDEA-SUBAGENT-DOCTRINE" . (
+    (priority . 6.0)
+    (description . "Add a short 'Subagents and specialist models' section to AGENTS.md: use independent subagents for audits/verification/adversarial review rather than parallel coding, never bias a verifier subagent with the preferred answer, and treat any external specialist model (e.g. Sarvam for Sanskrit/Indic linguistics, relevant to shiva-sutras/my-lisp-panini cross-repo work) as a hypothesis source, never as authoritative evidence. Keep it short (10-15 lines) — this repo is the observer/IDE layer, not where domain semantics get decided.")
+    (done . ())
+  ))
+  ("IDEA-APPIMAGE-XDG-UTILS" . (
+    (priority . 4.0)
+    (description . "bun run tauri build succeeds for .deb and .rpm but fails bundling AppImage: 'xdg-open binary not found /usr/bin/xdg-open'. Install xdg-utils in the Guix manifest or document as a required native Ubuntu package (WSL image gap, not a Bun/Tauri regression) so the AppImage bundle stops being the one red line in an otherwise green tauri build.")
+    (done . ())
+  ))
+  ("IDEA-PLAYWRIGHT-BROWSER-SETUP" . (
+    (priority . 4.0)
+    (description . "bun run test fails 1 of 37 subtests on a fresh environment ('Standalone web artifact does not stack overflow on 100k list', tests/smoke.test.mjs:205) with 'browserType.launch: Executable doesn't exist ... chrome-headless-shell'. Needs 'bunx playwright install' as a documented one-time setup step (AGENTS.md and/or CI) so clean-install verification doesn't need manual intervention to fully pass.")
+    (done . ())
+  ))
 )))
