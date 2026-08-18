@@ -114,6 +114,37 @@
          (if (:languageMatch compat) "✓" "✗")
          " · isa " (if (:isaMatch compat) "✓" "✗") "</div>")))
 
+(defn repo-node-html [node]
+  (str "<div class='kg-node" (when-not (:found node) " kg-node-missing") "'>"
+       "<strong>" (esc (:id node)) "</strong>"
+       (if (:found node)
+         (str "<span class='kg-role'>" (esc (or (:role node) "no role declared")) "</span>"
+              (when (seq (:capabilities node))
+                (str "<div class='kg-caps'>" (str/join " · " (map esc (:capabilities node))) "</div>")))
+         "<span class='kg-role kg-missing'>no repo.my</span>")
+       "</div>"))
+
+(defn repo-edge-html [edge]
+  (str "<div class='kg-edge'><span class='kg-edge-from'>" (esc (:from edge)) "</span>"
+       " <span class='kg-edge-arrow'>--[" (esc (:viaCapability edge)) "]--&gt;</span> "
+       "<span class='kg-edge-to'>" (esc (:to edge)) "</span></div>"))
+
+(defn knowledge-graph-html [graph]
+  (if (empty? (:nodes graph))
+    "<div class='kg'><p>No sibling repos found on disk.</p></div>"
+    (str "<div class='kg'>"
+         "<button id='kg-run-check' class='eco-run-check'>Rebuild Knowledge Graph</button>"
+         "<p class='kg-note'>Repo-level view (phase 1) — nodes are each sibling's own <code>repo.my</code> "
+         "self-declaration; edges are capability overlaps between declared <code>exports</code>/<code>imports</code>. "
+         "Claim-level view (phase 2, see docs/knowledge-graph-design.md) not yet built.</p>"
+         "<div class='kg-nodes'>" (apply str (map repo-node-html (:nodes graph))) "</div>"
+         "<div class='kg-edges'><h4>Capability edges</h4>"
+         (if (seq (:edges graph))
+           (apply str (map repo-edge-html (:edges graph)))
+           "<p class='kg-note'>No overlapping exports/imports found among declared repos.</p>")
+         "</div>"
+         "</div>")))
+
 (defn ecosystem-html [eco selected-requirement]
   (if-let [row (and selected-requirement
                      (first (filter #(= (:requirement %) selected-requirement) (:evidenceMatrix eco))))]

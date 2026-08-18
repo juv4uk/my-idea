@@ -1,10 +1,12 @@
 mod contracts;
 mod evidence;
 mod git;
+mod repo_graph;
 
 use contracts::{CmlCompatibility, CmlStatus, IsaContract, LanguageContract};
 use evidence::RequirementRow;
 use git::RepoInfo;
+use repo_graph::{RepoEdge, RepoNode};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -111,4 +113,44 @@ pub fn status() -> EcosystemStatus {
         evidence_matrix,
         embedded_my_lisp_sha,
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeGraph {
+    pub nodes: Vec<RepoNode>,
+    pub edges: Vec<RepoEdge>,
+}
+
+/// Phase 1 (repo-level only) of `docs/knowledge-graph-design.md`: scans
+/// every known sibling's `repo.my` self-declaration and derives coarse
+/// capability-overlap edges. A separate command from `status()` on
+/// purpose — different data shape, different refresh cadence (repo
+/// declarations change far less often than evidence runs).
+/// Фаза 1 (лише рівень репо) з `docs/knowledge-graph-design.md`: сканує
+/// самодекларацію `repo.my` кожного відомого сусіда й виводить грубі
+/// ребра перетину capability. Окрема команда від `status()` навмисно.
+pub fn knowledge_graph() -> KnowledgeGraph {
+    let Some(root) = siblings_root() else {
+        return KnowledgeGraph { nodes: Vec::new(), edges: Vec::new() };
+    };
+
+    let ids = [
+        "my-lisp",
+        "fpga-lisp",
+        "cml",
+        "my-idea",
+        "shiva-sutras",
+        "my-lisp-panini",
+    ];
+    let paths: Vec<PathBuf> = ids.iter().map(|id| root.join(id)).collect();
+    let siblings: Vec<(&str, &Path)> = ids
+        .iter()
+        .copied()
+        .zip(paths.iter().map(PathBuf::as_path))
+        .collect();
+
+    let nodes = repo_graph::scan(&siblings);
+    let edges = repo_graph::derive_edges(&nodes);
+    KnowledgeGraph { nodes, edges }
 }

@@ -139,14 +139,24 @@
 (defn check-ecosystem! []
   (-> (workspace/invoke! "ecosystem_status" {})
       (.then #(let [status (js->clj % :keywordize-keys true)]
-                (swap! state assoc :ecosystem status :selected-requirement nil
+                (swap! state assoc :ecosystem status :selected-requirement nil :knowledge-graph nil
                        :output ["Ecosystem check complete · Перевірку екосистеми завершено"] :error? false)
+                (render!)))
+      (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
+
+(defn check-knowledge-graph! []
+  (swap! state assoc :ecosystem nil :output ["Building knowledge graph… · Будуємо граф знань…"] :error? false)
+  (render!)
+  (-> (workspace/invoke! "knowledge_graph" {})
+      (.then #(let [graph (js->clj % :keywordize-keys true)]
+                (swap! state assoc :knowledge-graph graph
+                       :output ["Knowledge graph built · Граф знань побудовано"] :error? false)
                 (render!)))
       (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
 
 (defn ask-oracle! []
   (when-let [doc (active-doc)]
-    (swap! state assoc :ecosystem nil :output ["Asking my-lisp oracle (127.0.0.1:9999)… · Питаємо оракула my-lisp…"] :error? false)
+    (swap! state assoc :ecosystem nil :knowledge-graph nil :output ["Asking my-lisp oracle (127.0.0.1:9999)… · Питаємо оракула my-lisp…"] :error? false)
     (render!)
     (-> (workspace/invoke! "oracle_query" {:source (:contents doc) :op "eval"})
         (.then #(let [{:keys [status kind message raw]} (js->clj % :keywordize-keys true)
@@ -169,7 +179,7 @@
                    (render!))))))
 
 (defn swarm-status! []
-  (swap! state assoc :ecosystem nil :output ["Asking my-idea's swarm-node (127.0.0.1:9104)… · Питаємо swarm-node…"] :error? false)
+  (swap! state assoc :ecosystem nil :knowledge-graph nil :output ["Asking my-idea's swarm-node (127.0.0.1:9104)… · Питаємо swarm-node…"] :error? false)
   (render!)
   (-> (workspace/invoke! "swarm_status" {})
       (.then #(do (swap! state assoc :output [%] :error? false) (render!)))
@@ -188,7 +198,7 @@
 (defn compare-with-oracle! []
   (when-let [doc (active-doc)]
     (let [source (:contents doc)]
-      (swap! state assoc :ecosystem nil
+      (swap! state assoc :ecosystem nil :knowledge-graph nil
              :output ["Comparing local engine vs my-lisp oracle… · Порівнюємо локальний рушій з оракулом…"]
              :error? false)
       (render!)

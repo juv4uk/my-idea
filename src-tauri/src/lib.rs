@@ -72,6 +72,17 @@ fn ecosystem_status() -> ecosystem::EcosystemStatus {
     ecosystem::status()
 }
 
+/// Phase 1 of the Knowledge Graph tab (docs/knowledge-graph-design.md,
+/// MYIDEA-KNOWLEDGE-GRAPH): repo-level nodes/edges derived from each
+/// sibling's `repo.my` Swarm Contract v0.1 self-declaration, where present.
+///
+/// Фаза 1 вкладки Knowledge Graph: вузли/ребра рівня репо, виведені з
+/// самодекларації `repo.my` кожного сусіда, де вона є.
+#[tauri::command]
+fn knowledge_graph() -> ecosystem::KnowledgeGraph {
+    ecosystem::knowledge_graph()
+}
+
 /// Queries a running my-lisp `--tcp --protocol=sexpr` instance as a live
 /// semantic oracle — `eval`/`diagnose`/`parse`/`contract-version` only, one
 /// connection per call (the oracle isolates state per connection, so this
@@ -318,6 +329,7 @@ pub fn run() {
             save_as_dialog,
             evaluate_my_lisp,
             ecosystem_status,
+            knowledge_graph,
             oracle_query,
             swarm_status
         ])

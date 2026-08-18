@@ -218,6 +218,18 @@ mutually exclusive:
 Frontend work (`shadow-cljs compile app`) doesn't depend on the Rust
 toolchain version and can be verified independently of this.
 
+**Known flakiness**: `guix time-machine -C .../channels.scm -- shell -m
+manifest.scm` has intermittently produced a profile where `pkg-config`
+resolves fine standalone (`which pkg-config` succeeds) but `gio-sys`/
+`gobject-sys`'s cargo build scripts still fail with "The pkg-config
+command could not be found" — repro'd 3x on 2026-08-18. Plain `guix
+shell -m manifest.scm` (no time-machine) with the identical
+`manifest.scm` built clean on the first try every time. If `cargo
+check`/`build` fails this way and you don't actually need the pinned
+rustc version, try dropping `time-machine` first before debugging
+further — it's cheaper than chasing a build-script PATH issue that may
+not exist in the non-time-machine profile.
+
 ## Reproducibility / evidence
 
 A result is authoritative when it passes inside the declared Guix
