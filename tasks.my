@@ -41,8 +41,8 @@
   ))
   ("IDEA-PUSH-BUN-MIGRATION" . (
     (priority . 9.0)
-    (description . "local main is 2 commits ahead of origin/main (2707bf6 release-script fixes + package-lock.json removal, a17de2d swarm tasks) — the whole Bun migration and its verification only exist locally so far. Push to origin, then watch the GitHub Actions run on .github/workflows/ci.yml (migrated to oven-sh/setup-bun in an earlier commit but never observed running for real) to confirm it's actually green, not just locally plausible.")
-    (done . ())
+    (description . "DONE 2026-08-18. Pushed cb2ec03 to origin/main and watched GitHub Actions run 32124245188 to completion: all steps green, including bun install --frozen-lockfile, bun run build, bun run test, bun run check, Playwright browser install. First real (non-local) confirmation that the Bun migration works end to end in CI.")
+    (done . t)
   ))
   ("IDEA-RELEASE-PS1-JSON-VERIFY" . (
     (priority . 3.0)
