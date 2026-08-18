@@ -38,3 +38,13 @@
    "webkitgtk-for-gtk3"
    "gtk+"
    "libappindicator"))
+
+;; AppImage bundling (tauri build's third Linux bundle format, after
+;; .deb/.rpm) shells out to xdg-open at bundle time — without it that one
+;; step fails even though .deb/.rpm already succeeded. "xdg-utils" IS
+;; packaged in Guix, but adding it to this manifest broke pkg-config
+;; resolution for gio-sys (profile rebuild left `pkg-config` unfindable
+;; on PATH — not yet root-caused, likely a propagated-input ordering
+;; issue with xdg-utils' own dependencies). Install it natively instead:
+;;   sudo apt-get install -y xdg-utils
+;; same pattern as Bun and build-essential/rustup elsewhere in this repo.

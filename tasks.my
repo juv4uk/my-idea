@@ -16,13 +16,13 @@
   ))
   ("IDEA-PROTOCOL-DRIFT-FIX" . (
     (priority . 9.8)
-    (description . "P0 per swarm consensus 2026-08-18: AGENTS.md Coordination channels section (line 236-249) only documents the :9999 semantic oracle and calls it coordination; it never mentions the swarm-node P2P mesh (docs/swarm-mesh-v2.md, port 9104) that this repo's own src-tauri/src/swarm.rs already implements. An agent reading only AGENTS.md would join the wrong coordination architecture. Fix: rewrite the Coordination channels section to state plainly that swarm-node is the coordination layer and :9999 is oracle-only (eval/parse/diagnose/contract-version), matching what fpga-lisp/AGENTS.md already says.")
-    (done . ())
+    (description . "DONE 2026-08-18. Rewrote AGENTS.md's Coordination channels section to state plainly that swarm-node is the coordination layer (P2P mesh, no relaying) and :9999 is oracle-only (eval/parse/diagnose/contract-version) — matching fpga-lisp/AGENTS.md's wording. Added my-idea-1's own join/sync-tasks commands (port 9104) and a note that src-tauri/src/swarm.rs already talks to swarm-node directly, reading one line without waiting for EOF (unlike oracle.rs's one-shot :9999 client).")
+    (done . t)
   ))
   ("IDEA-CONTRACT-VERSION-DRIFT-CHECK" . (
     (priority . 8.5)
-    (description . "Per swarm rule 'prose never outranks the machine-readable contract': grep my-idea's AGENTS.md, docs/, and README for hardcoded language-contract version claims (e.g. '1.0') and compare against my-lisp's live language-contract.my (currently major 2, minor 0, post apostrophe-quote removal). Update any stale claim or, better, remove the hardcoded number and point to the contract file/oracle's contract-version op instead.")
-    (done . ())
+    (description . "DONE 2026-08-18, no drift found. Grepped AGENTS.md/docs/README for hardcoded language-contract version claims: my-idea's own docs (system-observatory-status.md, system-observatory-vision.md) only reference language-contract.my/isa-contract.my/compatibility.my by filename, never hardcode a version number — contracts.rs reads them live at runtime via the my_lisp crate's own reader, not a saved-off number. The submodule's actual contract (external/my-lisp/language-contract.my) is currently (major . 2) (minor . 0). No fix needed; this repo was already doing it right.")
+    (done . t)
   ))
   ("IDEA-SUBAGENT-DOCTRINE" . (
     (priority . 6.0)
@@ -31,7 +31,12 @@
   ))
   ("IDEA-APPIMAGE-XDG-UTILS" . (
     (priority . 4.0)
-    (description . "bun run tauri build succeeds for .deb and .rpm but fails bundling AppImage: 'xdg-open binary not found /usr/bin/xdg-open'. Install xdg-utils in the Guix manifest or document as a required native Ubuntu package (WSL image gap, not a Bun/Tauri regression) so the AppImage bundle stops being the one red line in an otherwise green tauri build.")
+    (description . "PARTIAL 2026-08-18. Installed xdg-utils natively (sudo apt-get install -y xdg-utils) — /usr/bin/xdg-open now exists, confirmed via `which xdg-open`. Tried adding \"xdg-utils\" to manifest.scm's Guix package list first: broke pkg-config resolution for gio-sys (profile rebuild left pkg-config unfindable) — reverted, documented as a known-bad approach in manifest.scm's comments, native apt install is the working path (matches how Bun/build-essential/rustup are handled). NOT closing: re-running bun run tauri build afterward hit a *different*, pre-existing pkg-config failure (gio-sys/gobject-sys can't find pkg-config even with the reverted manifest) that also blocked the deb/rpm steps this time, unrelated to xdg-utils — see new IDEA-PKG-CONFIG-REGRESSION. Re-verify AppImage specifically once that's fixed.")
+    (done . ())
+  ))
+  ("IDEA-PKG-CONFIG-REGRESSION" . (
+    (priority . 9.5)
+    (description . "New 2026-08-18: bun run tauri build, which produced working .deb+.rpm bundles earlier the same day (see IDEA-BUN-TAURI-VALIDATION/IDEA-PUSH-BUN-MIGRATION), now fails the whole build (not just AppImage) with 'The pkg-config command could not be found' while building gio-sys/gobject-sys — inside the same guix time-machine + shell -m manifest.scm environment, pkg-config IS in manifest.scm's package list. Not caused by the xdg-utils manifest experiment (failed identically after that was fully reverted). Likely a Guix profile/store state issue (stale profile, guix channel drift between the two runs) rather than a real regression in this repo's config. Confirmed `which pkg-config` DOES resolve inside the guix shell (/gnu/store/.../profile/bin/pkg-config, version 0.29.2, same profile hash the failing build script printed) — so pkg-config is present and the shell's PATH is fine; the failure is specifically inside the gio-sys/gobject-sys build-script subprocess not seeing it, which points at cargo build-script PATH inheritance or a concurrent-build/profile-locking race rather than a missing package. Next step: rerun the exact same tauri build a second time back-to-back (no manifest change in between) to see if it's reproducible or a one-off race.")
     (done . ())
   ))
   ("IDEA-PLAYWRIGHT-BROWSER-SETUP" . (

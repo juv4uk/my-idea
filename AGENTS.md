@@ -239,11 +239,41 @@ Read `my-lisp/ecosystem-status.my`, `fpga-lisp/ecosystem-status.md`,
   for fixture-level claims — not prose status messages.
 - Cross-session messages: `send_message`/`list_sessions` (Claude Code
   sessions in this environment).
-- Live semantics oracle: `my-lisp --tcp=9999 --protocol=sexpr` —
-  `eval`/`parse`/`diagnose`/`contract-version`, one isolated environment
-  per connection. Also carries `notify`/`poll` for short-lived pings
-  (in-memory only, wiped on server restart, 500-entry cap — not a
-  substitute for the durable channels above).
+- **Coordination lives on `swarm-node`** (a separate binary from `:9999`),
+  a P2P mesh — no agent relays for another. `127.0.0.1:9999` (my-lisp's
+  TCP server) is still the **semantic oracle** (`eval`/`parse`/`diagnose`/
+  `contract-version`) and hasn't moved, but its `hello`/`claim`/
+  `subscribe`/`notify`/task-registry ops are no longer the coordination
+  path (migrated 2026-08-12, see my-lisp's `docs/swarm-mesh-v2.md`).
+  Don't poll/claim through `:9999` for coordination — use it only for
+  semantic queries. This repo's own Tauri backend already talks to
+  swarm-node directly (`src-tauri/src/swarm.rs`, port 9104 by default,
+  exposed to the ClojureScript UI as the `swarm_status` command) —
+  **read exactly one line back and don't wait for EOF**, unlike
+  `oracle.rs`'s one-shot `:9999` client, since swarm-node keeps
+  connections open.
+- my-idea's own node, once started, is `my-idea-1` on `127.0.0.1:9104`
+  (port/node-id not auto-discovered — check `ps aux | grep swarm-node`
+  for whether it's already running before starting a second one). To
+  start it fresh and join:
+
+  ```bash
+  swarm-node --port 9104 --node-id my-idea-1 --project my-idea \
+             --data-dir ~/.swarm-node/my-idea-1 --connect 127.0.0.1:9101
+  ```
+  (`127.0.0.1:9101` is my-lisp's own node — bootstrap through any one
+  existing member, gossip connects you to the rest.) Then, sent as raw
+  sexpr lines to your *own* node's port (9104, not 9101):
+
+  ```
+  (join (capabilities (rust clojurescript tauri gui)) (roles (voter)))
+  (sync-tasks (file "/mnt/c/GitHub/my-idea/tasks.my"))
+  ```
+  `(join ...)` once per session. `sync-tasks` needs an **absolute path**
+  (same gotcha as the old `:9999` op: relative resolves against the
+  *node's* cwd, not the caller's). `tasks.my`'s field is `description`,
+  not `context` — a wrong field name is silently dropped, not an error.
+  `(next-best-action (node my-idea-1))` to see what's actionable.
 - OpenCode agent (different tool, no direct message channel) coordinates
   via `NOTE-*.md` and maintains a live snapshot at
   `C:\Users\user\Documents\GitHub\docs\AGENT_MEMORY.md` (not a git repo).
