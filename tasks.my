@@ -1,8 +1,8 @@
 ((tasks . (
   ("MYIDEA-SWARM-CONTRACT-01" . (
     (priority . 9.9)
-    (description . "Adopt Swarm Contract v0.1: setup repo.my and ecosystem/ folders. Priority raised 2026-08-18: three independent sources converged on this as the top next step — docs/knowledge-graph-design.md (written before this priority bump), and two external reviews (docs/my-idea-technical-review.md, docs/my-lisp-ecosystem-review.md, both Manus AI, both independently verified against docs/testing.md's real test counts and found accurate). Role: observer/IDE. Exports: visualized ecosystem status, evidence matrix, knowledge graph. Imports: my-lisp/fpga-lisp/cml contracts and evidence, repo.my declarations. Without this, my-idea itself shows as an undeclared/missing node in its own Knowledge Graph tab.")
-    (done . ())
+    (description . "DONE 2026-08-18. Added repo.my ((id my-idea) (role observer-ide), exports ecosystem-status/evidence-matrix/knowledge-graph/swarm-status, imports language-contract/isa-contract/compatibility/evidence/repo-declarations, capabilities rust/clojurescript/tauri/gui/wasm, authorities ide-ux/workspace-security/evidence-visualization, non-authorities language-semantics/isa-design/compiler-internals/shiva-canon/paninian-ontology/hardware-implementation — same format as fpga-lisp/shiva-sutras/my-lisp-panini). Added ecosystem/README.md scaffold explaining why no ecosystem/imports/*.my files are populated (my-idea reads contracts/evidence live off disk via src-tauri/src/ecosystem/*.rs, not as cached claims). my-idea now shows as a declared node in its own Knowledge Graph tab instead of 'no repo.my'.")
+    (done . t)
   ))
   ("MYIDEA-SWARM-DASHBOARD" . (
     (priority . 9.5)
@@ -11,8 +11,8 @@
   ))
   ("MYIDEA-KNOWLEDGE-GRAPH" . (
     (priority . 9.0)
-    (description . "Build Knowledge Graph tab: visualize cross-repo epistemic chains.")
-    (done . ())
+    (description . "Phase 1 DONE 2026-08-18 (see docs/knowledge-graph-design.md, commit b13443a): repo.my-derived node/edge graph tab, src-tauri/src/ecosystem/repo_graph.rs, knowledge_graph Tauri command, eco-view/knowledge-graph-html. Phase 2 (individual epistemic claims with PROVED/FALSIFIED/UNRESOLVED status, drift highlighting between shiva-sutras' claims-export.yaml and my-lisp-panini's ecosystem/imports/*.my) intentionally deferred, tracked in the design doc, not restated as a separate tasks.my entry.")
+    (done . t)
   ))
   ("IDEA-PROTOCOL-DRIFT-FIX" . (
     (priority . 9.8)
@@ -57,6 +57,11 @@
   ("IDEA-REAL-ECOSYSTEM-INTEGRATION-TEST" . (
     (priority . 5.0)
     (description . "Per docs/manus-ai-review-analysis.md (2026-08-18, analyzing external Manus AI reviews): tests/eco-panel.test.mjs only exercises the Playwright UI against mocked data, so it proves layout, not correctness of ecosystem_status/knowledge_graph's actual data derivation from disk. Add a real native Tauri integration test: build a temporary sibling-repo directory layout (fake my-lisp/fpga-lisp/cml/shiva-sutras/my-lisp-panini with known repo.my/contract files), call ecosystem::status()/ecosystem::knowledge_graph() directly, assert on the structured output. Cheap, concrete, catches real regressions in the repo_graph.rs/contracts.rs/evidence.rs parsers that mocked frontend tests cannot.")
+    (done . ())
+  ))
+  ("IDEA-SARVAM-VERIFY-I18N-STRINGS" . (
+    (priority . 7.0)
+    (description . "HIGH PRIORITY, from shiva-sutras-1 via swarm-node (event shiva-sutras-1:314, task SWARM-USE-OBSIDIAN-AND-SARVAM-ACTIVELY family, 2026-08-18). my-idea documents a trilingual uk/en/de interface (src-cljs/my_idea/i18n.cljs). Use Sarvam (mcp__sarvam-ai__*) as an independent check on the Ukrainian and German UI strings, the same way my-lisp used it for Sanskrit terminology: ask Sarvam cold (no hint of the expected answer) whether a sample of translated strings is natural/correct, record disagreements as findings rather than assuming the original translation was right. Per shiva-sutras' own Sarvam integration guide (docs/sarvam-integration-guide.md): don't set max_tokens for short factual questions (empty-content bug), ask one string at a time rather than a batch.")
     (done . ())
   ))
 )))
