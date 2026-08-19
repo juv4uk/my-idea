@@ -6,8 +6,8 @@
   ))
   ("MYIDEA-SWARM-DASHBOARD" . (
     (priority . 9.5)
-    (description . "Build SWARM tab: visualize active agents, their current tasks, repo, and state.")
-    (done . ())
+    (description . "DONE 2026-08-19. New src-tauri/src/swarm_dashboard.rs parses swarm-node's (list-members) and (list-task-state) responses (same flat-field s-expr shape as repo.my) into a structured SwarmDashboard: per-member node id/presence/roles/capabilities, cross-referenced with currently-held open tasks from the task registry, plus overall open/completed counts. New swarm_dashboard Tauri command (separate from the existing raw-string swarm_status), new SWARM tab button and eco-view/swarm-dashboard-html renderer. Response shapes captured live from the running my-idea-1 swarm-node (13 members, 271+ task registry) via raw TCP before writing the parser; 3 cargo test unit tests assert against those real captured strings (not hand-idealized fixtures) — all pass. Not yet exercised through the actual Tauri command end-to-end (would need the shadow-cljs dev server + tauri dev, not run this session), only the parsing logic and the ClojureScript compile.")
+    (done . t)
   ))
   ("MYIDEA-KNOWLEDGE-GRAPH" . (
     (priority . 9.0)

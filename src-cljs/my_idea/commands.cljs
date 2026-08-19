@@ -139,13 +139,13 @@
 (defn check-ecosystem! []
   (-> (workspace/invoke! "ecosystem_status" {})
       (.then #(let [status (js->clj % :keywordize-keys true)]
-                (swap! state assoc :ecosystem status :selected-requirement nil :knowledge-graph nil
+                (swap! state assoc :ecosystem status :selected-requirement nil :knowledge-graph nil :swarm-dashboard nil
                        :output ["Ecosystem check complete · Перевірку екосистеми завершено"] :error? false)
                 (render!)))
       (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
 
 (defn check-knowledge-graph! []
-  (swap! state assoc :ecosystem nil :output ["Building knowledge graph… · Будуємо граф знань…"] :error? false)
+  (swap! state assoc :ecosystem nil :swarm-dashboard nil :output ["Building knowledge graph… · Будуємо граф знань…"] :error? false)
   (render!)
   (-> (workspace/invoke! "knowledge_graph" {})
       (.then #(let [graph (js->clj % :keywordize-keys true)]
@@ -156,7 +156,7 @@
 
 (defn ask-oracle! []
   (when-let [doc (active-doc)]
-    (swap! state assoc :ecosystem nil :knowledge-graph nil :output ["Asking my-lisp oracle (127.0.0.1:9999)… · Питаємо оракула my-lisp…"] :error? false)
+    (swap! state assoc :ecosystem nil :knowledge-graph nil :swarm-dashboard nil :output ["Asking my-lisp oracle (127.0.0.1:9999)… · Питаємо оракула my-lisp…"] :error? false)
     (render!)
     (-> (workspace/invoke! "oracle_query" {:source (:contents doc) :op "eval"})
         (.then #(let [{:keys [status kind message raw]} (js->clj % :keywordize-keys true)
@@ -179,7 +179,7 @@
                    (render!))))))
 
 (defn swarm-status! []
-  (swap! state assoc :ecosystem nil :knowledge-graph nil :output ["Asking my-idea's swarm-node (127.0.0.1:9104)… · Питаємо swarm-node…"] :error? false)
+  (swap! state assoc :ecosystem nil :knowledge-graph nil :swarm-dashboard nil :output ["Asking my-idea's swarm-node (127.0.0.1:9104)… · Питаємо swarm-node…"] :error? false)
   (render!)
   (-> (workspace/invoke! "swarm_status" {})
       (.then #(do (swap! state assoc :output [%] :error? false) (render!)))
@@ -195,10 +195,20 @@
                        :error? true)
                  (render!)))))
 
+(defn check-swarm-dashboard! []
+  (swap! state assoc :ecosystem nil :knowledge-graph nil :output ["Building swarm dashboard… · Будуємо swarm-дашборд…"] :error? false)
+  (render!)
+  (-> (workspace/invoke! "swarm_dashboard" {})
+      (.then #(let [dashboard (js->clj % :keywordize-keys true)]
+                (swap! state assoc :swarm-dashboard dashboard
+                       :output ["Swarm dashboard built · Swarm-дашборд побудовано"] :error? false)
+                (render!)))
+      (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
+
 (defn compare-with-oracle! []
   (when-let [doc (active-doc)]
     (let [source (:contents doc)]
-      (swap! state assoc :ecosystem nil :knowledge-graph nil
+      (swap! state assoc :ecosystem nil :knowledge-graph nil :swarm-dashboard nil
              :output ["Comparing local engine vs my-lisp oracle… · Порівнюємо локальний рушій з оракулом…"]
              :error? false)
       (render!)

@@ -1,6 +1,7 @@
 mod ecosystem;
 mod oracle;
 mod swarm;
+mod swarm_dashboard;
 
 use my_lisp::Session;
 use my_lisp_literate::SourceMode;
@@ -109,6 +110,18 @@ fn oracle_query(source: String, op: Option<String>, port: Option<u16>) -> Result
 #[tauri::command]
 fn swarm_status(port: Option<u16>) -> Result<String, String> {
     swarm::query("(status)", port)
+}
+
+/// MYIDEA-SWARM-DASHBOARD: structured member/task view for the SWARM tab —
+/// merges `(list-members)` (node id, presence, roles, capabilities) with
+/// `(list-task-state)` (open/completed counts, current holder per task)
+/// into one parsed `SwarmDashboard`, unlike `swarm_status` above which
+/// stays raw-string on purpose.
+///
+/// Структурований вигляд членів/задач для вкладки SWARM.
+#[tauri::command]
+fn swarm_dashboard(port: Option<u16>) -> swarm_dashboard::SwarmDashboard {
+    swarm_dashboard::dashboard(port)
 }
 
 #[cfg(test)]
@@ -331,7 +344,8 @@ pub fn run() {
             ecosystem_status,
             knowledge_graph,
             oracle_query,
-            swarm_status
+            swarm_status,
+            swarm_dashboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running my-idea");

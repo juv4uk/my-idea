@@ -14,7 +14,7 @@
                        :active-path nil
                        :documents {}
                        :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
-                       :ecosystem nil :selected-requirement nil :knowledge-graph nil}))
+                       :ecosystem nil :selected-requirement nil :knowledge-graph nil :swarm-dashboard nil}))
 
 (defn active-doc
   "Returns the currently active document from state, or nil."

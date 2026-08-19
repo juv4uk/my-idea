@@ -145,6 +145,34 @@
          "</div>"
          "</div>")))
 
+(defn swarm-member-html [member]
+  (str "<div class='kg-node" (when-not (:present member) " kg-node-missing") "'>"
+       "<strong>" (esc (:node member)) "</strong>"
+       "<span class='kg-role'>" (if (:present member) "online" "offline")
+       (when (seq (:roles member)) (str " · " (str/join ", " (map esc (:roles member)))))
+       "</span>"
+       (when (seq (:capabilities member))
+         (str "<div class='kg-caps'>" (str/join " · " (map esc (:capabilities member))) "</div>"))
+       (if (seq (:currentTasks member))
+         (str "<div class='kg-caps'>holding: " (str/join ", " (map esc (:currentTasks member))) "</div>")
+         "<div class='kg-caps kg-missing'>no open tasks held</div>")
+       "</div>"))
+
+(defn swarm-dashboard-html [dashboard]
+  (cond
+    (:error dashboard)
+    (str "<div class='kg'><p class='kg-note'>swarm-node error: " (esc (:error dashboard)) "</p></div>")
+
+    (empty? (:members dashboard))
+    "<div class='kg'><p>No swarm members found.</p></div>"
+
+    :else
+    (str "<div class='kg'>"
+         "<button id='swarm-run-check' class='eco-run-check'>Rebuild Swarm Dashboard</button>"
+         "<p class='kg-note'>" (:openTaskCount dashboard) " open · " (:completedTaskCount dashboard) " completed tasks across the swarm-node task registry.</p>"
+         "<div class='kg-nodes'>" (apply str (map swarm-member-html (:members dashboard))) "</div>"
+         "</div>")))
+
 (defn ecosystem-html [eco selected-requirement]
   (if-let [row (and selected-requirement
                      (first (filter #(= (:requirement %) selected-requirement) (:evidenceMatrix eco))))]
