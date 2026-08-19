@@ -61,7 +61,7 @@
   ))
   ("IDEA-SARVAM-VERIFY-I18N-STRINGS" . (
     (priority . 7.0)
-    (description . "HIGH PRIORITY, from shiva-sutras-1 via swarm-node (event shiva-sutras-1:314, task SWARM-USE-OBSIDIAN-AND-SARVAM-ACTIVELY family, 2026-08-18). my-idea documents a trilingual uk/en/de interface (src-cljs/my_idea/i18n.cljs). Use Sarvam (mcp__sarvam-ai__*) as an independent check on the Ukrainian and German UI strings, the same way my-lisp used it for Sanskrit terminology: ask Sarvam cold (no hint of the expected answer) whether a sample of translated strings is natural/correct, record disagreements as findings rather than assuming the original translation was right. Per shiva-sutras' own Sarvam integration guide (docs/sarvam-integration-guide.md): don't set max_tokens for short factual questions (empty-content bug), ask one string at a time rather than a batch.")
-    (done . ())
+    (description . "DONE (first pass) 2026-08-19. See docs/sarvam-i18n-verification.md: checked 4 of ~20+ i18n.cljs strings (uk+de :ast label, uk+de amber theme name) via cold single-fact Sarvam calls, no max_tokens. Finding: both uk 'Лабораторія мов / AST' and de 'Sprachlabor / AST' independently got the same stylistic note (grammatically correct, but a literal-metaphor translation of 'Language Lab') — kept as-is, a deliberate name choice matching the product's own 'Language Lab' terminology, not a translation error; documented as a recorded disagreement per the task's own instruction, not silently accepted or silently changed. Theme names (Бурштин/Bernstein for Amber) confirmed idiomatic, no issue. Remaining ~16 strings (other UI labels, other theme names) not yet sampled — future pass if desired, not blocking.")
+    (done . t)
   ))
 )))
