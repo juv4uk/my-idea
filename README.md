@@ -41,8 +41,10 @@ my-lisp source files use the canonical `.my` extension; see the [trilingual sour
 ### What already works
 
 - CodeMirror 6 editor with Clojure highlighting, line numbers, history, bracket matching, folding, completion and diagnostics;
+- resizable workspace: sidebar width, right-column width and the console/pane split are drag-adjustable and persist across restarts (v0.13.0);
 - local source persistence and a responsive desktop/mobile workspace;
-- embedded safe Lisp evaluator (powered by Rust and WebAssembly) with console and parsed-form view;
+- embedded safe Lisp evaluator (powered by Rust and WebAssembly) with console, parsed-form view, and Markdown/Mermaid preview;
+- System Observatory tools (desktop builds): ecosystem conformance check, live my-lisp TCP oracle, engine-vs-oracle comparison, swarm-node status and dashboard, repo.my knowledge graph;
 - English, Ukrainian and German interface;
 - installable offline PWA plus the Tauri foundation for Windows, Linux, macOS and mobile.
 
@@ -64,9 +66,10 @@ Die Entwicklung eigener Lisp-artiger Sprachen ist unser besonderes eingebautes S
 
 ## Development · Розробка · Entwicklung
 
-Requirements: [Bun](https://bun.sh) 1.3.8 (package manager and script runner), Node.js 20+ (a couple of scripts still shell out to it directly), Java 17+ (for Shadow CLJS), and the platform requirements for Tauri.
+Requirements: [Bun](https://bun.sh) 1.3.8 (package manager and script runner), Node.js 20+ (a couple of scripts still shell out to it directly), Java 17+ (for Shadow CLJS), and the platform requirements for Tauri. This repository is developed inside a reproducible [GNU Guix](https://guix.gnu.org) environment (`manifest.scm`); building the WASM engine additionally needs rustup + wasm-pack outside Guix — both are documented step by step in [`AGENTS.md`](AGENTS.md).
 
 ```bash
+git submodule update --init external/my-lisp   # needed for bun run build / release.sh
 bun install
 bun run dev
 ```

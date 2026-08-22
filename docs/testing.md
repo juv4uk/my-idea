@@ -16,10 +16,14 @@ The project has two independent test layers: the Rust crates under `crates/` (ru
 | `my-idea` | unit tests (`src-tauri/src/lib.rs`) | 1 | native adapter loads bootstrap library and preserves exact values |
 | **Rust total** | | **53** | |
 
+The language crates live in the `external/my-lisp` git submodule since
+the repository split — initialize it first
+(`git submodule update --init external/my-lisp`):
+
 ```powershell
-cargo test --manifest-path crates/my-lisp/Cargo.toml
-cargo test --manifest-path crates/my-lisp-cli/Cargo.toml
-cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
+cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
+cargo test --manifest-path external/my-lisp/crates/my-lisp-cli/Cargo.toml
+cargo test --manifest-path external/my-lisp/crates/my-lisp-literate/Cargo.toml
 ```
 
 ### Web/JS suite — `bun run test` (`node --test tests/*.test.mjs`)
@@ -29,8 +33,20 @@ cargo test --manifest-path crates/my-lisp-literate/Cargo.toml
 | `tests/conformance.test.mjs` | 19 | implementation-independent fixture cases (`tests/fixtures/conformance.json`) run against the WASM engine directly in Node, plus a 100k-list stack-safety check on the raw WASM adapter |
 | `tests/smoke.test.mjs` | 14 | static wiring checks (trilingual UI, PWA manifest/service worker, Tauri commands, WASM/CLJS bindings, release workflow asset names, commands.cljs split) plus a Playwright check that `my-idea-web.html` doesn't stack-overflow on a 100k-element list |
 | `tests/eco-panel.test.mjs` | 4 | Playwright checks on `my-idea-web.html`: ecosystem panel renders, repo-summary elements, evidence-matrix table, fixture drill-down with detail view |
-| `tests/my-lisp-cli-web.test.mjs` | 5 | Playwright end-to-end checks on `public/my-lisp-cli-web.html`: plain arithmetic, definitions persisting across REPL lines, `lib/core.my` preloading, exact rational arithmetic, and an error not corrupting the session |
-| **Web/JS total** | **42** | |
+| **Web/JS total** | **37** | |
+
+The former `tests/my-lisp-cli-web.test.mjs` suite (5 tests over
+`public/my-lisp-cli-web.html`) moved to the `my-lisp` repository with the
+repo split; this repo no longer builds or ships that artifact.
+
+Prerequisites for actually running this suite locally (verified 2026-08-22):
+build artifacts must exist first — `node scripts/build.mjs`, then
+`node scripts/make-portable-web.mjs dist/index.html my-idea-web.html` —
+and Playwright browsers need a one-time `npx playwright install chromium`.
+Without them every Playwright test fails on ENOENT of `my-idea-web.html`,
+which looks like a regression but is only a missing artifact. The wasm
+toolchain requirement for `scripts/build.mjs` is documented in
+[`AGENTS.md`](../AGENTS.md).
 
 `bun run test` additionally runs `shadow-cljs compile test`, a ClojureScript test-compilation step that currently contains 0 assertions (reserved for future CLJS-level unit tests; the Node suite above is where actual coverage lives today).
 

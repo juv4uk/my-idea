@@ -168,6 +168,39 @@ doesn't support the `chmod` npm's bin-linking step needs) — invoke
 installed CLI tools directly via `node node_modules/<pkg>/<entry>.js`
 rather than `npx`/`bunx` when bin-links are absent.
 
+## Known fix: `bun run x -- --flag` — Bun forwards the `--` literally
+
+Unlike npm, `bun run` does **not** swallow the `--` separator between a
+script and its arguments: the script receives `--` as a real argument.
+For `bun run tauri ...` this is destructive — tauri-cli treats everything
+after a literal `--` as cargo passthrough, so:
+
+- `bun run tauri android init -- --ci` → tauri errors
+  `unexpected argument '--ci'` (the flag itself is valid in 2.11.4);
+- `bun run tauri build -- --target aarch64-pc-windows-msvc --bundles nsis`
+  → `--bundles nsis` reached **cargo**, which failed with
+  `unexpected argument '--bundles' ... tip: '--benches'` — the tell-tale
+  that the error came from the wrong binary.
+
+This silently broke the Publish Release workflow's Android and
+Windows-ARM64 jobs for every release from **v0.11.0 through v0.13.0**
+(last fully green publish: v0.10.0, 2026-08-12; the runner-side Bun
+behavior change landed between Aug 12 and Aug 17 — the workflow syntax
+itself was unchanged since the passing release, per git history).
+Fixed in commit `a2afe72` by dropping the `--` in all three places;
+both flags verified valid via `npx tauri --help` against the pinned
+`@tauri-apps/cli@2.11.4` before the change.
+
+Rule of thumb: with Bun, write `bun run tauri build --bundles nsis`
+directly; reserve `--` for npm-style runners, and when a build tool
+complains about a flag you know exists, check *which binary* printed
+the error before touching the flag itself.
+
+Related release-script fix from the same day: `scripts/release.sh`
+adds the root `Cargo.lock` (src-tauri is a workspace member; the
+`src-tauri/Cargo.lock` path it previously used never existed and made
+every release run fail at the `git add` step).
+
 ## Known fix: `cargo check`/`cargo build` need CARGO_TARGET_DIR off DrvFs
 
 `cargo check --workspace` (and any Cargo build) for this repo fails with a
