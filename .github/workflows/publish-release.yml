@@ -201,7 +201,7 @@ jobs:
       - name: Install frontend dependencies · Встановити залежності · Abhängigkeiten installieren
         run: bun install --frozen-lockfile
       - name: Build native Windows ARM64 · Зібрати Windows ARM64 · Windows ARM64 bauen
-        run: bun run tauri build -- --target aarch64-pc-windows-msvc --bundles nsis
+        run: bun run tauri build --target aarch64-pc-windows-msvc --bundles nsis
       - name: Verify ARM64 PE header · Перевірити PE-заголовок · PE-Kopf prüfen
         shell: pwsh
         run: |
@@ -393,7 +393,7 @@ jobs:
           # Aus der Tag-Konfiguration neu erzeugen; übernommene Dateien können eine alte Paketidentität tragen.
           test "$PWD" = "$GITHUB_WORKSPACE"
           rm -rf -- "$GITHUB_WORKSPACE/src-tauri/gen/android"
-          bun run tauri android init -- --ci
+          bun run tauri android init --ci
           node scripts/configure-android-signing.mjs
       - name: Configure signing · Налаштувати підпис · Signatur konfigurieren
         if: steps.signing.outputs.ready == 'true'
@@ -412,7 +412,7 @@ jobs:
           } > src-tauri/gen/android/keystore.properties
       - name: Build signed Android packages · Зібрати Android · Android-Pakete bauen
         if: steps.signing.outputs.ready == 'true'
-        run: bun run tauri android build -- --apk --aab --ci
+        run: bun run tauri android build --apk --aab --ci
       - name: Upload Android packages · Завантажити Android · Android-Pakete hochladen
         if: steps.signing.outputs.ready == 'true'
         env:
