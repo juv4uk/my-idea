@@ -49,7 +49,9 @@ bun run test
 bun run check
 bun run build
 
-git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
+# src-tauri is a member of the root Cargo workspace, so the single
+# lockfile lives at the repo root — there is no src-tauri/Cargo.lock.
+git add package.json src-tauri/Cargo.toml Cargo.lock src-tauri/tauri.conf.json
 git commit -m "release: v$VERSION"
 git tag -a "v$VERSION" -m "my-idea v$VERSION | Версія v$VERSION | Veröffentlichung v$VERSION"
 
