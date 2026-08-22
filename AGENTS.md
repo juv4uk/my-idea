@@ -395,3 +395,15 @@ Read `my-lisp/ecosystem-status.my`, `fpga-lisp/ecosystem-status.md`,
 - This repo is the observer/IDE layer — it doesn't decide domain
   semantics itself, so a subagent or specialist model's output here
   should inform what's *displayed*, never be recorded as ground truth.
+
+## Agent Guard (M0 — PROPOSED, 2026-08-22)
+
+План executable-constitution guardrails для агентських сесій:
+`/home/agents/ecosystem/plans/AGENT-GUARD-M0.md`
+
+Машинні гачки на C1/C7/C9/C11 (ox-alpha constitution v1.2):
+tool wrapper + evidence ledger + claim gate. Статус: план,
+реалізація не почата. Агенти, що заходять у репо: прочитайте
+план перед write-heavy роботою; зауваження — у plans/ або
+власнику напряму.
+
