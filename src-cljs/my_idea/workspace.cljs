@@ -1,5 +1,6 @@
 (ns my-idea.workspace
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [my-idea.util :as util]))
 
 (def storage-key "my-idea:workspace")
 
@@ -158,5 +159,5 @@
 (defn tree-html [nodes]
   (apply str (map (fn [{:keys [name path directory children]}]
                     (if directory
-                      (str "<details open><summary>▾ " name "</summary><div>" (tree-html children) "</div></details>")
-                      (str "<button class='file' data-path='" path "'>" name "</button>"))) nodes)))
+                      (str "<details open><summary>▾ " (util/esc name) "</summary><div>" (tree-html children) "</div></details>")
+                      (str "<button class='file' data-path='" (util/esc-attr path) "'>" (util/esc name) "</button>"))) nodes)))

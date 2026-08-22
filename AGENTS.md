@@ -199,6 +199,60 @@ a clean `CARGO_TARGET_DIR` on native fs passes reliably. Set this
 `export` before any `cargo build`/`cargo check`/`cargo test` in this repo,
 not just for one-off verification.
 
+## Known fix: `npm run build` needs rustup + wasm-pack outside the Guix profile
+
+`node scripts/build.mjs` (and `npm run wasm`) fail inside a bare
+`guix shell -m manifest.scm` environment for two independent reasons,
+both hit live 2026-08-22:
+
+1. **Guix's rustc has no `wasm32-unknown-unknown` target.** wasm-pack
+   fails with `target not found in sysroot: .../rust-1.93.0`. Guix
+   packages rust without cross-targets and there is no packaged
+   substitute.
+2. **wasm-pack itself is not in the Guix channel** (same situation as
+   Bun, documented above).
+
+Working setup (verified end-to-end 2026-08-22: `build.mjs` EXIT=0,
+`my-idea-web.html` produced, `npm test` 37/37 PASS):
+
+```bash
+# one-time machine-local installs (same pattern as Bun/xdg-utils above)
+curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal \
+  --default-toolchain stable --target wasm32-unknown-unknown   # -> ~/.cargo
+mkdir -p ~/.local/bin && install wasm-pack-0.13.x-binary ~/.local/bin  # -> ~/.local/bin
+
+# then run the build with both toolchains on PATH ahead of Guix's
+guix shell -m manifest.scm -- bash -lc '
+  export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
+  export CARGO_TARGET_DIR="$HOME/.cache/my-idea-target"
+  export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+  node scripts/build.mjs'
+```
+
+rustup's rustc/cargo win over Guix's on PATH for this invocation — that
+is deliberate here (only the WASM crate needs the cross target), while
+everything else still comes from the reproducible Guix profile.
+
+Additionally, `scripts/build.mjs` step 1 compiles the vendored submodule
+`external/my-lisp`; if it was never initialized you get a confusing
+"crate directory is missing a Cargo.toml". Fix:
+
+```bash
+git submodule update --init external/my-lisp
+```
+
+The standalone artifact used by the Playwright tests is built separately
+from `dist/` (same as CI does it):
+
+```bash
+node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+```
+
+Playwright browsers themselves (`npx playwright install chromium`, ~115 MB
+headless shell) are also machine-local and not provided by Guix; without
+them `tests/smoke.test.mjs` / `tests/eco-panel.test.mjs` cannot run at
+all (they hard-fail on missing `my-idea-web.html` first).
+
 ## If `cargo check` fails with "rustc X is not supported"
 
 Tauri's dependency tree moves faster than Guix's packaged `rust`; a

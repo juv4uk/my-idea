@@ -6,6 +6,7 @@
             [my-idea.util :as util]))
 
 (defn- esc [x] (util/esc x))
+(defn- esc-attr [x] (util/esc-attr x))
 
 (def result-icon {"pass" "✓" "fail" "✗" "skip" "·"})
 
@@ -35,7 +36,7 @@
 (defn evidence-cell-html [row impl-key]
   (if-let [rec (get-in row [:byImplementation impl-key])]
     (str "<td class='eco-cell eco-" (esc (:result rec)) "' title='"
-         (esc (str (:fixture rec) " — expected " (:expected rec) ", actual " (:actual rec)
+         (esc-attr (str (:fixture rec) " — expected " (:expected rec) ", actual " (:actual rec)
                     " (" (:commit rec) ", " (:timestamp rec) ")"
                     (when (:note rec) (str " — " (:note rec)))))
          "'>" (get result-icon (:result rec) "?") "</td>")
@@ -44,7 +45,7 @@
 (defn evidence-matrix-html [matrix]
   (str "<table class='eco-matrix'><thead><tr><th>Req</th><th>my-lisp</th><th>cml</th><th>fpga-lisp</th></tr></thead><tbody>"
        (apply str (map (fn [row]
-                          (str "<tr class='eco-row' data-req='" (esc (:requirement row)) "'><td>" (esc (:requirement row)) "</td>"
+                          (str "<tr class='eco-row' data-req='" (esc-attr (:requirement row)) "'><td>" (esc (:requirement row)) "</td>"
                                (evidence-cell-html row :my-lisp)
                                (evidence-cell-html row :cml)
                                (evidence-cell-html row :fpga-lisp)

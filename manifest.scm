@@ -22,6 +22,14 @@
 ;; in this manifest since `bun run build`/`bun run test` still shell out to
 ;; `node` internally (see AGENTS.md's Bun section). Packaging Bun for Guix
 ;; is a real follow-up, not done as part of this migration.
+;;
+;; Same class of gap, confirmed 2026-08-22: "wasm-pack" is not packaged in
+;; this channel either, and Guix's rust has NO wasm32-unknown-unknown cross
+;; target, so `npm run build`/`npm run wasm` cannot run inside this profile
+;; alone. Working solution (see AGENTS.md's wasm-toolchain section):
+;; machine-local rustup (~/.cargo) + wasm-pack binary (~/.local/bin), with
+;; both dirs prepended to PATH inside the guix shell. Not solvable by
+;; editing this manifest today.
 
 (specifications->manifest
  '("rust"
