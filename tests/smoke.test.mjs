@@ -183,7 +183,10 @@ test('tag releases publish desktop, ARM, Flatpak, Web and signed Android builds'
   assert.match(workflow, /my-idea_\$\{RELEASE_TAG#v\}_x86_64\.flatpak/);
   assert.match(workflow, /gh release upload "\$RELEASE_TAG" my-idea-web\.html/);
   assert.match(workflow, /ANDROID_KEYSTORE_BASE64/);
-  assert.match(workflow, /android build -- --apk --aab --ci/);
+  assert.match(workflow, /android build --apk --aab --ci/);
+  // bun run forwards '--' literally to the script, so tauri would pass
+  // these flags through to cargo — assert the separator stays absent.
+  assert.doesNotMatch(workflow, /tauri (?:build|android \w+) -- /);
   assert.match(workflow, /rm -rf -- "\$GITHUB_WORKSPACE\/src-tauri\/gen\/android"/);
   assert.match(workflow, /tauri-apps\/tauri-action@v0/);
   assert.match(workflow, /assetNamePattern:\s*'\[name\]_\[version\]_\[arch\]\[setup\]\[ext\]'/);
