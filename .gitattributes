@@ -1,3 +1,36 @@
 # GitHub Linguist: .my files are my-lisp source → shown in "Other" bucket
 *.my linguist-language=Text
 *.lisp linguist-language=Common-Lisp
+
+# ── Line endings: repo = LF everywhere ─────────────────────────
+* text=auto eol=lf
+
+# Windows-only formats where CRLF is semantically required
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# ── Binaries (never normalize) ────────────────────────────────
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.wasm binary
+*.zip binary
+*.tar.gz binary
+*.rar binary
+*.pdf binary
+*.jks binary
+*.keystore binary
+
+# ── Lockfiles & generated artifacts: keep diffs clean ─────────
+bun.lock linguist-generated
+Cargo.lock linguist-generated
+package-lock.json -diff linguist-generated
+dist/** linguist-generated -diff
+public/wasm/** linguist-generated -diff
+my-idea-web.html linguist-generated -diff
