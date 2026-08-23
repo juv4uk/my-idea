@@ -17,3 +17,14 @@
 .hsplit{cursor:row-resize}
 .vsplit-l:hover,.vsplit-r:hover{background:var(--line)}
 .hsplit:hover{background:var(--line)}
+
+/* ── Android/iOS edge-to-edge: keep UI clear of system bars ────── */
+/* WebView draws under status/nav bars (viewport-fit=cover); without
+   these insets the topbar sits under the clock and the shell overflows
+   past the nav bar -- looks like a desktop window pasted over the phone */
+@supports (height:100dvh){
+  .shell{height:100dvh}
+}
+/* max() pattern proven on device by radio-log */
+.topbar{padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left))}
+.status{padding:7px max(14px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
