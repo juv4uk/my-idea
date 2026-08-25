@@ -9,6 +9,11 @@
     (description . "DONE 2026-08-19. New src-tauri/src/swarm_dashboard.rs parses swarm-node's (list-members) and (list-task-state) responses (same flat-field s-expr shape as repo.my) into a structured SwarmDashboard: per-member node id/presence/roles/capabilities, cross-referenced with currently-held open tasks from the task registry, plus overall open/completed counts. New swarm_dashboard Tauri command (separate from the existing raw-string swarm_status), new SWARM tab button and eco-view/swarm-dashboard-html renderer. Response shapes captured live from the running my-idea-1 swarm-node (13 members, 271+ task registry) via raw TCP before writing the parser; 3 cargo test unit tests assert against those real captured strings (not hand-idealized fixtures) — all pass. Not yet exercised through the actual Tauri command end-to-end (would need the shadow-cljs dev server + tauri dev, not run this session), only the parsing logic and the ClojureScript compile.")
     (done . t)
   ))
+  ("SWARM-STATUS-DASHBOARD-FOLLOWUP" . (
+    (priority . 1.0)
+    (description . "Swarm-wide duplicate of MYIDEA-SWARM-DASHBOARD (done here 2026-08-19, commit c73038c — see that task's entry above for the real implementation). The swarm journal's own SWARM-STATUS-DASHBOARD task (defined via (define-task), not from this file) is still (holder my-idea-1) (completed nil) as of 2026-08-25 — confirmed live via (task-state (task SWARM-STATUS-DASHBOARD)). Next agent connecting as my-idea-1: please (complete-task (task SWARM-STATUS-DASHBOARD) (generation 1)) to close this near-duplicate (or check the current generation first with (task-state ...) if it has moved since).")
+    (done . nil)
+  ))
   ("MYIDEA-KNOWLEDGE-GRAPH" . (
     (priority . 9.0)
     (description . "Phase 1 DONE 2026-08-18 (see docs/knowledge-graph-design.md, commit b13443a): repo.my-derived node/edge graph tab, src-tauri/src/ecosystem/repo_graph.rs, knowledge_graph Tauri command, eco-view/knowledge-graph-html. Phase 2 (individual epistemic claims with PROVED/FALSIFIED/UNRESOLVED status, drift highlighting between shiva-sutras' claims-export.yaml and my-lisp-panini's ecosystem/imports/*.my) intentionally deferred, tracked in the design doc, not restated as a separate tasks.my entry.")
