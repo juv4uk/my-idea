@@ -46,8 +46,8 @@
   ))
   ("IDEA-PLAYWRIGHT-BROWSER-SETUP" . (
     (priority . 4.0)
-    (description . "bun run test fails 1 of 37 subtests on a fresh environment ('Standalone web artifact does not stack overflow on 100k list', tests/smoke.test.mjs:205) with 'browserType.launch: Executable doesn't exist ... chrome-headless-shell'. Needs 'bunx playwright install' as a documented one-time setup step (AGENTS.md and/or CI) so clean-install verification doesn't need manual intervention to fully pass.")
-    (done . ())
+    (description . "bun run test fails 1 of 37 subtests on a fresh environment ('Standalone web artifact does not stack overflow on 100k list', tests/smoke.test.mjs:205) with 'browserType.launch: Executable doesn't exist ... chrome-headless-shell'. Needs 'bunx playwright install' as a documented one-time setup step (AGENTS.md and/or CI) so clean-install verification doesn't need manual intervention to fully pass. DONE: commit a865ed5 (2026-08-22) documents the step in AGENTS.md:277-280, verified end-to-end (build EXIT=0, npm test 37/37 PASS); CI (.github/workflows/ci.yml:40) already runs 'bunx playwright install chromium --with-deps'.")
+    (done . t)
   ))
   ("IDEA-PUSH-BUN-MIGRATION" . (
     (priority . 9.0)
