@@ -25,7 +25,7 @@
     (cond
       (or (str/ends-with? lower ".rs")) "rust"
       (or (str/ends-with? lower ".cljs") (str/ends-with? lower ".cljc") (str/ends-with? lower ".clj")) "clojurescript"
-      (or (str/ends-with? lower ".my") (str/ends-with? lower ".lisp")) "my-lisp"
+      (or (str/ends-with? lower ".wsm") (str/ends-with? lower ".my") (str/ends-with? lower ".lisp")) "my-lisp"
       (or (str/ends-with? lower ".md") (str/ends-with? lower ".markdown")) "markdown"
       (or (str/ends-with? lower ".mermaid") (str/ends-with? lower ".mmd")) "mermaid"
       :else "text")))
@@ -109,7 +109,7 @@
     (-> (.showSaveFilePicker js/window
            (clj->js {:suggestedName (filename path)
                      :types [{:description "Source File · Файл коду"
-                              :accept {"text/plain" [".my" ".lisp" ".txt" ".rs" ".cljs"]}}]}))
+                              :accept {"text/plain" [".wsm" ".my" ".lisp" ".txt" ".rs" ".cljs"]}}]}))
         (.then (fn [handle]
                  (-> (.createWritable handle)
                      (.then (fn [writable]
