@@ -6,19 +6,16 @@
 ; non-authorities state what this repo is and is not the source of
 ; truth for, so other repos' agents don't have to re-derive it.
 ;
-; my-idea is the ecosystem's observer/IDE layer (System Observatory):
-; it reads other repos' machine-readable contracts and evidence and
-; visualizes them (evidence matrix, oracle, compare, swarm status,
-; knowledge graph) — it does not decide language semantics, ISA design,
-; compiler behavior, or research claims on its own authority. See
-; AGENTS.md's "Subagents and specialist models" section for the same
-; principle applied to external tools/models this repo consults.
+; my-idea is the ecosystem's simple WSM/Tauri IDE and build shell. System
+; Observatory and swarm control belong to tauricode. my-idea consumes the
+; authoritative my-lisp CLI/LSP and fixed Tauri build profiles; it does not
+; decide language semantics, compiler behavior or hardware claims.
 
 (repository
   (id my-idea)
-  (role observer-ide)
-  (exports ecosystem-status evidence-matrix knowledge-graph swarm-status)
-  (imports language-contract isa-contract compatibility evidence repo-declarations)
-  (capabilities rust clojurescript tauri gui wasm)
-  (authorities ide-ux workspace-security evidence-visualization)
+  (role wsm-tauri-ide)
+  (exports project-editing build-run-interface self-build-evidence)
+  (imports language-contract compiler-cli lsp tauri-build-contract)
+  (capabilities rust clojurescript tauri gui wasm project-files process-runner)
+  (authorities ide-ux workspace-security build-orchestration)
   (non-authorities language-semantics isa-design compiler-internals shiva-canon paninian-ontology hardware-implementation))

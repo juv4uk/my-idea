@@ -10,15 +10,17 @@
 - [Remove the apostrophe · Приберіть апостроф · Entfernen Sie das Apostroph](quote-tutorial.md)
 - [Android releases · Android-релізи · Android-Releases](android-release.md)
 - [Platform roadmap · Дорожня карта платформ · Plattform-Roadmap](platform-roadmap.md)
+- [Accepted simple self-building IDE decision](ADR-003-SIMPLE-SELF-BUILDING-IDE.md)
+- [IDE implementation plan](IDE-IMPLEMENTATION-PLAN.md)
 - [my-idea as System Observatory (vision) · my-idea як Обсерваторія (бачення) · my-idea als System-Observatorium (Vision)](system-observatory-vision.md)
 
 ## Product boundary · Межі продукту · Produktgrenze
 
-`my-idea` is a general programming IDE. Editing files and projects is the product core. Language development is an advanced built-in tool called **Language Lab**.
+`my-idea` is a small WSM/Tauri IDE. Editing, Build/Run/Stop and truthful build output are the product core. System Observatory belongs to `tauricode`; the linked Observatory document is retained as historical context.
 
-`my-idea` — універсальна IDE для програмування. Ядро продукту — робота з файлами та проєктами. Розробка мов є розширеним вбудованим інструментом **Language Lab**.
+`my-idea` — проста IDE для WSM і Tauri. Ядро продукту — редагування, Build/Run/Stop і чесний журнал збірки. System Observatory належить `tauricode`; старий документ збережено як історичний контекст.
 
-`my-idea` ist eine allgemeine Programmier-IDE. Dateien und Projekte bilden den Kern. Sprachentwicklung ist das erweiterte integrierte Werkzeug **Language Lab**.
+`my-idea` ist eine kleine IDE für WSM und Tauri. Bearbeiten, Build/Run/Stop und wahrheitsgetreue Build-Ausgabe bilden den Kern. Das System Observatory gehört zu `tauricode`; das alte Dokument bleibt historischer Kontext.
 
 ## Architecture · Архітектура · Architektur
 

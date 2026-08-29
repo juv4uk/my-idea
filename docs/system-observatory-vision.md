@@ -1,5 +1,10 @@
 # my-idea як System Observatory · Візуальний куратор екосистеми my-lisp
 
+> **Historical vision, superseded as product direction on 2026-08-30.**
+> Observatory ownership moved to `tauricode`. The original text below is
+> preserved without rewriting history. Current direction:
+> [ADR-003](ADR-003-SIMPLE-SELF-BUILDING-IDE.md).
+
 Записано 2026-08-08, авторське бачення користувача (juv4uk) для ролі `my-idea` у ширшій екосистемі: `my-lisp` (мова, вже виділена в [github.com/juv4uk/my-lisp](https://github.com/juv4uk/my-lisp)), компілятор (умовно `cml`) і майбутня апаратна Lisp-машина (умовно `fpga-lisp` — HDL-ядро для Sipeed Tang Primer 25K). Точні назви й статус цих двох репо ще не підтверджені остаточно. Цей документ — вихідний текст бачення як є, без редагування змісту.
 
 ## Позиція my-idea в системі

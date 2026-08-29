@@ -2,10 +2,16 @@
 
 ## Role
 
-Observer/IDE layer for the four-repository ecosystem (`my-lisp`,
-`fpga-lisp`, `cml`, `my-idea`). Reads the other repos' contracts and
-`evidence/` directories to render ecosystem status ("System Observatory");
-does not itself define language or hardware semantics.
+Simple native IDE and build shell for WSM and Tauri projects. Its core loop is
+project tree -> editor -> Build/Run/Stop -> output. It consumes `my-lisp` CLI
+and LSP as language authority and coordinates Bun/Cargo/Tauri through explicit
+build profiles; it does not define language or compiler semantics.
+
+System Observatory and swarm control belong to `tauricode`. Historical
+observer code may still exist during the product reset, but agents must not
+extend it here. The accepted boundary and execution order are in
+`docs/ADR-003-SIMPLE-SELF-BUILDING-IDE.md` and
+`docs/IDE-IMPLEMENTATION-PLAN.md`.
 
 ## Environment model
 

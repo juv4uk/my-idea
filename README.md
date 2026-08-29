@@ -6,7 +6,7 @@
 
 `my-idea` is a new programming IDE forked from [`my-ide`](https://github.com/juv4uk/my-ide). The editor is built around **CodeMirror 6**, the interface is written in **ClojureScript**, and **Tauri v2 + Rust** provide a small cross-platform desktop and mobile shell.
 
-The main goal is comfortable everyday programming. Our own language experiments are a special built-in **Language Lab**, not a limitation of the IDE.
+The main goal is a small, honest development loop for WSM and Tauri projects: open, edit, build or run, stop, and read the output. System Observatory and swarm control belong to `tauricode`.
 
 **my-lisp** is the small independent language developed with the IDE: *a small language that grows itself · маленька мова, що вирощує себе · eine kleine Sprache, die sich selbst wachsen lässt*. Rust supplies the minimal safe semantic machinery; higher-level forms and libraries grow inside my-lisp itself.
 
@@ -44,13 +44,13 @@ my-lisp source files use the canonical `.my` extension; see the [trilingual sour
 - resizable workspace: sidebar width, right-column width and the console/pane split are drag-adjustable and persist across restarts (v0.13.0);
 - local source persistence and a responsive desktop/mobile workspace;
 - embedded safe Lisp evaluator (powered by Rust and WebAssembly) with console, parsed-form view, and Markdown/Mermaid preview;
-- System Observatory tools (desktop builds): ecosystem conformance check, live my-lisp TCP oracle, engine-vs-oracle comparison, swarm-node status and dashboard, repo.my knowledge graph;
+- historical Observatory code exists during the product reset, but Observatory ownership and future development are in `tauricode`;
 - English, Ukrainian and German interface;
 - installable offline PWA plus the Tauri foundation for Windows, Linux, macOS and mobile.
 
 ### Direction
 
-Normal file/project editing comes first. Language Lab will grow alongside it: the embedded evaluator works everywhere, while optional desktop runtimes such as **GNU Guile** can later provide a full Scheme REPL through a narrow Tauri adapter. A runtime never receives silent file or network access.
+The accepted direction is the smallest working IDE loop: project tree, editor, Build/Run/Stop and build output. WSM uses the authoritative `my-lisp` CLI/LSP; Tauri projects use fixed Bun/Cargo/Tauri build profiles. The long-term proof is that `my-idea` can build its own checkout.
 
 ## Українська
 
