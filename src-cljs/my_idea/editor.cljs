@@ -85,11 +85,11 @@
 
 (defn- language-extensions [mode path]
   (case mode
-    "rust" #js [(rust)]
+    "rust" #js [(rust) (when (workspace/native?) (autocompletion #js {:override #js [(lsp/completions mode path)]}))]
     "markdown" #js [(markdown)]
     "mermaid" #js [(mermaid)]
     "text" #js []
-    "my-lisp" #js [(clojure) (autocompletion #js {:override #js [(if (workspace/native?) (lsp/completions path) completions)]})]
+    "my-lisp" #js [(clojure) (autocompletion #js {:override #js [(if (workspace/native?) (lsp/completions mode path) completions)]})]
     #js [(clojure)]))
 
 (defn mount!
@@ -106,7 +106,7 @@
                                  (language-extensions mode path)
                                  (lintGutter)
                                  (linter (fn [view]
-                                           (if (and (= mode "my-lisp") (workspace/native?))
+                                           (if (and (lsp/supported? mode) (workspace/native?))
                                              (lsp/diagnostics path view)
                                              (diagnose-fn (.. view -state -doc toString) mode))))
                                  (.of keymap

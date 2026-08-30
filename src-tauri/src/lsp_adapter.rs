@@ -59,6 +59,57 @@ impl LspSessions {
         sessions.insert(session_key, server.clone());
         Ok(server)
     }
+
+    fn rust(&self, workspace: &Path, app: &AppHandle) -> Result<Arc<LanguageServer>, String> {
+        let mut sessions = self
+            .0
+            .lock()
+            .map_err(|_| "LSP session lock is poisoned".to_string())?;
+        let session_key = format!("rust:{}", workspace.display());
+        if let Some(server) = sessions.get(&session_key) {
+            return Ok(server.clone());
+        }
+        let app_handle = app.clone();
+        let server = Arc::new(LanguageServer::spawn(
+            workspace,
+            ServerProfile {
+                name: "rust-analyzer".into(),
+                executable: std::env::var_os("MY_IDEA_RUST_ANALYZER_BIN")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| "rust-analyzer".into()),
+                args: Vec::new(),
+            },
+            Arc::new(move |message| {
+                let _ = app_handle.emit("lsp-message", message);
+            }),
+        )?);
+        let initialize = server.request(
+            "initialize",
+            json!({
+                "processId": std::process::id(),
+                "rootUri": directory_uri(workspace)?,
+                "workspaceFolders": [{"uri": directory_uri(workspace)?, "name": "workspace"}],
+                "capabilities": {
+                    "workspace": {"configuration": true, "workspaceFolders": true},
+                    "textDocument": {
+                        "publishDiagnostics": {"relatedInformation": true},
+                        "completion": {"completionItem": {"snippetSupport": false}},
+                        "hover": {"contentFormat": ["markdown", "plaintext"]},
+                        "documentSymbol": {},
+                        "definition": {"linkSupport": true}
+                    },
+                    "window": {"workDoneProgress": true}
+                },
+                "clientInfo": {"name": "my-idea", "version": env!("CARGO_PKG_VERSION")}
+            }),
+        )?;
+        if initialize.get("error").is_some() {
+            return Err(format!("rust-analyzer initialize failed: {initialize}"));
+        }
+        server.notify("initialized", json!({}))?;
+        sessions.insert(session_key, server.clone());
+        Ok(server)
+    }
 }
 
 fn find_my_lisp(workspace: &Path) -> PathBuf {
@@ -85,6 +136,32 @@ fn document_uri(root: &Path, relative: &str) -> Result<String, String> {
     Url::from_file_path(path)
         .map(|uri| uri.to_string())
         .map_err(|_| "document path cannot be represented as a file URI".into())
+}
+
+fn rust_document(root: &Path, relative: &str) -> Result<(PathBuf, String), String> {
+    let document = safe_existing(root, relative)?;
+    let uri = Url::from_file_path(&document)
+        .map(|uri| uri.to_string())
+        .map_err(|_| "document path cannot be represented as a file URI".to_string())?;
+    let mut directory = document
+        .parent()
+        .ok_or_else(|| "Rust document has no parent directory".to_string())?;
+    loop {
+        if directory.join("Cargo.toml").is_file() {
+            return Ok((directory.to_path_buf(), uri));
+        }
+        if directory == root {
+            break;
+        }
+        let Some(parent) = directory.parent() else {
+            break;
+        };
+        if !parent.starts_with(root) {
+            break;
+        }
+        directory = parent;
+    }
+    Ok((root.to_path_buf(), uri))
 }
 
 #[tauri::command]
@@ -232,4 +309,132 @@ pub fn wsm_lsp_symbols(
         "textDocument/documentSymbol",
         json!({"textDocument": {"uri": document_uri(&root, &path)?}}),
     )
+}
+
+#[tauri::command]
+pub fn rust_lsp_open(
+    path: String,
+    text: String,
+    version: i32,
+    app: AppHandle,
+    workspace: State<'_, Workspace>,
+    sessions: State<'_, LspSessions>,
+) -> Result<(), String> {
+    let root = root(&workspace)?;
+    let (project, uri) = rust_document(&root, &path)?;
+    sessions.rust(&project, &app)?.notify(
+        "textDocument/didOpen",
+        json!({"textDocument": {
+            "uri": uri,
+            "languageId": "rust",
+            "version": version,
+            "text": text
+        }}),
+    )
+}
+
+#[tauri::command]
+pub fn rust_lsp_change(
+    path: String,
+    text: String,
+    version: i32,
+    app: AppHandle,
+    workspace: State<'_, Workspace>,
+    sessions: State<'_, LspSessions>,
+) -> Result<(), String> {
+    let root = root(&workspace)?;
+    let (project, uri) = rust_document(&root, &path)?;
+    sessions.rust(&project, &app)?.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": {"uri": uri, "version": version},
+            "contentChanges": [{"text": text}]
+        }),
+    )
+}
+
+#[tauri::command]
+pub fn rust_lsp_close(
+    path: String,
+    app: AppHandle,
+    workspace: State<'_, Workspace>,
+    sessions: State<'_, LspSessions>,
+) -> Result<(), String> {
+    let root = root(&workspace)?;
+    let (project, uri) = rust_document(&root, &path)?;
+    sessions.rust(&project, &app)?.notify(
+        "textDocument/didClose",
+        json!({"textDocument": {"uri": uri}}),
+    )
+}
+
+fn rust_position_request(
+    method: &str,
+    path: String,
+    line: u32,
+    character: u32,
+    app: AppHandle,
+    workspace: State<'_, Workspace>,
+    sessions: State<'_, LspSessions>,
+) -> Result<Value, String> {
+    let root = root(&workspace)?;
+    let (project, uri) = rust_document(&root, &path)?;
+    sessions.rust(&project, &app)?.request(
+        method,
+        json!({
+            "textDocument": {"uri": uri},
+            "position": {"line": line, "character": character}
+        }),
+    )
+}
+
+macro_rules! rust_position_command {
+    ($name:ident, $method:literal) => {
+        #[tauri::command]
+        pub fn $name(
+            path: String,
+            line: u32,
+            character: u32,
+            app: AppHandle,
+            workspace: State<'_, Workspace>,
+            sessions: State<'_, LspSessions>,
+        ) -> Result<Value, String> {
+            rust_position_request($method, path, line, character, app, workspace, sessions)
+        }
+    };
+}
+
+rust_position_command!(rust_lsp_completion, "textDocument/completion");
+rust_position_command!(rust_lsp_hover, "textDocument/hover");
+rust_position_command!(rust_lsp_definition, "textDocument/definition");
+
+#[tauri::command]
+pub fn rust_lsp_symbols(
+    path: String,
+    app: AppHandle,
+    workspace: State<'_, Workspace>,
+    sessions: State<'_, LspSessions>,
+) -> Result<Value, String> {
+    let root = root(&workspace)?;
+    let (project, uri) = rust_document(&root, &path)?;
+    sessions.rust(&project, &app)?.request(
+        "textDocument/documentSymbol",
+        json!({"textDocument": {"uri": uri}}),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rust_document;
+    use std::path::Path;
+
+    #[test]
+    fn rust_document_uses_nearest_cargo_root() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("src-tauri has a repository parent");
+        let (project, uri) = rust_document(workspace, "src-tauri/src/lsp_adapter.rs").unwrap();
+        assert_eq!(project, workspace.join("src-tauri"));
+        assert!(uri.ends_with("/src-tauri/src/lsp_adapter.rs"));
+    }
 }

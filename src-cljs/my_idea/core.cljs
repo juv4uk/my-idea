@@ -96,12 +96,12 @@
     (restore-layout!)
     (init-splitters!)
     (when doc
-      (when (and (= mode "my-lisp") (not (:new? doc)))
-        (lsp/open! active-path (:contents doc)))
+      (when (and (lsp/supported? mode) (not (:new? doc)))
+        (lsp/open! mode active-path (:contents doc)))
       (editor/mount! (.getElementById js/document "editor") (:contents doc) mode active-path wasm/diagnose
                      #(do (swap! state workspace/update-active %)
-                          (when (and (= mode "my-lisp") (not (:new? doc)))
-                            (lsp/change! active-path %))
+                          (when (and (lsp/supported? mode) (not (:new? doc)))
+                            (lsp/change! mode active-path %))
                           (when preview? (preview/render! % mode (.getElementById js/document "preview-content")))))
       (when preview?
         (preview/render! (:contents doc) mode (.getElementById js/document "preview-content"))))
@@ -133,7 +133,8 @@
       (.addEventListener el "click"
                          #(let [path (.. % -currentTarget -dataset -close)]
                             (.stopPropagation %)
-                            (lsp/close! path)
+                            (when-let [closing-mode (get-in @state [:documents path :language-mode])]
+                              (lsp/close! closing-mode path))
                             (swap! state workspace/close-document path)
                             (cmd/persist!)
                             (render!))))))

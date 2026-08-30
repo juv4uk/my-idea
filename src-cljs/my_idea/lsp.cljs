@@ -11,6 +11,9 @@
 
 (defn set-refresh! [f] (reset! refresh-fn* f))
 
+(defn supported? [mode] (contains? #{"my-lisp" "rust"} mode))
+(defn- command-prefix [mode] (if (= mode "rust") "rust_lsp_" "wsm_lsp_"))
+
 (defn- event-listen []
   (some-> (aget js/window "__TAURI__") (aget "event") (aget "listen")))
 
@@ -57,32 +60,38 @@
              :source (or (:source diagnostic) "WsmLS")})
           (matching-diagnostics path)))))
 
-(defn open! [path text]
-  (when (and (workspace/native?) path (not (contains? @versions* path)))
-    (swap! versions* assoc path 1)
-    (-> (after-listener #(workspace/invoke! "wsm_lsp_open" {:path path :text text :version 1}))
-        (.catch #(js/console.warn "WsmLS open failed" %)))))
+(defn open! [mode path text]
+  (let [key [mode path]]
+    (when (and (workspace/native?) (supported? mode) path (not (contains? @versions* key)))
+      (swap! versions* assoc key 1)
+      (-> (after-listener #(workspace/invoke! (str (command-prefix mode) "open")
+                                               {:path path :text text :version 1}))
+          (.catch #(js/console.warn "LSP open failed" %))))))
 
-(defn change! [path text]
-  (when (and (workspace/native?) (contains? @versions* path))
-    (let [version (get (swap! versions* update path inc) path)]
-      (-> (workspace/invoke! "wsm_lsp_change" {:path path :text text :version version})
-          (.catch #(js/console.warn "WsmLS change failed" %))))))
+(defn change! [mode path text]
+  (let [key [mode path]]
+    (when (and (workspace/native?) (contains? @versions* key))
+      (let [version (get (swap! versions* update key inc) key)]
+        (-> (workspace/invoke! (str (command-prefix mode) "change")
+                               {:path path :text text :version version})
+            (.catch #(js/console.warn "LSP change failed" %)))))))
 
-(defn close! [path]
-  (when (and (workspace/native?) (contains? @versions* path))
-    (swap! versions* dissoc path)
-    (-> (workspace/invoke! "wsm_lsp_close" {:path path})
-        (.catch #(js/console.warn "WsmLS close failed" %)))))
+(defn close! [mode path]
+  (let [key [mode path]]
+    (when (and (workspace/native?) (contains? @versions* key))
+      (swap! versions* dissoc key)
+      (-> (workspace/invoke! (str (command-prefix mode) "close") {:path path})
+          (.catch #(js/console.warn "LSP close failed" %))))))
 
-(defn completions [path]
+(defn completions [mode path]
   (fn [^js context]
     (let [position (.-pos context)
           line-info (.. context -state -doc (lineAt position))
           line (dec (.-number line-info))
           character (- position (.-from line-info))
           word (.matchBefore context #"[A-Za-z0-9_?!+*/<>=-]*")]
-      (-> (workspace/invoke! "wsm_lsp_completion" {:path path :line line :character character})
+      (-> (workspace/invoke! (str (command-prefix mode) "completion")
+                             {:path path :line line :character character})
           (.then (fn [response]
                    (let [result (aget response "result")
                          items (if (array? result) result (some-> result (aget "items")))]

@@ -12,7 +12,7 @@ use std::{
     time::Duration,
 };
 
-const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Debug)]
 pub struct ServerProfile {
@@ -56,6 +56,7 @@ impl LanguageServer {
             .stdin
             .take()
             .ok_or_else(|| "LSP server stdin was not captured".to_string())?;
+        let stdin = Arc::new(Mutex::new(stdin));
         let stdout = child
             .stdout
             .take()
@@ -64,13 +65,23 @@ impl LanguageServer {
             Arc::new(Mutex::new(HashMap::new()));
         let reader_pending = pending.clone();
         let reader_notifications = notifications.clone();
+        let reader_stdin = stdin.clone();
         thread::spawn(move || {
             let mut reader = BufReader::new(stdout);
             loop {
                 match read_message(&mut reader) {
                     Ok(Some(message)) => {
+                        let method = message.get("method").and_then(Value::as_str);
                         let response_id = message.get("id").and_then(Value::as_u64);
-                        if let Some(id) = response_id {
+                        if let Some(method) = method {
+                            reader_notifications(message.clone());
+                            if let Some(id) = response_id {
+                                let response = server_request_response(id, method, &message);
+                                if let Ok(mut writer) = reader_stdin.lock() {
+                                    let _ = write_message(&mut *writer, &response);
+                                }
+                            }
+                        } else if let Some(id) = response_id {
                             if let Some(sender) = reader_pending
                                 .lock()
                                 .ok()
@@ -78,8 +89,6 @@ impl LanguageServer {
                             {
                                 let _ = sender.send(message);
                             }
-                        } else if message.get("method").is_some() {
-                            reader_notifications(message);
                         }
                     }
                     Ok(None) => break,
@@ -108,7 +117,7 @@ impl LanguageServer {
         Ok(Self {
             profile: profile.name,
             next_id: AtomicU64::new(1),
-            stdin: Arc::new(Mutex::new(stdin)),
+            stdin,
             child: Mutex::new(child),
             pending,
         })
@@ -181,6 +190,27 @@ impl LanguageServer {
     }
 }
 
+fn server_request_response(id: u64, method: &str, request: &Value) -> Value {
+    let result = match method {
+        "workspace/configuration" => {
+            let count = request["params"]["items"].as_array().map_or(0, Vec::len);
+            Value::Array(vec![Value::Null; count])
+        }
+        "workspace/workspaceFolders" => Value::Null,
+        "client/registerCapability"
+        | "client/unregisterCapability"
+        | "window/workDoneProgress/create" => Value::Null,
+        _ => {
+            return json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": {"code": -32601, "message": format!("unsupported server request: {method}")}
+            });
+        }
+    };
+    json!({"jsonrpc": "2.0", "id": id, "result": result})
+}
+
 impl Drop for LanguageServer {
     fn drop(&mut self) {
         let _ = self.shutdown();
@@ -251,6 +281,20 @@ mod tests {
     }
 
     #[test]
+    fn answers_language_server_configuration_requests() {
+        let request = json!({
+            "jsonrpc": "2.0",
+            "id": 9,
+            "method": "workspace/configuration",
+            "params": {"items": [{"section": "rust-analyzer"}, {"section": "rust-analyzer.cargo"}]}
+        });
+        assert_eq!(
+            server_request_response(9, "workspace/configuration", &request),
+            json!({"jsonrpc": "2.0", "id": 9, "result": [null, null]})
+        );
+    }
+
+    #[test]
     #[ignore = "requires MY_IDEA_LSP_TEST_BIN and a real language server"]
     fn initializes_a_real_configured_language_server() {
         let executable = std::env::var("MY_IDEA_LSP_TEST_BIN").unwrap();
@@ -281,6 +325,57 @@ mod tests {
             .unwrap();
         assert!(response.get("result").is_some(), "{response}");
         server.notify("initialized", json!({})).unwrap();
+        server.shutdown().unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires MY_IDEA_LSP_TEST_BIN=rust-analyzer"]
+    fn real_rust_analyzer_serves_document_symbols() {
+        let executable = std::env::var("MY_IDEA_LSP_TEST_BIN").unwrap();
+        let workspace = std::env::current_dir().unwrap();
+        let server = LanguageServer::spawn(
+            &workspace,
+            ServerProfile {
+                name: "rust-analyzer-live-test".into(),
+                executable: executable.into(),
+                args: Vec::new(),
+            },
+            Arc::new(|_| {}),
+        )
+        .unwrap();
+        server
+            .request(
+                "initialize",
+                json!({
+                    "processId": null,
+                    "rootUri": format!("file://{}", workspace.display()),
+                    "capabilities": {"workspace": {"configuration": true}}
+                }),
+            )
+            .unwrap();
+        server.notify("initialized", json!({})).unwrap();
+        let uri = "file:///tmp/my-idea-rust-analyzer-live.rs";
+        server
+            .notify(
+                "textDocument/didOpen",
+                json!({"textDocument": {
+                    "uri": uri,
+                    "languageId": "rust",
+                    "version": 1,
+                    "text": "fn viveka_lsp_witness() -> u32 { 42 }"
+                }}),
+            )
+            .unwrap();
+        let symbols = server
+            .request(
+                "textDocument/documentSymbol",
+                json!({"textDocument": {"uri": uri}}),
+            )
+            .unwrap();
+        assert!(
+            symbols.to_string().contains("viveka_lsp_witness"),
+            "{symbols}"
+        );
         server.shutdown().unwrap();
     }
 
@@ -317,7 +412,10 @@ mod tests {
             )
             .unwrap();
         let diagnostics = receiver.recv_timeout(Duration::from_secs(2)).unwrap();
-        assert_eq!(diagnostics["method"], "textDocument/publishDiagnostics", "{diagnostics}");
+        assert_eq!(
+            diagnostics["method"], "textDocument/publishDiagnostics",
+            "{diagnostics}"
+        );
         assert_ne!(diagnostics["params"]["diagnostics"], json!([]));
 
         server
