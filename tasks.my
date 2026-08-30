@@ -1,5 +1,11 @@
 ((tasks . (
-  ("MYIDEA-SWARM-CONTRACT-01" . (
+     ("BILINGUAL-DOCUMENTATION-AUDIT" .
+    ((priority . 9.0)
+     (capabilities . (documentation translation audit policy))
+     (origin . ecosystem)
+     (description . "Enforce the DOCUMENTATION LANGUAGE / МОВА ДОКУМЕНТАЦІЇ policy. Every human-authored markdown file (README, memory, plans, architecture, research) MUST have a substantive Ukrainian translation. Identify English-only documents and translate them. Do not translate machine identifiers or immutable historical records. Ensure every new or edited markdown document is bilingual.")))
+
+("MYIDEA-SWARM-CONTRACT-01" . (
     (priority . 9.9)
     (description . "DONE 2026-08-18. Added repo.my ((id my-idea) (role observer-ide), exports ecosystem-status/evidence-matrix/knowledge-graph/swarm-status, imports language-contract/isa-contract/compatibility/evidence/repo-declarations, capabilities rust/clojurescript/tauri/gui/wasm, authorities ide-ux/workspace-security/evidence-visualization, non-authorities language-semantics/isa-design/compiler-internals/shiva-canon/paninian-ontology/hardware-implementation — same format as fpga-lisp/shiva-sutras/my-lisp-panini). Added ecosystem/README.md scaffold explaining why no ecosystem/imports/*.my files are populated (my-idea reads contracts/evidence live off disk via src-tauri/src/ecosystem/*.rs, not as cached claims). my-idea now shows as a declared node in its own Knowledge Graph tab instead of 'no repo.my'.")
     (done . t)
