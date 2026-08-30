@@ -83,6 +83,14 @@
                                    :to (.. view -state -doc -length)
                                    :insert text}})))
 
+(defn set-cursor! [line character]
+  (when-let [^js view @view*]
+    (let [doc (.. view -state -doc)
+          line-info (.line doc (min (inc (or line 0)) (.-lines doc)))
+          anchor (min (.-to line-info) (+ (.-from line-info) (or character 0)))]
+      (.dispatch view #js {:selection #js {:anchor anchor} :scrollIntoView true})
+      (.focus view))))
+
 (defn- language-extensions [mode path]
   (let [hover (when (and (lsp/supported? mode) (workspace/native?))
                 (hoverTooltip (lsp/hover mode path)))]
@@ -96,7 +104,7 @@
 
 (defn mount!
   "Mount the programming editor. The evaluator is only one optional consumer."
-  [parent source-text mode path diagnose-fn on-change]
+  [parent source-text mode path diagnose-fn on-change on-definition]
   (when-let [^js old-view @view*]
     (.destroy old-view))
   (let [state (.create EditorState
@@ -113,6 +121,12 @@
                                              (diagnose-fn (.. view -state -doc toString) mode))))
                                  (.of keymap
                                       (.concat #js [indentWithTab]
+                                               #js [#js {:key "F12"
+                                                         :run (fn [view]
+                                                                (when (and (lsp/supported? mode)
+                                                                           (workspace/native?))
+                                                                  (on-definition view))
+                                                                true)}]
                                                defaultKeymap historyKeymap completionKeymap))
                                  (editor-theme)
                                  (.of (.-updateListener EditorView)

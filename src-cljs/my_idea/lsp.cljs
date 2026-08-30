@@ -125,3 +125,12 @@
                                           (set! (.-textContent dom) text)
                                           #js {:dom dom}))})))))
           (.catch (fn [_] nil))))))
+
+(defn definition [mode path ^js view]
+  (let [position (.. view -state -selection -main -head)
+        line-info (.. view -state -doc (lineAt position))]
+    (-> (workspace/invoke! (str (command-prefix mode) "definition")
+                           {:path path
+                            :line (dec (.-number line-info))
+                            :character (- position (.-from line-info))})
+        (.then #(some-> % (aget "result") (js->clj :keywordize-keys true))))))

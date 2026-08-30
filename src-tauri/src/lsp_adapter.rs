@@ -164,6 +164,39 @@ fn rust_document(root: &Path, relative: &str) -> Result<(PathBuf, String), Strin
     Ok((root.to_path_buf(), uri))
 }
 
+fn definition_target(root: &Path, response: Value) -> Result<Value, String> {
+    let result = &response["result"];
+    let location = if let Some(locations) = result.as_array() {
+        locations.first().unwrap_or(&Value::Null)
+    } else {
+        result
+    };
+    if location.is_null() {
+        return Ok(json!({"result": null}));
+    }
+    let uri = location
+        .get("targetUri")
+        .or_else(|| location.get("uri"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| "definition response has no file URI".to_string())?;
+    let range = location
+        .get("targetSelectionRange")
+        .or_else(|| location.get("range"))
+        .ok_or_else(|| "definition response has no range".to_string())?;
+    let absolute = Url::parse(uri)
+        .map_err(|error| format!("invalid definition URI: {error}"))?
+        .to_file_path()
+        .map_err(|_| "definition URI is not a local file".to_string())?;
+    let relative = absolute
+        .strip_prefix(root)
+        .map_err(|_| "language server returned a definition outside the workspace".to_string())?;
+    Ok(json!({"result": {
+        "path": relative.to_string_lossy().replace('\\', "/"),
+        "line": range["start"]["line"],
+        "character": range["start"]["character"]
+    }}))
+}
+
 #[tauri::command]
 pub fn wsm_lsp_open(
     path: String,
@@ -286,15 +319,15 @@ pub fn wsm_lsp_definition(
     workspace: State<'_, Workspace>,
     sessions: State<'_, LspSessions>,
 ) -> Result<Value, String> {
-    position_request(
+    let root = root(&workspace)?;
+    let response = sessions.wsm(&root, &app)?.request(
         "textDocument/definition",
-        path,
-        line,
-        character,
-        app,
-        workspace,
-        sessions,
-    )
+        json!({
+            "textDocument": {"uri": document_uri(&root, &path)?},
+            "position": {"line": line, "character": character}
+        }),
+    )?;
+    definition_target(&root, response)
 }
 
 #[tauri::command]
@@ -406,7 +439,27 @@ macro_rules! rust_position_command {
 
 rust_position_command!(rust_lsp_completion, "textDocument/completion");
 rust_position_command!(rust_lsp_hover, "textDocument/hover");
-rust_position_command!(rust_lsp_definition, "textDocument/definition");
+
+#[tauri::command]
+pub fn rust_lsp_definition(
+    path: String,
+    line: u32,
+    character: u32,
+    app: AppHandle,
+    workspace: State<'_, Workspace>,
+    sessions: State<'_, LspSessions>,
+) -> Result<Value, String> {
+    let root = root(&workspace)?;
+    let (project, uri) = rust_document(&root, &path)?;
+    let response = sessions.rust(&project, &app)?.request(
+        "textDocument/definition",
+        json!({
+            "textDocument": {"uri": uri},
+            "position": {"line": line, "character": character}
+        }),
+    )?;
+    definition_target(&root, response)
+}
 
 #[tauri::command]
 pub fn rust_lsp_symbols(
@@ -425,8 +478,10 @@ pub fn rust_lsp_symbols(
 
 #[cfg(test)]
 mod tests {
-    use super::rust_document;
+    use super::{definition_target, rust_document};
+    use serde_json::json;
     use std::path::Path;
+    use tauri::Url;
 
     #[test]
     fn rust_document_uses_nearest_cargo_root() {
@@ -436,5 +491,21 @@ mod tests {
         let (project, uri) = rust_document(workspace, "src-tauri/src/lsp_adapter.rs").unwrap();
         assert_eq!(project, workspace.join("src-tauri"));
         assert!(uri.ends_with("/src-tauri/src/lsp_adapter.rs"));
+    }
+
+    #[test]
+    fn definition_target_is_workspace_relative() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("src-tauri has a repository parent");
+        let target = workspace.join("src-tauri/src/lsp_adapter.rs");
+        let response = json!({"result": [{
+            "targetUri": Url::from_file_path(target).unwrap().to_string(),
+            "targetSelectionRange": {"start": {"line": 7, "character": 3}, "end": {"line": 7, "character": 9}}
+        }]});
+        assert_eq!(
+            definition_target(workspace, response).unwrap(),
+            json!({"result": {"path": "src-tauri/src/lsp_adapter.rs", "line": 7, "character": 3}})
+        );
     }
 }

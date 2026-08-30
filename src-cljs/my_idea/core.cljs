@@ -102,7 +102,13 @@
                      #(do (swap! state workspace/update-active %)
                           (when (and (lsp/supported? mode) (not (:new? doc)))
                             (lsp/change! mode active-path %))
-                          (when preview? (preview/render! % mode (.getElementById js/document "preview-content")))))
+                          (when preview? (preview/render! % mode (.getElementById js/document "preview-content"))))
+                     (fn [view]
+                       (-> (lsp/definition mode active-path view)
+                           (.then (fn [{:keys [path line character]}]
+                                    (when path
+                                      (cmd/open-file! path #(editor/set-cursor! line character)))))
+                           (.catch #(js/console.warn "LSP definition failed" %)))))
       (when preview?
         (preview/render! (:contents doc) mode (.getElementById js/document "preview-content"))))
     (.addEventListener (.getElementById js/document "open") "click" cmd/choose-workspace!)

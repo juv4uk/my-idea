@@ -54,21 +54,25 @@
                 (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))))))
     (.click input)))
 
-(defn open-file! [path]
+(defn open-file!
+  ([path] (open-file! path nil))
+  ([path on-open]
   (if (get-in @state [:documents path])
-    (do (swap! state assoc :active-path path) (persist!) (render!))
+    (do (swap! state assoc :active-path path) (persist!) (render!) (when on-open (on-open)))
     (if (workspace/native?)
       (-> (workspace/invoke! "read_workspace_file" {:path path})
           (.then #(do (swap! state workspace/open-document path %)
                       (persist!)
-                      (render!)))
+                      (render!)
+                      (when on-open (on-open))))
           (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
       (if-let [p (workspace/read-file-from-handle path)]
         (-> p
             (.then (fn [contents]
                      (swap! state workspace/open-document path contents)
                      (persist!)
-                     (render!)))
+                     (render!)
+                     (when on-open (on-open))))
             (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
         (do (swap! state assoc
                    :output [(case (:language @state)
@@ -76,7 +80,7 @@
                               "de" "📁 Nach dem Neuladen muss der Ordner erneut geöffnet werden (Schaltfläche 📁 links)"
                               "📁 After page reload, re-open the folder using the 📁 button on the left")]
                    :error? false)
-            (render!))))))
+            (render!)))))))
 
 (defn new-file! []
   (let [name (js/prompt (case (:language @state)
