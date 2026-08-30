@@ -3,6 +3,7 @@
             [my-idea.commands :as cmd]
             [my-idea.editor :as editor]
             [my-idea.i18n :as i18n]
+            [my-idea.lsp :as lsp]
             [my-idea.preview :as preview]
             [my-idea.state :as state :refer [state active-doc]]
             [my-idea.util :as util]
@@ -95,8 +96,12 @@
     (restore-layout!)
     (init-splitters!)
     (when doc
-      (editor/mount! (.getElementById js/document "editor") (:contents doc) mode wasm/diagnose
+      (when (and (= mode "my-lisp") (not (:new? doc)))
+        (lsp/open! active-path (:contents doc)))
+      (editor/mount! (.getElementById js/document "editor") (:contents doc) mode active-path wasm/diagnose
                      #(do (swap! state workspace/update-active %)
+                          (when (and (= mode "my-lisp") (not (:new? doc)))
+                            (lsp/change! active-path %))
                           (when preview? (preview/render! % mode (.getElementById js/document "preview-content")))))
       (when preview?
         (preview/render! (:contents doc) mode (.getElementById js/document "preview-content"))))
@@ -124,10 +129,18 @@
                                        (swap! state assoc :active-path (.. event -currentTarget -dataset -tab))
                                        (cmd/persist!)
                                        (render!))))
-    (doseq [el (.querySelectorAll js/document "[data-close]")] (.addEventListener el "click" #(do (.stopPropagation %) (swap! state workspace/close-document (.. % -currentTarget -dataset -close)) (cmd/persist!) (render!))))))
+    (doseq [el (.querySelectorAll js/document "[data-close]")]
+      (.addEventListener el "click"
+                         #(let [path (.. % -currentTarget -dataset -close)]
+                            (.stopPropagation %)
+                            (lsp/close! path)
+                            (swap! state workspace/close-document path)
+                            (cmd/persist!)
+                            (render!))))))
 
 (defn ^:export init []
   (cmd/set-render! render!)
+  (lsp/init!)
   (render!)
   (cmd/restore-native!)
   (when-not (workspace/native?)

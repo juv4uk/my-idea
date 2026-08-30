@@ -114,6 +114,21 @@ test('one stdio LSP transport serves WsmLS and rust-analyzer adapters', () => {
   assert.match(plan, /rust-analyzer/);
 });
 
+test('native WsmLS adapter owns WSM diagnostics and completion', () => {
+  const adapter = readFileSync('src-tauri/src/lsp_adapter.rs', 'utf8');
+  const frontend = readFileSync('src-cljs/my_idea/lsp.cljs', 'utf8');
+  const editor = readFileSync('src-cljs/my_idea/editor.cljs', 'utf8');
+  assert.match(adapter, /args: vec!\["lsp"\.into\(\)\]/);
+  assert.match(adapter, /textDocument\/didOpen/);
+  assert.match(adapter, /textDocument\/didChange/);
+  assert.match(adapter, /textDocument\/completion/);
+  assert.match(adapter, /textDocument\/hover/);
+  assert.match(adapter, /textDocument\/definition/);
+  assert.match(adapter, /textDocument\/documentSymbol/);
+  assert.match(frontend, /textDocument\/publishDiagnostics/);
+  assert.match(editor, /forceLinting/);
+});
+
 test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');

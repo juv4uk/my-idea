@@ -63,20 +63,34 @@ impl LanguageServer {
         let pending: Arc<Mutex<HashMap<u64, mpsc::Sender<Value>>>> =
             Arc::new(Mutex::new(HashMap::new()));
         let reader_pending = pending.clone();
+        let reader_notifications = notifications.clone();
         thread::spawn(move || {
             let mut reader = BufReader::new(stdout);
-            while let Ok(Some(message)) = read_message(&mut reader) {
-                let response_id = message.get("id").and_then(Value::as_u64);
-                if let Some(id) = response_id {
-                    if let Some(sender) = reader_pending
-                        .lock()
-                        .ok()
-                        .and_then(|mut requests| requests.remove(&id))
-                    {
-                        let _ = sender.send(message);
+            loop {
+                match read_message(&mut reader) {
+                    Ok(Some(message)) => {
+                        let response_id = message.get("id").and_then(Value::as_u64);
+                        if let Some(id) = response_id {
+                            if let Some(sender) = reader_pending
+                                .lock()
+                                .ok()
+                                .and_then(|mut requests| requests.remove(&id))
+                            {
+                                let _ = sender.send(message);
+                            }
+                        } else if message.get("method").is_some() {
+                            reader_notifications(message);
+                        }
                     }
-                } else if message.get("method").is_some() {
-                    notifications(message);
+                    Ok(None) => break,
+                    Err(error) => {
+                        reader_notifications(json!({
+                            "jsonrpc": "2.0",
+                            "method": "$/myIdeaTransportError",
+                            "params": {"message": error}
+                        }));
+                        break;
+                    }
                 }
             }
         });
@@ -206,9 +220,12 @@ fn read_message(reader: &mut impl BufRead) -> Result<Option<Value>, String> {
     reader
         .read_exact(&mut body)
         .map_err(|error| error.to_string())?;
-    serde_json::from_slice(&body)
-        .map(Some)
-        .map_err(|error| format!("invalid LSP JSON: {error}"))
+    serde_json::from_slice(&body).map(Some).map_err(|error| {
+        format!(
+            "invalid LSP JSON: {error}; body={}",
+            String::from_utf8_lossy(&body)
+        )
+    })
 }
 
 #[cfg(test)]
@@ -264,6 +281,65 @@ mod tests {
             .unwrap();
         assert!(response.get("result").is_some(), "{response}");
         server.notify("initialized", json!({})).unwrap();
+        server.shutdown().unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires MY_IDEA_LSP_TEST_BIN=my-lisp and its lsp argument"]
+    fn real_wsm_server_publishes_diagnostics_and_completion() {
+        let executable = std::env::var("MY_IDEA_LSP_TEST_BIN").unwrap();
+        let workspace = std::env::current_dir().unwrap();
+        let (sender, receiver) = mpsc::channel();
+        let server = LanguageServer::spawn(
+            &workspace,
+            ServerProfile {
+                name: "WsmLS-live-test".into(),
+                executable: executable.into(),
+                args: vec!["lsp".into()],
+            },
+            Arc::new(move |message| sender.send(message).unwrap()),
+        )
+        .unwrap();
+        server
+            .request(
+                "initialize",
+                json!({"processId": null, "rootUri": null, "capabilities": {}}),
+            )
+            .unwrap();
+        server.notify("initialized", json!({})).unwrap();
+        let uri = "file:///tmp/my-idea-live-test.wsm";
+        server
+            .notify(
+                "textDocument/didOpen",
+                json!({"textDocument": {
+                    "uri": uri, "languageId": "wsm", "version": 1, "text": "(cons"
+                }}),
+            )
+            .unwrap();
+        let diagnostics = receiver.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert_eq!(diagnostics["method"], "textDocument/publishDiagnostics", "{diagnostics}");
+        assert_ne!(diagnostics["params"]["diagnostics"], json!([]));
+
+        server
+            .notify(
+                "textDocument/didChange",
+                json!({
+                    "textDocument": {"uri": uri, "version": 2},
+                    "contentChanges": [{"text": "(cons 'a '())"}]
+                }),
+            )
+            .unwrap();
+        let _ = receiver.recv_timeout(Duration::from_secs(2)).unwrap();
+        let completion = server
+            .request(
+                "textDocument/completion",
+                json!({
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 0, "character": 2}
+                }),
+            )
+            .unwrap();
+        assert!(completion.to_string().contains("cons"), "{completion}");
         server.shutdown().unwrap();
     }
 }

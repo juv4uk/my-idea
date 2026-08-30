@@ -10,7 +10,9 @@
             ["@codemirror/lang-markdown" :refer [markdown]]
             ["codemirror-lang-mermaid" :refer [mermaid]]
             ["@nextjournal/lang-clojure" :refer [clojure]]
-            ["@codemirror/lint" :refer [linter lintGutter]]))
+            ["@codemirror/lint" :refer [forceLinting linter lintGutter]]
+            [my-idea.lsp :as lsp]
+            [my-idea.workspace :as workspace]))
 
 ;; One CodeMirror instance is shared by the workspace.
 ;; Один екземпляр CodeMirror обслуговує робочу область.
@@ -81,17 +83,18 @@
                                    :to (.. view -state -doc -length)
                                    :insert text}})))
 
-(defn- language-extensions [mode]
+(defn- language-extensions [mode path]
   (case mode
     "rust" #js [(rust)]
     "markdown" #js [(markdown)]
     "mermaid" #js [(mermaid)]
     "text" #js []
-    #js [(clojure) (autocompletion #js {:override #js [completions]})]))
+    "my-lisp" #js [(clojure) (autocompletion #js {:override #js [(if (workspace/native?) (lsp/completions path) completions)]})]
+    #js [(clojure)]))
 
 (defn mount!
   "Mount the programming editor. The evaluator is only one optional consumer."
-  [parent source-text mode diagnose-fn on-change]
+  [parent source-text mode path diagnose-fn on-change]
   (when-let [^js old-view @view*]
     (.destroy old-view))
   (let [state (.create EditorState
@@ -100,9 +103,12 @@
                             #js [(lineNumbers) (highlightActiveLineGutter) (foldGutter)
                                  (history) (drawSelection) (indentOnInput)
                                  (bracketMatching) (highlightActiveLine)
-                                 (language-extensions mode)
+                                 (language-extensions mode path)
                                  (lintGutter)
-                                 (linter (fn [view] (diagnose-fn (.. view -state -doc toString) mode)))
+                                 (linter (fn [view]
+                                           (if (and (= mode "my-lisp") (workspace/native?))
+                                             (lsp/diagnostics path view)
+                                             (diagnose-fn (.. view -state -doc toString) mode))))
                                  (.of keymap
                                       (.concat #js [indentWithTab]
                                                defaultKeymap historyKeymap completionKeymap))
@@ -113,4 +119,5 @@
                                           (on-change (.. update -state -doc toString)))))]})
         view (EditorView. #js {:state state :parent parent})]
     (reset! view* view)
+    (lsp/set-refresh! #(when-let [current @view*] (forceLinting current)))
     view))

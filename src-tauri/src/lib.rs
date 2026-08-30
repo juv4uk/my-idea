@@ -1,5 +1,6 @@
 mod ecosystem;
 pub mod lsp_client;
+mod lsp_adapter;
 mod oracle;
 pub mod process_service;
 mod swarm;
@@ -454,6 +455,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Workspace::default())
         .manage(process_service::ProcessService::default())
+        .manage(lsp_adapter::LspSessions::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -464,6 +466,13 @@ pub fn run() {
             read_workspace_file,
             save_workspace_file,
             create_workspace_file,
+            lsp_adapter::wsm_lsp_open,
+            lsp_adapter::wsm_lsp_change,
+            lsp_adapter::wsm_lsp_close,
+            lsp_adapter::wsm_lsp_completion,
+            lsp_adapter::wsm_lsp_hover,
+            lsp_adapter::wsm_lsp_definition,
+            lsp_adapter::wsm_lsp_symbols,
             save_as_dialog,
             evaluate_my_lisp,
             ecosystem_status,
