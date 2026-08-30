@@ -103,6 +103,17 @@ test('native build process contract is argv-only, workspace-scoped and versioned
   assert.match(contract, /not exposed as a generic Tauri command/);
 });
 
+test('one stdio LSP transport serves WsmLS and rust-analyzer adapters', () => {
+  const lsp = readFileSync('src-tauri/src/lsp_client.rs', 'utf8');
+  const plan = readFileSync('docs/IDE-IMPLEMENTATION-PLAN.md', 'utf8');
+  assert.match(lsp, /Content-Length:/);
+  assert.match(lsp, /recv_timeout\(RESPONSE_TIMEOUT\)/);
+  assert.match(lsp, /Command::new\(&profile\.executable\)/);
+  assert.match(lsp, /\.args\(&profile\.args\)/);
+  assert.match(plan, /my-lisp lsp/);
+  assert.match(plan, /rust-analyzer/);
+});
+
 test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');

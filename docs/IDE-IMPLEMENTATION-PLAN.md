@@ -48,6 +48,19 @@ specific dependency graph.
 - Map diagnostics to files and locations without re-parsing WSM in the IDE.
 - Add a CML Compile action only after `CML-STABLE-CLI-CONTRACT` is ratified.
 
+### P2A — shared language-server client
+
+- Implement one persistent, stdio-framed JSON-RPC/LSP client in the Tauri
+  backend; do not parse WSM or Rust in the IDE.
+- Route `.wsm`, `.my` and `.lisp` to `my-lisp lsp` (WsmLS).
+- Route `.rs` to the installed `rust-analyzer` binary.
+- Keep one server session per workspace and language, send incremental document
+  lifecycle notifications, and stop sessions when the workspace closes.
+- Feed diagnostics and completion into CodeMirror through one versioned IDE
+  schema. Preserve each server's diagnostic source and message.
+- Missing server binaries are actionable diagnostics, never silent fallback to
+  the old hard-coded completion list.
+
 The CML contract must define, before IDE integration:
 
 - exact executable and argv syntax;

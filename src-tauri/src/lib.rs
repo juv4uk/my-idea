@@ -1,4 +1,5 @@
 mod ecosystem;
+pub mod lsp_client;
 mod oracle;
 pub mod process_service;
 mod swarm;

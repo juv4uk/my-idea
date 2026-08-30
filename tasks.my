@@ -110,6 +110,24 @@
     (description . "Add an explicit WSM project adapter using only commands actually supported by the authoritative my-lisp CLI and WsmLS/my-lisp LSP. Provide Run and Check/diagnostics without reimplementing parsing or semantics in my-idea. Do not expose a universal CML Compile button until CML-STABLE-CLI-CONTRACT exists.")
     (done . ())
   ))
+  ("IDEA-LSP-CLIENT-TRANSPORT" . (
+    (priority . 9.65)
+    (depends-on . (IDEA-PRODUCT-RESET-ADR))
+    (description . "Implement one persistent Tauri-side LSP/JSON-RPC stdio client with Content-Length framing, request correlation, server notifications, workspace-root lifecycle and bounded shutdown. It must accept executable+argv profiles, not shell strings, and expose no language semantics of its own.")
+    (done . t)
+  ))
+  ("IDEA-WSM-LSP-ADAPTER" . (
+    (priority . 9.6)
+    (depends-on . (IDEA-LSP-CLIENT-TRANSPORT))
+    (description . "Route .wsm/.my/.lisp documents to the authoritative `my-lisp lsp` stdio server. Wire diagnostics, completion, hover, symbols and definition capabilities supported by WsmLS into CodeMirror without duplicating its parser or builtin registry.")
+    (done . ())
+  ))
+  ("IDEA-RUST-ANALYZER-ADAPTER" . (
+    (priority . 9.55)
+    (depends-on . (IDEA-LSP-CLIENT-TRANSPORT))
+    (description . "Route .rs documents to the installed official Rust LSP implementation `rust-analyzer`. Detect Cargo workspace root, report missing rust-analyzer/rust-src actionably, and wire diagnostics, completion, hover, symbols and definition through the same CodeMirror adapter as WsmLS.")
+    (done . ())
+  ))
   ("IDEA-TAURI-BUILD-ADAPTER" . (
     (priority . 9.3)
     (depends-on . (IDEA-BUILD-PROCESS-CONTRACT))
