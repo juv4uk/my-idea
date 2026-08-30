@@ -90,7 +90,7 @@
     (priority . 9.6)
     (depends-on . (IDEA-PRODUCT-RESET-ADR))
     (description . "Define and implement the Tauri-side build process contract: one active run per workspace, executable plus argv (no shell concatenation), fixed cwd, structured stdout/stderr events, idle/running/succeeded/failed/cancelled states and bounded cancellation. Windows cancellation must terminate the descendant process tree.")
-    (done . ())
+    (done . t)
   ))
   ("IDEA-BUILD-OUTPUT-UI" . (
     (priority . 9.2)

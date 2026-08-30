@@ -91,6 +91,18 @@ test('new native documents use the create-only workspace command once', () => {
   assert.match(commands, /:new\? false/);
 });
 
+test('native build process contract is argv-only, workspace-scoped and versioned', () => {
+  const process = readFileSync('src-tauri/src/process_service.rs', 'utf8');
+  const contract = readFileSync('docs/BUILD-PROCESS-CONTRACT.md', 'utf8');
+  assert.match(process, /Command::new\(&spec\.executable\)/);
+  assert.match(process, /\.args\(&spec\.args\)/);
+  assert.match(process, /\.current_dir\(&workspace\)/);
+  assert.match(process, /a build is already running for this workspace/);
+  assert.match(process, /pub const EVENT_SCHEMA: u16 = 1/);
+  assert.match(process, /taskkill/);
+  assert.match(contract, /not exposed as a generic Tauri command/);
+});
+
 test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');

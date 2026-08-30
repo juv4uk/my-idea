@@ -1,5 +1,6 @@
 mod ecosystem;
 mod oracle;
+pub mod process_service;
 mod swarm;
 mod swarm_dashboard;
 
@@ -451,6 +452,7 @@ fn save_as_dialog(
 pub fn run() {
     tauri::Builder::default()
         .manage(Workspace::default())
+        .manage(process_service::ProcessService::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
