@@ -98,3 +98,30 @@
                      #js {:from (if word (.-from word) position)
                           :options (or items #js [])})))
           (.catch (fn [_] #js {:from position :options #js []}))))))
+
+(defn- hover-content [contents]
+  (cond
+    (string? contents) contents
+    (map? contents) (or (:value contents) "")
+    (sequential? contents) (str/join "\n\n" (map hover-content contents))
+    :else ""))
+
+(defn hover [mode path]
+  (fn [^js view position _side]
+    (let [line-info (.. view -state -doc (lineAt position))
+          line (dec (.-number line-info))
+          character (- position (.-from line-info))]
+      (-> (workspace/invoke! (str (command-prefix mode) "hover")
+                             {:path path :line line :character character})
+          (.then (fn [response]
+                   (when-let [result (some-> response (aget "result"))]
+                     (let [text (hover-content (:contents (js->clj result :keywordize-keys true)))]
+                       (when (seq text)
+                         #js {:pos position
+                              :above true
+                              :create (fn []
+                                        (let [dom (.createElement js/document "div")]
+                                          (set! (.-className dom) "cm-lsp-hover")
+                                          (set! (.-textContent dom) text)
+                                          #js {:dom dom}))})))))
+          (.catch (fn [_] nil))))))

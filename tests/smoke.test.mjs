@@ -126,6 +126,8 @@ test('native WsmLS adapter owns WSM diagnostics and completion', () => {
   assert.match(adapter, /textDocument\/definition/);
   assert.match(adapter, /textDocument\/documentSymbol/);
   assert.match(frontend, /textDocument\/publishDiagnostics/);
+  assert.match(frontend, /command-prefix mode\) "hover"/);
+  assert.match(editor, /hoverTooltip/);
   assert.match(editor, /forceLinting/);
 });
 

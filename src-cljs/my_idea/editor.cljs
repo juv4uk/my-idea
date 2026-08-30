@@ -5,7 +5,7 @@
             ["@codemirror/state" :refer [EditorState]]
             ["@codemirror/view" :refer [EditorView drawSelection
                                          highlightActiveLine highlightActiveLineGutter
-                                         keymap lineNumbers]]
+                                         hoverTooltip keymap lineNumbers]]
             ["@codemirror/lang-rust" :refer [rust]]
             ["@codemirror/lang-markdown" :refer [markdown]]
             ["codemirror-lang-mermaid" :refer [mermaid]]
@@ -84,13 +84,15 @@
                                    :insert text}})))
 
 (defn- language-extensions [mode path]
+  (let [hover (when (and (lsp/supported? mode) (workspace/native?))
+                (hoverTooltip (lsp/hover mode path)))]
   (case mode
-    "rust" #js [(rust) (when (workspace/native?) (autocompletion #js {:override #js [(lsp/completions mode path)]}))]
+    "rust" #js [(rust) (when (workspace/native?) (autocompletion #js {:override #js [(lsp/completions mode path)]})) hover]
     "markdown" #js [(markdown)]
     "mermaid" #js [(mermaid)]
     "text" #js []
-    "my-lisp" #js [(clojure) (autocompletion #js {:override #js [(if (workspace/native?) (lsp/completions mode path) completions)]})]
-    #js [(clojure)]))
+    "my-lisp" #js [(clojure) (autocompletion #js {:override #js [(if (workspace/native?) (lsp/completions mode path) completions)]}) hover]
+    #js [(clojure)])))
 
 (defn mount!
   "Mount the programming editor. The evaluator is only one optional consumer."
