@@ -42,6 +42,26 @@ test('CodeMirror 6 is the primary reusable editor', () => {
   assert.match(editor, /\.\-matches/);
 });
 
+test('primary toolbar exposes only working IDE actions', () => {
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  for (const removedId of [
+    'ecosystem',
+    'oracle',
+    'compare',
+    'swarm',
+    'knowledge-graph',
+    'swarm-dashboard',
+  ]) {
+    assert.doesNotMatch(core, new RegExp(`id='${removedId}'`));
+  }
+  assert.match(core, /id='open'/);
+  assert.match(core, /id='save'/);
+  assert.match(core, /id='save-as'/);
+  assert.match(core, /when runnable\?/);
+  assert.match(core, /\(= mode "my-lisp"\)/);
+  assert.match(core, /WSM AST/);
+});
+
 test('workspace model tracks files, tabs and dirty documents', () => {
   const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
   assert.match(workspace, /open-document/);

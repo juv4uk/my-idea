@@ -78,7 +78,7 @@
     (priority . 9.8)
     (depends-on . (IDEA-PRODUCT-RESET-ADR))
     (description . "Remove Observatory, Oracle, Compare, Swarm, Knowledge Graph and SWARM controls from the primary toolbar and delete obsolete UI routing/tests. Do not delete backend code until Tauricode ownership and any historical evidence are checked. Visible command means a working end-to-end path.")
-    (done . ())
+    (done . t)
   ))
   ("IDEA-NEW-FILE-SAVE" . (
     (priority . 9.7)

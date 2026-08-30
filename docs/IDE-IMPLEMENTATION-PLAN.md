@@ -48,6 +48,18 @@ specific dependency graph.
 - Map diagnostics to files and locations without re-parsing WSM in the IDE.
 - Add a CML Compile action only after `CML-STABLE-CLI-CONTRACT` is ratified.
 
+The CML contract must define, before IDE integration:
+
+- exact executable and argv syntax;
+- named target selection and output artifact path;
+- structured diagnostics and exit-status meanings;
+- typed unsupported reasons rather than a generic green skip;
+- the consumed target-ABI schema/version/digest for freestanding output.
+
+Current CML backend-classification debt must be closed independently; an IDE
+adapter must not turn `panic`, generic `Unsupported`, or documentation drift
+into a successful Compile result.
+
 ### P3 — Tauri development loop
 
 - Detect `package.json`, `src-tauri/Cargo.toml` and Tauri configuration.
@@ -61,6 +73,14 @@ specific dependency graph.
 - Build it through the same public adapter used for other Tauri projects.
 - Produce and identify a real bundle.
 - Record commit, toolchain, command profile, artifact path and SHA-256 digest.
+
+### Later — wsm-os target profile
+
+After the desktop loop and CML CLI contract are proven, `wsm-os` may appear as
+an explicit WSM build target. The IDE will consume its evidence states and
+artifacts; it will not absorb boot/runtime ownership. QEMU parity is distinct
+from physical-hardware parity, and both must remain visibly distinct in build
+results.
 
 ## Deferred
 
@@ -85,4 +105,3 @@ PRODUCT-BOUNDARY-RECORDED
 ```
 
 No state proves the next one.
-
