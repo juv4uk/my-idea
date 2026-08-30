@@ -86,6 +86,7 @@
     (when (and name (not (str/blank? name)))
       (let [path (if (:root @state) name (str/trim name))]
         (swap! state workspace/open-document path "")
+        (swap! state assoc-in [:documents path :new?] true)
         (persist!)
         (render!)))))
 
@@ -99,9 +100,13 @@
   (when-let [path (:active-path @state)]
     (let [contents (editor/source)]
       (if (and (workspace/native?) (:root @state))
-        (-> (workspace/invoke! "save_workspace_file" {:path path :contents contents})
-            (.then #(do (swap! state update-in [:documents path] merge {:contents contents :saved contents :dirty? false}) (render!)))
-            (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
+        (let [new? (true? (get-in @state [:documents path :new?]))
+              command (if new? "create_workspace_file" "save_workspace_file")]
+          (-> (workspace/invoke! command {:path path :contents contents})
+              (.then #(do (swap! state update-in [:documents path] merge
+                                {:contents contents :saved contents :dirty? false :new? false})
+                          (if new? (refresh-tree!) (render!))))
+              (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
         (do (workspace/download! path contents)
             (swap! state update-in [:documents path] merge {:contents contents :saved contents :dirty? false})
             (render!))))))

@@ -84,7 +84,7 @@
     (priority . 9.7)
     (depends-on . (IDEA-PRODUCT-RESET-ADR))
     (description . "Make New File -> Save work inside the selected workspace. Add a root-contained create path that canonicalizes the existing parent, rejects traversal/symlink escape and never overwrites without an explicit decision. Add native tests for create, traversal rejection and existing-file behavior.")
-    (done . ())
+    (done . t)
   ))
   ("IDEA-BUILD-PROCESS-CONTRACT" . (
     (priority . 9.6)

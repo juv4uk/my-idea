@@ -77,8 +77,18 @@ test('native file commands are constrained to the selected workspace', () => {
   assert.match(rust, /#\[cfg\(mobile\)\][\s\S]*Storage Access Framework/);
   assert.match(rust, /read_workspace_file/);
   assert.match(rust, /save_workspace_file/);
+  assert.match(rust, /create_workspace_file/);
+  assert.match(rust, /create_new\(true\)/);
+  assert.match(rust, /new file parent escapes the workspace/);
   assert.match(rust, /starts_with\(root\)/);
   assert.match(rust, /only existing workspace files can be saved/);
+});
+
+test('new native documents use the create-only workspace command once', () => {
+  const commands = readFileSync('src-cljs/my_idea/commands.cljs', 'utf8');
+  assert.match(commands, /\[:documents path :new\?\]/);
+  assert.match(commands, /if new\? "create_workspace_file" "save_workspace_file"/);
+  assert.match(commands, /:new\? false/);
 });
 
 test('frontend wiring exposes the independent Rust my-lisp command', () => {

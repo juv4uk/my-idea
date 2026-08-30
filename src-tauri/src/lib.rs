@@ -8,6 +8,9 @@ use my_lisp_literate::SourceMode;
 use serde::Serialize;
 use std::{
     fs,
+    fs::OpenOptions,
+    io::Write,
+    path::Component,
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -137,6 +140,76 @@ mod language_adapter_tests {
     }
 }
 
+#[cfg(test)]
+mod workspace_creation_tests {
+    use super::create_new_workspace_file;
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new(label: &str) -> Self {
+            let nonce = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock should be after Unix epoch")
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!("my-idea-{label}-{nonce}"));
+            fs::create_dir_all(&path).expect("test directory should be created");
+            Self(
+                path.canonicalize()
+                    .expect("test directory should canonicalize"),
+            )
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn creates_a_new_file_under_an_existing_workspace_parent() {
+        let workspace = TestDirectory::new("create");
+        fs::create_dir(workspace.0.join("src")).expect("source directory should be created");
+
+        let created = create_new_workspace_file(&workspace.0, "src/main.wsm", "(quote ok)")
+            .expect("new file should be created");
+
+        assert_eq!(fs::read_to_string(created).unwrap(), "(quote ok)");
+    }
+
+    #[test]
+    fn rejects_traversal_and_existing_files() {
+        let workspace = TestDirectory::new("boundaries");
+        assert!(create_new_workspace_file(&workspace.0, "../escape.wsm", "bad").is_err());
+
+        fs::write(workspace.0.join("exists.wsm"), "original").unwrap();
+        assert!(create_new_workspace_file(&workspace.0, "exists.wsm", "replacement").is_err());
+        assert_eq!(
+            fs::read_to_string(workspace.0.join("exists.wsm")).unwrap(),
+            "original"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_a_parent_symlink_that_leaves_the_workspace() {
+        use std::os::unix::fs::symlink;
+
+        let workspace = TestDirectory::new("symlink-workspace");
+        let outside = TestDirectory::new("symlink-outside");
+        symlink(&outside.0, workspace.0.join("outside-link")).unwrap();
+
+        assert!(create_new_workspace_file(&workspace.0, "outside-link/escape.wsm", "bad").is_err());
+        assert!(!outside.0.join("escape.wsm").exists());
+    }
+}
+
 fn relative_text(path: &Path, root: &Path) -> String {
     path.strip_prefix(root)
         .unwrap_or(path)
@@ -198,6 +271,44 @@ fn safe_existing(root: &Path, relative: &str) -> Result<PathBuf, String> {
     } else {
         Err("path escapes the workspace".into())
     }
+}
+
+fn create_new_workspace_file(
+    root: &Path,
+    relative: &str,
+    contents: &str,
+) -> Result<PathBuf, String> {
+    let relative = Path::new(relative);
+    if relative.as_os_str().is_empty()
+        || relative.is_absolute()
+        || relative
+            .components()
+            .any(|part| !matches!(part, Component::Normal(_)))
+    {
+        return Err("new file path must be a relative path without traversal".into());
+    }
+
+    let parent = relative.parent().unwrap_or_else(|| Path::new(""));
+    let canonical_parent = root
+        .join(parent)
+        .canonicalize()
+        .map_err(|error| format!("new file parent is not an existing directory: {error}"))?;
+    if !canonical_parent.is_dir() || !canonical_parent.starts_with(root) {
+        return Err("new file parent escapes the workspace".into());
+    }
+
+    let file_name = relative
+        .file_name()
+        .ok_or_else(|| "new file path has no file name".to_string())?;
+    let destination = canonical_parent.join(file_name);
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&destination)
+        .map_err(|error| format!("new workspace file was not created: {error}"))?;
+    file.write_all(contents.as_bytes())
+        .map_err(|error| format!("new workspace file was not written: {error}"))?;
+    Ok(destination)
 }
 
 #[tauri::command]
@@ -277,6 +388,16 @@ fn save_workspace_file(
     fs::write(path, contents).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn create_workspace_file(
+    path: String,
+    contents: String,
+    state: State<'_, Workspace>,
+) -> Result<(), String> {
+    let root = root(&state)?;
+    create_new_workspace_file(&root, &path, &contents).map(|_| ())
+}
+
 /// Opens a system «Save As» dialog and writes the file to the chosen location.
 /// Відкриває системний діалог «Зберегти як» і записує файл у вибране місце.
 /// Öffnet einen «Speichern unter»-Dialog und schreibt die Datei an den gewählten Speicherort.
@@ -339,6 +460,7 @@ pub fn run() {
             list_workspace,
             read_workspace_file,
             save_workspace_file,
+            create_workspace_file,
             save_as_dialog,
             evaluate_my_lisp,
             ecosystem_status,
