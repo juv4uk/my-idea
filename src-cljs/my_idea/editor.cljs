@@ -95,11 +95,21 @@
   (let [hover (when (and (lsp/supported? mode) (workspace/native?))
                 (hoverTooltip (lsp/hover mode path)))]
   (case mode
-    "rust" #js [(rust) (when (workspace/native?) (autocompletion #js {:override #js [(lsp/completions mode path)]})) hover]
+    ;; `hover` (and, for "rust", the LSP-backed autocompletion) is `nil` in
+    ;; ClojureScript whenever the guarding `when` is false — e.g. every time
+    ;; this runs outside the Tauri desktop shell, since `workspace/native?`
+    ;; is false in the browser/PWA build. A bare `nil` becomes a literal JS
+    ;; `null` inside a `#js [...]` array, and CodeMirror's extension
+    ;; resolver expects only `Extension`/`Extension[]`/`Compartment`
+    ;; entries — it throws `Cannot read properties of null (reading
+    ;; 'extension')` on anything else, which crashed editor mounting
+    ;; entirely in the browser build (empty #editor, nothing to run).
+    ;; `remove nil?` keeps the array valid regardless of which guards fired.
+    "rust" (into-array (remove nil? [(rust) (when (workspace/native?) (autocompletion #js {:override #js [(lsp/completions mode path)]})) hover]))
     "markdown" #js [(markdown)]
     "mermaid" #js [(mermaid)]
     "text" #js []
-    "my-lisp" #js [(clojure) (autocompletion #js {:override #js [(if (workspace/native?) (lsp/completions mode path) completions)]}) hover]
+    "my-lisp" (into-array (remove nil? [(clojure) (autocompletion #js {:override #js [(if (workspace/native?) (lsp/completions mode path) completions)]}) hover]))
     #js [(clojure)])))
 
 (defn mount!
