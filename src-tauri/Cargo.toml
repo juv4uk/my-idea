@@ -1,6 +1,6 @@
 [package]
 name = "my-idea"
-version = "0.13.3"
+version = "0.13.4"
 description = "Lightweight programming IDE / Легка IDE для програмування / Leichtgewichtige Programmier-IDE"
 authors = ["juv4uk"]
 edition = "2021"
