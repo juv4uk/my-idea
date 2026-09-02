@@ -423,7 +423,7 @@ mod tests {
                 "textDocument/didChange",
                 json!({
                     "textDocument": {"uri": uri, "version": 2},
-                    "contentChanges": [{"text": "(cons 'a '())"}]
+                    "contentChanges": [{"text": "(cons (quote a) (quote ()))"}]
                 }),
             )
             .unwrap();

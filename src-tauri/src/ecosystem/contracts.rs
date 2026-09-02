@@ -47,7 +47,7 @@ pub(super) fn symbol_name(expr: &Expr) -> Option<&str> {
 
 pub(super) fn number(expr: &Expr) -> Option<i64> {
     match &expr.kind {
-        ExprKind::Number(value) => Some(value.round() as i64),
+        ExprKind::Number(value, _exactness) => Some(value.round() as i64),
         _ => None,
     }
 }

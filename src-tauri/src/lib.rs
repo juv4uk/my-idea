@@ -136,7 +136,7 @@ mod language_adapter_tests {
 
     #[test]
     fn native_adapter_loads_bootstrap_library_and_preserves_exact_values() {
-        let result = evaluate_my_lisp("(cons (second '(radio antenna)) (cons (/ 1 3) '()))".into(), Some("my-lisp".to_string()))
+        let result = evaluate_my_lisp("(cons (second (quote (radio antenna))) (cons (/ 1 3) (quote ())))".into(), Some("my-lisp".to_string()))
             .expect("native evaluation should succeed");
         assert_eq!(result.value, "(antenna 1/3)");
         assert_eq!(result.engine, "my-lisp · Rust");
