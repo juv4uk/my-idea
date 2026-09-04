@@ -1,5 +1,6 @@
 (ns my-idea.core
   (:require [clojure.string :as str]
+            [my-idea.build-output :as build-output]
             [my-idea.commands :as cmd]
             [my-idea.editor :as editor]
             [my-idea.i18n :as i18n]
@@ -71,30 +72,86 @@
                                     (fn [_ y] (set-layout-var! "--ph-h" (str (max 60 (min (- (.-height rect) 100) (- y (.-top rect)))) "px")))
                                     (fn [] (save "my-idea:ph-h" "--ph-h")))))))))
 
+(defn- init-build-splitter! []
+  (when-some [el (.getElementById js/document "bhsplit")]
+    (let [root-style (.-style (.. js/document -documentElement))
+          save (fn [key css-var] (.setItem js/localStorage key (.getPropertyValue root-style css-var)))
+          on-drag (fn [el on-move on-end]
+                    (.addEventListener el "mousedown"
+                                       (fn [e] (drag! e on-move on-end))))]
+      (on-drag el
+               (fn [_ y]
+                 (let [rect (.getBoundingClientRect (.getElementById js/document "build-output"))
+                       h (- (.-bottom rect) y)]
+                   (set-layout-var! "--bh-h" (str (max 80 (min 600 h)) "px"))))
+               (fn [] (save "my-idea:bh-h" "--bh-h"))))))
+
+(defn render-build-output-panel []
+  (let [events (build-output/get-events)
+        active-profile (build-output/get-active-profile)
+        exit-state (build-output/get-exit-state)
+        exit-code (build-output/get-exit-code)
+        missing-tool (build-output/get-missing-tool)
+        has-active (build-output/has-active-build?)
+        building? (and has-active (not (some #{:succeeded :failed :cancelled} [exit-state])))]
+    (when (or (seq events) has-active)
+      (str
+        "<section class='pane build-output' id='build-output'>"
+        "<div class='pane-head build-head'>"
+        "<span class='build-title'>" (t :build-output) "</span>"
+        (when active-profile
+          (str "<span class='build-profile'>" (t :build-profile) ": " (esc active-profile) "</span>"))
+        (when building?
+          (str "<button class='build-stop' id='build-stop'>" (t :build-stop) "</button>"))
+        (when exit-state
+          (str "<span class='build-exit " exit-state "'>" (t :build-exit) ": " (t (keyword exit-state)) (when exit-code (str " (" exit-code ")")) "</span>"))
+        "</div>"
+        "<div class='build-lines'>"
+        (apply str (map (fn [e]
+                          (let [stream (:stream e)
+                                line (:line e)
+                                state (:state e)]
+                            (str "<div class='build-line " stream "'>"
+                                 "<span class='build-stream'>" (t (keyword stream)) "</span>"
+                                 "<span class='build-text'>" (esc line) "</span>"
+                                 "</div>")))
+                        (sort-by :_local-seq events)))
+        "</div>"
+        (when missing-tool
+          (str "<div class='build-missing'>" (t :build-missing-tool) ": " (esc missing-tool) "</div>"))
+        "</section>"))))
+
 (defn render! []
   (let [{:keys [language theme root tree open-paths active-path output ast error? sidebar?]} @state
         app (.getElementById js/document "app")
         doc (active-doc)
         mode (or (:language-mode doc) "text")
         preview? (or (= mode "markdown") (= mode "mermaid"))
-        runnable? (or (= mode "my-lisp") (= mode "markdown"))]
+        runnable? (or (= mode "my-lisp") (= mode "markdown"))
+        build-panel (render-build-output-panel)]
     (apply-theme! theme)
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
-           "<div class='actions'><button id='language' title='Language'>" (get i18n/language-labels language) "</button><button id='theme' title='Theme'>" (get i18n/theme-icons theme) " " (get-in i18n/messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>" (when runnable? (str "<button class='run' id='run'>▶ " (t :run) "</button>")) "</div></header>"
-           "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside><div class='splitter vsplit-l' id='vsplit-l'></div>"
+           "<div class='actions'><button id='language' title='Language'>" (get i18n/language-labels language) "</button><button id='theme' title='Theme'>" (get i18n/theme-icons theme) " " (get-in i18n/messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>"
+           (when runnable?
+             (str "<button class='run' id='run'>▶ " (t :run) "</button>"))
+           "</div></header>"
+           "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
+           "<div class='splitter vsplit-l' id='vsplit-l'></div>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" (esc-attr %) "'>" (esc (workspace/filename %)) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" (esc-attr %) "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
-"<div class='splitter vsplit-r' id='vsplit-r'></div><div class='right' id='right'><section class='pane'><div class='pane-head'>" (t :console) "</div><pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre></section>"
-            (cond
-             preview? (str "<div class='splitter hsplit' id='hsplit'></div><section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
-             (= mode "my-lisp") (str "<div class='splitter hsplit' id='hsplit'></div><section class='pane ast'><div class='pane-head'>WSM AST</div><pre>" (esc ast) "</pre></section>")
-             :else "")
-           "</div></main>"
+           (cond
+            preview? (str "<div class='splitter hsplit' id='hsplit'></div><section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
+            (= mode "my-lisp") (str "<div class='splitter hsplit' id='hsplit'></div><section class='pane ast'><div class='pane-head'>WSM AST</div><pre>" (esc ast) "</pre></section>")
+            :else "")
+           "</main>"
+           (when build-panel
+             (str "<div class='splitter hsplit' id='bhsplit'></div>" build-panel))
            "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><button id='programming-language' class='status-language' title='Programming language · Мова програмування · Programmiersprache'>"
            (get i18n/programming-language-labels mode)
            "</button><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
     (restore-layout!)
     (init-splitters!)
+    (init-build-splitter!)
     (when doc
       (when (and (lsp/supported? mode) (not (:new? doc)))
         (lsp/open! mode active-path (:contents doc)))
@@ -117,7 +174,9 @@
     (.addEventListener (.getElementById js/document "save") "click" cmd/save!)
     (.addEventListener (.getElementById js/document "save-as") "click" cmd/save-as!)
     (when-let [el (.getElementById js/document "run")]
-      (.addEventListener el "click" cmd/execute!))
+      (.addEventListener el "click" cmd/run-build!))
+    (when-let [el (.getElementById js/document "build-stop")]
+      (.addEventListener el "click" cmd/stop-build!))
     (.addEventListener (.getElementById js/document "programming-language") "click" cmd/cycle-programming-language!)
     (.addEventListener (.getElementById js/document "menu") "click" #(do (swap! state update :sidebar? not) (render!)))
     (.addEventListener (.getElementById js/document "language") "click"
@@ -127,6 +186,7 @@
                           (render!)))
     (.addEventListener (.getElementById js/document "theme") "click"
                        #(let [value (next-value i18n/themes (:theme @state))]
+                          (.setItem js/localStorage "my-idea:theme" value)
                           (swap! state assoc :theme value)
                           (render!)))
     (doseq [el (.querySelectorAll js/document "[data-path]")] (.addEventListener el "click" #(cmd/open-file! (.. % -currentTarget -dataset -path))))
@@ -148,6 +208,7 @@
 (defn ^:export init []
   (cmd/set-render! render!)
   (lsp/init!)
+  (build-output/init!)
   (render!)
   (cmd/restore-native!)
   (when-not (workspace/native?)

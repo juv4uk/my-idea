@@ -1,3 +1,4 @@
+mod build_runner;
 mod ecosystem;
 pub mod lsp_client;
 mod lsp_adapter;
@@ -455,6 +456,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Workspace::default())
         .manage(process_service::ProcessService::default())
+        .manage(build_runner::BuildRegistry::default())
         .manage(lsp_adapter::LspSessions::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -482,6 +484,9 @@ pub fn run() {
             lsp_adapter::rust_lsp_symbols,
             save_as_dialog,
             evaluate_my_lisp,
+            build_runner::start_build,
+            build_runner::cancel_build,
+            build_runner::active_build,
             ecosystem_status,
             knowledge_graph,
             oracle_query,

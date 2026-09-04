@@ -6,6 +6,7 @@
   render! is wired via set-render! (called once from core/init)
   to avoid a circular namespace require."
   (:require [clojure.string :as str]
+            [my-idea.build-output :as build-output]
             [my-idea.editor :as editor]
             [my-idea.i18n :as i18n]
             [my-idea.state :as state :refer [state active-doc]]
@@ -278,6 +279,43 @@
              :error? true))
     (when-not (and (contains? #{"my-lisp" "markdown"} mode) (workspace/native?))
       (render!))))
+
+;; ---- build commands ----
+
+(defn build-spec-for-active-doc []
+  "Returns a BuildSpec for the active document using the my-lisp script profile.
+  This is a concrete, documented profile that exercises the Build Output panel.
+  The WSM adapter task will replace this with project-aware detection."
+  (when-let [doc (active-doc)]
+    (let [path (:active-path @state)
+          mode (or (:language-mode doc) "text")
+          ext (last (str/split path #"\."))]
+      (when (and (workspace/native?) (= mode "my-lisp") (contains? #{"my" "wsm" "lisp"} ext))
+        {:profile "my-lisp script"
+         :executable "my-lisp"
+         :args [path]}))))
+
+(defn run-build! []
+  (let [spec (build-spec-for-active-doc)]
+    (when spec
+      (build-output/clear!)
+      (-> (workspace/invoke! "start_build" spec)
+          (.then (fn [run-id]
+                   (js/console.log "Build started, run-id:" run-id)))
+          (.catch (fn [e]
+                    (build-output/clear!)
+                    (swap! state assoc
+                           :output [(str (t :build-output) " start failed: " e)]
+                           :error? true)
+                    (render!)))))))
+
+(defn stop-build! []
+  (when (build-output/has-active-build?)
+    (-> (workspace/invoke! "cancel_build" {})
+        (.then (fn [run-id]
+                 (js/console.log "Build cancelled, run-id:" run-id)))
+        (.catch (fn [e]
+                  (js/console.warn "Build cancel failed" e))))))
 
 (defn cycle-programming-language! []
   (when-let [path (:active-path @state)]

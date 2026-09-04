@@ -313,3 +313,72 @@ test('Standalone web artifact does not stack overflow on 100k list', async () =>
     server.close();
   }
 });
+
+test('Build Output panel subscribes to build-output events with v1 schema', () => {
+  const buildRunner = readFileSync('src-tauri/src/build_runner.rs', 'utf8');
+  const processService = readFileSync('src-tauri/src/process_service.rs', 'utf8');
+  const buildOutputCljs = readFileSync('src-cljs/my_idea/build_output.cljs', 'utf8');
+  const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
+  const commands = readFileSync('src-cljs/my_idea/commands.cljs', 'utf8');
+  const styles = readFileSync('public/styles.css', 'utf8');
+
+  // Rust side: emits "build-output" event with schema 1 and camelCase fields (via serde)
+  assert.match(buildRunner, /pub const BUILD_OUTPUT_EVENT: &str = "build-output"/);
+  assert.match(processService, /pub const EVENT_SCHEMA: u16 = 1/);
+  // ProcessEvent struct (process_service.rs) uses serde(rename_all = "camelCase")
+  // Rust field names (snake_case) that serde renames to camelCase at runtime
+  assert.match(processService, /run_id/);
+  assert.match(processService, /sequence/);
+  assert.match(processService, /timestamp_ms/);
+  assert.match(processService, /profile/);
+  assert.match(processService, /stream/);
+  assert.match(processService, /line/);
+  assert.match(processService, /state/);
+  assert.match(processService, /exit_code/);
+  // Stream enum variants (System, Stdout, Stderr)
+  assert.match(processService, /EventStream::Stdout/);
+  assert.match(processService, /EventStream::Stderr/);
+  assert.match(processService, /EventStream::System/);
+  // State enum variants (Running, Succeeded, Failed, Cancelled)
+  assert.match(processService, /RunState::Running/);
+  assert.match(processService, /RunState::Succeeded/);
+  assert.match(processService, /RunState::Failed/);
+  assert.match(processService, /RunState::Cancelled/);
+
+  // Frontend subscribes to "build-output"
+  assert.match(buildOutputCljs, /listen "build-output"/);
+  assert.match(buildOutputCljs, /\(= \(:schema e\) 1\)/);
+  // Frontend destructures camelCase keys from event payload
+  assert.match(buildOutputCljs, /:runId e/);
+  assert.match(buildOutputCljs, /:sequence e/);
+  assert.match(buildOutputCljs, /:stream e/);
+  assert.match(buildOutputCljs, /:line e/);
+  assert.match(buildOutputCljs, /:state e/);
+  assert.match(buildOutputCljs, /:profile e/);
+  assert.match(buildOutputCljs, /:exitCode e/);
+  // Frontend renders panel with stream tags, profile, exit state
+  assert.match(core, /build-output/);
+  assert.match(core, /build-title/);
+  assert.match(core, /build-profile/);
+  assert.match(core, /build-exit/);
+  assert.match(core, /build-stop/);
+  assert.match(core, /build-stream/);
+  assert.match(core, /build-text/);
+  assert.match(core, /build-missing/);
+  // Commands: run-build! / stop-build! invoke start_build / cancel_build
+  assert.match(commands, /run-build!/);
+  assert.match(commands, /stop-build!/);
+  assert.match(commands, /invoke! "start_build"/);
+  assert.match(commands, /invoke! "cancel_build"/);
+  // CSS: build-output panel styles
+  assert.match(styles, /\.build-output/);
+  assert.match(styles, /\.build-head/);
+  assert.match(styles, /\.build-lines/);
+  assert.match(styles, /\.build-line/);
+  assert.match(styles, /\.build-stream/);
+  assert.match(styles, /\.build-text/);
+  assert.match(styles, /\.build-exit/);
+  assert.match(styles, /\.build-missing/);
+  assert.match(styles, /\.build-stop/);
+  assert.match(styles, /--bh-h/);
+});
