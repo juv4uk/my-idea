@@ -85,4 +85,4 @@ Architecture notes and the platform roadmap live in [`docs/README.md`](docs/READ
 
 ## License · Ліцензія · Lizenz
 
-[MIT](LICENSE)
+[ВОЛЬНІСТЬ](LICENSE)
