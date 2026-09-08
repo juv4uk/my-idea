@@ -1,8 +1,8 @@
 # GitHub Linguist: temporary WSM display profile for every supported source
 # extension. This affects highlighting/statistics only.
-*.wsm linguist-language=Common-Lisp linguist-detectable=true
-*.my linguist-language=Common-Lisp linguist-detectable=true
-*.lisp linguist-language=Common-Lisp linguist-detectable=true
+*.wsm linguist-language=Common-Lisp linguist-detectable=true -linguist-vendored -linguist-generated -linguist-documentation
+*.my linguist-language=Common-Lisp linguist-detectable=true -linguist-vendored -linguist-generated -linguist-documentation
+*.lisp linguist-language=Common-Lisp linguist-detectable=true -linguist-vendored -linguist-generated -linguist-documentation
 
 # ── Line endings: repo = LF everywhere ─────────────────────────
 * text=auto eol=lf
