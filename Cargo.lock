@@ -2023,13 +2023,13 @@ dependencies = [
 
 [[package]]
 name = "my-lisp"
-version = "0.34.0"
-source = "git+https://github.com/juv4uk/my-lisp.git?branch=main#3aca749728138d3ce620fb07a50e18e5a6761a27"
+version = "0.38.0"
+source = "git+https://github.com/juv4uk/my-lisp.git?branch=main#b8bd49aa59c55552acdf12b8559303fc16ba51f4"
 
 [[package]]
 name = "my-lisp-literate"
-version = "0.34.0"
-source = "git+https://github.com/juv4uk/my-lisp.git?branch=main#3aca749728138d3ce620fb07a50e18e5a6761a27"
+version = "0.38.0"
+source = "git+https://github.com/juv4uk/my-lisp.git?branch=main#b8bd49aa59c55552acdf12b8559303fc16ba51f4"
 dependencies = [
  "my-lisp",
  "pulldown-cmark",
