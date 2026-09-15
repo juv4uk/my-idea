@@ -141,6 +141,22 @@ impl CompilerArtifact {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompilerRun {
+    artifact: CompilerArtifact,
+    diagnostics: Vec<CompilerDiagnostic>,
+}
+
+impl CompilerRun {
+    pub fn artifact(&self) -> &CompilerArtifact {
+        &self.artifact
+    }
+
+    pub fn diagnostics(&self) -> &[CompilerDiagnostic] {
+        &self.diagnostics
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompilerFailure {
     message: String,
     diagnostics: Vec<CompilerDiagnostic>,
@@ -190,6 +206,10 @@ impl CompilerBridge {
     }
 
     pub fn compile(&self, request: &CompilerRequest) -> Result<CompilerArtifact, CompilerFailure> {
+        self.compile_observed(request).map(|run| run.artifact)
+    }
+
+    pub fn compile_observed(&self, request: &CompilerRequest) -> Result<CompilerRun, CompilerFailure> {
         if !self.executable.is_file() {
             return Err(CompilerFailure::new(
                 format!(
@@ -273,13 +293,20 @@ impl CompilerBridge {
             ));
         }
 
-        CompilerArtifact::new(
+        let artifact = CompilerArtifact::new(
             &output_path,
             compiler_identity(&self.executable),
             git_revision_for(&self.executable),
             git_revision_for(&request.source),
         )
-        .map_err(|message| CompilerFailure::new(message, diagnostics, output.status.code()))
+        .map_err(|message| {
+            CompilerFailure::new(message, diagnostics.clone(), output.status.code())
+        })?;
+
+        Ok(CompilerRun {
+            artifact,
+            diagnostics,
+        })
     }
 }
 
@@ -342,8 +369,15 @@ fn compiler_identity(executable: &Path) -> String {
 }
 
 fn git_revision_for(path: &Path) -> String {
-    let start = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
-    let Some(root) = start.ancestors().find(|ancestor| ancestor.join(".git").exists()) else {
+    let start = if path.is_dir() {
+        path
+    } else {
+        path.parent().unwrap_or(path)
+    };
+    let Some(root) = start
+        .ancestors()
+        .find(|ancestor| ancestor.join(".git").exists())
+    else {
         return "unavailable".into();
     };
     Command::new("git")
