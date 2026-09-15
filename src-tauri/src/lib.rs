@@ -1,4 +1,6 @@
 pub mod compiler_bridge;
+pub mod repl;
+pub use repl::{parse_startup_target, ReplSession, StartupTarget};
 mod build_runner;
 mod ecosystem;
 pub mod lsp_client;
@@ -39,11 +41,11 @@ struct FileNode {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct LispEvaluation {
-    value: String,
-    output: Vec<String>,
-    ast: String,
-    engine: &'static str,
+pub struct LispEvaluation {
+    pub value: String,
+    pub output: Vec<String>,
+    pub ast: String,
+    pub engine: &'static str,
 }
 
 /// Evaluates capability-free my-lisp code through the canonical Rust engine.
