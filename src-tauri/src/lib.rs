@@ -1,4 +1,5 @@
 pub mod compiler_bridge;
+pub mod compiler_build_adapter;
 pub mod editor_api;
 pub mod repl;
 pub use repl::{
