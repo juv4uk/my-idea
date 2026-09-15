@@ -6,17 +6,10 @@
 //! (banner, `:мова` surface switching, localized presentation) when driven
 //! through it.
 
-use my_idea_lib::repl_process::{resolve_my_lisp_binary, ReplProcess, ReplProcessStream};
-use std::path::{Path, PathBuf};
+use my_idea_lib::repl_process::{my_idea_repo_root, resolve_my_lisp_binary, ReplProcess, ReplProcessStream};
+use std::path::Path;
 use std::sync::mpsc::channel;
 use std::time::Duration;
-
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("src-tauri has a parent repo root")
-        .to_path_buf()
-}
 
 #[test]
 fn repl_process_forwards_lines_written_to_a_simple_echo_command() {
@@ -45,7 +38,7 @@ fn resolve_my_lisp_binary_fails_closed_when_submodule_is_not_checked_out() {
 
 #[test]
 fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_documented() {
-    let binary = resolve_my_lisp_binary(&repo_root())
+    let binary = resolve_my_lisp_binary(&my_idea_repo_root())
         .expect("building my-lisp from the external/my-lisp submodule should succeed");
     assert!(binary.exists());
 
