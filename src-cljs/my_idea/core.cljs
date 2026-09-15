@@ -30,7 +30,7 @@
 
 (defn- restore-layout! []
   (let [style (.-style (.. js/document -documentElement))]
-    (doseq [[var key] [["--sb-w" "my-idea:sb-w"] ["--rw-w" "my-idea:rw-w"] ["--ph-h" "my-idea:ph-h"]]]
+    (doseq [[var key] [["--sb-w" "my-idea:sb-w"] ["--rw-w" "my-idea:rw-w"] ["--ph-h" "my-idea:ph-h"] ["--rch-h" "my-idea:rch-h"]]]
       (when-some [v (.getItem js/localStorage key)]
         (.setProperty style var v)))))
 
@@ -86,6 +86,27 @@
                    (set-layout-var! "--bh-h" (str (max 80 (min 600 h)) "px"))))
                (fn [] (save "my-idea:bh-h" "--bh-h"))))))
 
+(defn- init-repl-console-splitter! []
+  (when-some [el (.getElementById js/document "rchsplit")]
+    (let [root-style (.-style (.. js/document -documentElement))
+          save (fn [key css-var] (.setItem js/localStorage key (.getPropertyValue root-style css-var)))]
+      (.addEventListener el "mousedown"
+                         (fn [e]
+                           (drag! e
+                                  (fn [_ y]
+                                    (let [rect (.getBoundingClientRect (.getElementById js/document "repl-console"))
+                                          h (- (.-bottom rect) y)]
+                                      (set-layout-var! "--rch-h" (str (max 60 (min 600 h)) "px"))))
+                                  (fn [] (save "my-idea:rch-h" "--rch-h"))))))))
+
+(defn render-repl-console-panel []
+  (let [{:keys [output error?]} @state]
+    (str
+      "<section class='pane repl-console' id='repl-console'>"
+      "<div class='pane-head'>" (t :console) "</div>"
+      "<pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre>"
+      "</section>")))
+
 (defn render-build-output-panel []
   (let [events (build-output/get-events)
         active-profile (build-output/get-active-profile)
@@ -128,13 +149,15 @@
         mode (or (:language-mode doc) "text")
         preview? (or (= mode "markdown") (= mode "mermaid"))
         runnable? (or (= mode "my-lisp") (= mode "markdown"))
+        repl-panel (render-repl-console-panel)
         build-panel (render-build-output-panel)]
     (apply-theme! theme)
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
            "<div class='actions'><button id='language' title='Language'>" (get i18n/language-labels language) "</button><button id='theme' title='Theme'>" (get i18n/theme-icons theme) " " (get-in i18n/messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>"
            (when runnable?
-             (str "<button class='run' id='run'>▶ " (t :run) "</button>"))
+             (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"
+                  "<button class='run' id='run'>▶ " (t :run) "</button>"))
            "</div></header>"
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<div class='splitter vsplit-l' id='vsplit-l'></div>"
@@ -144,6 +167,7 @@
             (= mode "my-lisp") (str "<div class='splitter hsplit' id='hsplit'></div><section class='pane ast'><div class='pane-head'>WSM AST</div><pre>" (esc ast) "</pre></section>")
             :else "")
            "</main>"
+           "<div class='splitter hsplit' id='rchsplit'></div>" repl-panel
            (when build-panel
              (str "<div class='splitter hsplit' id='bhsplit'></div>" build-panel))
            "<footer class='status'><span>● " (esc (or active-path "No file")) "</span><button id='programming-language' class='status-language' title='Programming language · Мова програмування · Programmiersprache'>"
@@ -151,6 +175,7 @@
            "</button><span>Tauri + ClojureScript · UTF-8 · CodeMirror 6</span></footer></div>"))
     (restore-layout!)
     (init-splitters!)
+    (init-repl-console-splitter!)
     (init-build-splitter!)
     (when doc
       (when (and (lsp/supported? mode) (not (:new? doc)))
@@ -173,6 +198,8 @@
     (.addEventListener (.getElementById js/document "open-sidebar") "click" cmd/choose-workspace!)
     (.addEventListener (.getElementById js/document "save") "click" cmd/save!)
     (.addEventListener (.getElementById js/document "save-as") "click" cmd/save-as!)
+    (when-let [el (.getElementById js/document "eval")]
+      (.addEventListener el "click" cmd/execute!))
     (when-let [el (.getElementById js/document "run")]
       (.addEventListener el "click" cmd/run-build!))
     (when-let [el (.getElementById js/document "build-stop")]
