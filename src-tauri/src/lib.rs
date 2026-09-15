@@ -1,6 +1,7 @@
 pub mod compiler_bridge;
 pub mod compiler_build_adapter;
 pub mod editor_api;
+pub mod plugins;
 pub mod repl;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
@@ -26,6 +27,7 @@ use std::{
 };
 #[cfg(desktop)]
 use tauri::AppHandle;
+use tauri::Manager;
 use tauri::State;
 #[cfg(desktop)]
 use tauri_plugin_dialog::DialogExt;
@@ -66,6 +68,53 @@ fn evaluate_my_lisp(
     repl: State<'_, ManagedReplSession>,
 ) -> Result<LispEvaluation, String> {
     repl.evaluate(&source, mode.as_deref())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginLoadReportDto {
+    pub loaded: Vec<String>,
+    pub failures: Vec<PluginFailureDto>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginFailureDto {
+    pub path: String,
+    pub message: String,
+}
+
+impl From<plugins::PluginLoadReport> for PluginLoadReportDto {
+    fn from(report: plugins::PluginLoadReport) -> Self {
+        Self {
+            loaded: report
+                .loaded
+                .into_iter()
+                .map(|path| path.to_string_lossy().into_owned())
+                .collect(),
+            failures: report
+                .failures
+                .into_iter()
+                .map(|failure| PluginFailureDto {
+                    path: failure.path.to_string_lossy().into_owned(),
+                    message: failure.message,
+                })
+                .collect(),
+        }
+    }
+}
+
+/// Explicit reload of `init.lisp`/`plugins/*.lisp` from the default config
+/// directory (`~/.config/my-idea`) into the live session -- no automatic
+/// file-watcher, the user/UI decides when to reload (issue #10).
+///
+/// Явний reload `init.lisp`/`plugins/*.lisp` з типового каталогу
+/// конфігурації в живу сесію — жодного автоматичного file-watcher.
+#[tauri::command]
+fn reload_plugins(repl: State<'_, ManagedReplSession>) -> Result<PluginLoadReportDto, String> {
+    let config_dir = plugins::default_config_dir()
+        .ok_or_else(|| "cannot resolve a config directory (HOME is not set)".to_string())?;
+    Ok(repl.load_plugins(&config_dir).into())
 }
 
 
@@ -494,6 +543,12 @@ pub fn run_with_target(target: StartupTarget) {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .setup(|app| {
+            if let Some(config_dir) = plugins::default_config_dir() {
+                app.state::<ManagedReplSession>().load_plugins(&config_dir);
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             choose_workspace,
             reopen_workspace,
@@ -518,6 +573,7 @@ pub fn run_with_target(target: StartupTarget) {
             lsp_adapter::rust_lsp_symbols,
             save_as_dialog,
             evaluate_my_lisp,
+            reload_plugins,
             build_runner::start_build,
             build_runner::cancel_build,
             build_runner::active_build,
