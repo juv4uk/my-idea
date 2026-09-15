@@ -3,6 +3,7 @@ pub mod compiler_build_adapter;
 pub mod editor_api;
 pub mod plugins;
 pub mod repl;
+pub mod repl_console;
 pub mod repl_process;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
@@ -538,6 +539,7 @@ pub fn run_with_target(target: StartupTarget) {
     tauri::Builder::default()
         .manage(Workspace(Mutex::new(initial_workspace)))
         .manage(ManagedReplSession::default())
+        .manage(repl_console::ManagedReplConsole::default())
         .manage(process_service::ProcessService::default())
         .manage(build_runner::BuildRegistry::default())
         .manage(lsp_adapter::LspSessions::default())
@@ -574,6 +576,8 @@ pub fn run_with_target(target: StartupTarget) {
             lsp_adapter::rust_lsp_symbols,
             save_as_dialog,
             evaluate_my_lisp,
+            repl_console::start_repl_console,
+            repl_console::send_repl_console_line,
             reload_plugins,
             build_runner::start_build,
             build_runner::cancel_build,
