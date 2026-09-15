@@ -1,15 +1,19 @@
-//! Мінімальний Editor API для my-lisp-плагінів (issue #9, IDE-LISP-API-1).
-//! Хост (Rust/Tauri) надає лише механізм — реєстрацію команд, повідомлення,
-//! текст буфера, виділення, заміну виділення. Семантику Lisp тут не
-//! дублюємо: неавторизовані host-можливості (файли, процеси) лишаються
-//! недоступними, бо жодна `read-file`-подібна capability тут не реєструється.
+//! Мінімальний Editor API для my-lisp-плагінів (issue #9, IDE-LISP-API-1),
+//! розширений хуками/keymaps (issue #11, IDE-LISP-HOOKS-1). Хост
+//! (Rust/Tauri) надає лише механізм — реєстрацію команд, повідомлення,
+//! текст буфера, виділення, заміну виділення, прив'язку клавіш і підписку
+//! на події. Поведінка (що саме робить команда чи обробник) лишається
+//! Lisp-owned. Семантику Lisp тут не дублюємо: неавторизовані
+//! host-можливості (файли, процеси) лишаються недоступними, бо жодна
+//! `read-file`-подібна capability тут не реєструється.
 //!
-//! Minimal Editor API for my-lisp plugins (issue #9, IDE-LISP-API-1). The
-//! host (Rust/Tauri) exposes mechanism only — command registration,
-//! message, buffer text, selection, replace-selection — and never
-//! duplicates Lisp semantics. Unauthorized host capabilities (filesystem,
-//! processes) stay unreachable because no `read-file`-like capability is
-//! registered here.
+//! Minimal Editor API for my-lisp plugins (issue #9, IDE-LISP-API-1),
+//! extended with hooks/keymaps (issue #11, IDE-LISP-HOOKS-1). The host
+//! (Rust/Tauri) exposes mechanism only — command registration, message,
+//! buffer text, selection, replace-selection, key binding, event
+//! subscription — never duplicates Lisp semantics. Unauthorized host
+//! capabilities (filesystem, processes) stay unreachable because no
+//! `read-file`-like capability is registered here.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -34,9 +38,37 @@ struct RegisteredCommand {
     handler: Value,
 }
 
+/// Прив'язка клавіші до імені вже (чи ще не) зареєстрованої команди
+/// (issue #11). Валідність імені команди перевіряється при диспетчеризації
+/// клавіші, не при біндингу — порядок завантаження плагінів не фіксований
+/// щодо того, яка команда/keymap приходить першою.
+///
+/// A key bound to a command name (issue #11). The command name's validity
+/// is checked at key-dispatch time, not at bind time — plugin load order
+/// doesn't guarantee a command is registered before its keymap is.
+struct RegisteredKeymap {
+    key: String,
+    command: String,
+}
+
+/// Один обробник однієї події редактора, зареєстрований під власним
+/// `handler_id` — той самий `retain`-потім-`push` патерн, що й у команд,
+/// щоб reload того самого плагіна замінював обробник, а не дублював його.
+///
+/// One handler for one editor event, registered under its own
+/// `handler_id` — the same retain-then-push pattern as commands, so
+/// reloading the same plugin replaces the handler instead of duplicating it.
+struct RegisteredHandler {
+    event: String,
+    handler_id: String,
+    callback: Value,
+}
+
 #[derive(Default)]
 struct RegistryState {
     commands: Vec<RegisteredCommand>,
+    keymaps: Vec<RegisteredKeymap>,
+    handlers: Vec<RegisteredHandler>,
     current: Option<EditorState>,
     effect: EditorEffect,
 }
@@ -186,6 +218,66 @@ fn editor_message(
     Ok(Value::String(text))
 }
 
+fn editor_keymap(
+    arguments: &[Expr],
+    environment: &Environment,
+    span: Span,
+) -> Result<Value, LanguageError> {
+    exact_arity("editor/keymap", arguments, 2, span)?;
+    let token = token_from_environment(environment, span)?;
+    let key = expect_string(
+        &eval_expr(&arguments[0], environment)?,
+        "editor/keymap",
+        arguments[0].span,
+    )?;
+    let command = expect_string(
+        &eval_expr(&arguments[1], environment)?,
+        "editor/keymap",
+        arguments[1].span,
+    )?;
+
+    let state = state_for(token);
+    let mut state = state.borrow_mut();
+    state.keymaps.retain(|existing| existing.key != *key);
+    state.keymaps.push(RegisteredKeymap {
+        key: key.to_string(),
+        command: command.to_string(),
+    });
+    Ok(Value::Symbol(Rc::from("ok")))
+}
+
+fn editor_on(
+    arguments: &[Expr],
+    environment: &Environment,
+    span: Span,
+) -> Result<Value, LanguageError> {
+    exact_arity("editor/on", arguments, 3, span)?;
+    let token = token_from_environment(environment, span)?;
+    let event = expect_string(
+        &eval_expr(&arguments[0], environment)?,
+        "editor/on",
+        arguments[0].span,
+    )?;
+    let handler_id = expect_string(
+        &eval_expr(&arguments[1], environment)?,
+        "editor/on",
+        arguments[1].span,
+    )?;
+    let callback = eval_expr(&arguments[2], environment)?;
+
+    let state = state_for(token);
+    let mut state = state.borrow_mut();
+    state
+        .handlers
+        .retain(|existing| !(existing.event == *event && existing.handler_id == *handler_id));
+    state.handlers.push(RegisteredHandler {
+        event: event.to_string(),
+        handler_id: handler_id.to_string(),
+        callback,
+    });
+    Ok(Value::Symbol(Rc::from("ok")))
+}
+
 fn ensure_capabilities_installed() {
     static INSTALL: Once = Once::new();
     INSTALL.call_once(|| {
@@ -194,6 +286,8 @@ fn ensure_capabilities_installed() {
         register_capability("editor/buffer-text", editor_buffer_text);
         register_capability("editor/replace-selection", editor_replace_selection);
         register_capability("editor/message", editor_message);
+        register_capability("editor/keymap", editor_keymap);
+        register_capability("editor/on", editor_on);
     });
 }
 
@@ -298,6 +392,100 @@ impl EditorCommandRegistry {
             .map(|command| command.handler.clone())
             .ok_or_else(|| format!("unknown command: {name}"))?;
 
+        self.call_with_state(repl, handler, state)
+    }
+
+    pub fn has_keymap(&self, key: &str) -> bool {
+        state_for(self.token)
+            .borrow()
+            .keymaps
+            .iter()
+            .any(|keymap| keymap.key == key)
+    }
+
+    pub fn list_keymaps(&self) -> Vec<(String, String)> {
+        state_for(self.token)
+            .borrow()
+            .keymaps
+            .iter()
+            .map(|keymap| (keymap.key.clone(), keymap.command.clone()))
+            .collect()
+    }
+
+    /// Диспетчеризує натискання клавіші: невідома клавіша чи команда, на
+    /// яку вона вказує, — обидві помилки-fail-closed, ніколи не
+    /// мовчазний no-op (issue #11).
+    ///
+    /// Dispatches a key press: an unbound key or a keymap pointing at a
+    /// command that doesn't exist are both fail-closed errors, never a
+    /// silent no-op (issue #11).
+    pub fn dispatch_key(
+        &self,
+        repl: &mut ReplSession,
+        key: &str,
+        state: &EditorState,
+    ) -> Result<EditorEffect, String> {
+        let command = state_for(self.token)
+            .borrow()
+            .keymaps
+            .iter()
+            .find(|keymap| keymap.key == key)
+            .map(|keymap| keymap.command.clone())
+            .ok_or_else(|| format!("no command bound to key: {key}"))?;
+
+        self.invoke_command(repl, &command, state)
+    }
+
+    pub fn handler_count(&self, event: &str) -> usize {
+        state_for(self.token)
+            .borrow()
+            .handlers
+            .iter()
+            .filter(|handler| handler.event == event)
+            .count()
+    }
+
+    /// Викликає кожен обробник, підписаний на `event`, ізольовано: один
+    /// обробник, що впав, не зупиняє решту (той самий принцип ізоляції,
+    /// що й для завантаження плагінів, issue #10).
+    ///
+    /// Runs every handler subscribed to `event`, isolated: one handler
+    /// failing does not stop the rest (the same isolation principle as
+    /// plugin loading, issue #10).
+    pub fn emit_event(
+        &self,
+        repl: &mut ReplSession,
+        event: &str,
+        state: &EditorState,
+    ) -> Vec<Result<EditorEffect, String>> {
+        let callbacks: Vec<Value> = state_for(self.token)
+            .borrow()
+            .handlers
+            .iter()
+            .filter(|handler| handler.event == event)
+            .map(|handler| handler.callback.clone())
+            .collect();
+
+        callbacks
+            .into_iter()
+            .map(|callback| self.call_with_state(repl, callback, state))
+            .collect()
+    }
+
+    /// Викликає збережене замикання (команда чи обробник події) через
+    /// тимчасову дочірню область — жодного приватного `apply`-API
+    /// `my-lisp` не потребує, лише публічні
+    /// `parse`/`eval_expr`/`Environment::define`.
+    ///
+    /// Invokes a stored closure (command or event handler) through a
+    /// throwaway child scope -- this needs none of `my-lisp`'s private
+    /// `apply` API, only the public `parse`/`eval_expr`/`Environment::define`.
+    fn call_with_state(
+        &self,
+        repl: &mut ReplSession,
+        callback: Value,
+        state: &EditorState,
+    ) -> Result<EditorEffect, String> {
         {
             let registry_state = state_for(self.token);
             let mut registry_state = registry_state.borrow_mut();
@@ -305,20 +493,13 @@ impl EditorCommandRegistry {
             registry_state.effect = EditorEffect::default();
         }
 
-        // Викликаємо збережене замикання через тимчасову дочірню
-        // область — жодного приватного `apply`-API `my-lisp` не потребує,
-        // лише публічні `parse`/`eval_expr`/`Environment::define`.
-        //
-        // Invoke the stored closure through a throwaway child scope — this
-        // needs none of `my-lisp`'s private `apply` API, only the public
-        // `parse`/`eval_expr`/`Environment::define`.
         let call_environment = repl.environment().child();
-        call_environment.define(INVOKE_TARGET_KEY, handler);
+        call_environment.define(INVOKE_TARGET_KEY, callback);
         let call_expr = my_lisp::parse(&format!("({INVOKE_TARGET_KEY})"))
             .map_err(|error| error.to_string())?
             .into_iter()
             .next()
-            .ok_or_else(|| "editor command invocation produced no expression".to_string())?;
+            .ok_or_else(|| "editor callback invocation produced no expression".to_string())?;
         eval_expr(&call_expr, &call_environment).map_err(|error| error.to_string())?;
 
         let effect = state_for(self.token).borrow().effect.clone();
