@@ -4,7 +4,7 @@
 //! directly from the `external/my-lisp` submodule, not reimplemented here.
 
 use my_idea_lib::repl_surface::ReplSurface;
-use my_idea_lib::ReplSession;
+use my_idea_lib::{ManagedReplSession, ReplSession};
 
 #[test]
 fn default_surface_is_core() {
@@ -56,6 +56,30 @@ fn switching_surface_preserves_user_definitions() {
 #[test]
 fn unknown_surface_is_rejected() {
     assert!(ReplSurface::parse("xx").is_none());
+}
+
+#[test]
+fn managed_session_defaults_to_core_and_can_switch_surface_across_actor_thread() {
+    let managed = ManagedReplSession::default();
+    assert_eq!(managed.surface_status().0, "core");
+
+    let (code, _title) = managed
+        .switch_surface("ук")
+        .expect("actor thread should switch surface");
+    assert_eq!(code, "ук");
+    assert_eq!(managed.surface_status().0, "ук");
+
+    let result = managed
+        .evaluate("(атом? 'мама)", None)
+        .expect("ukrainian surface name should evaluate on the actor thread");
+    assert_eq!(result.value, "істина");
+}
+
+#[test]
+fn managed_session_switch_surface_rejects_unknown_code() {
+    let managed = ManagedReplSession::default();
+    let result = managed.switch_surface("xx");
+    assert!(result.is_err());
 }
 
 #[test]

@@ -135,6 +135,13 @@ enum ReplCommand {
         config_dir: PathBuf,
         reply: std::sync::mpsc::Sender<crate::plugins::PluginLoadReport>,
     },
+    SwitchSurface {
+        surface: String,
+        reply: std::sync::mpsc::Sender<Result<(String, String), String>>,
+    },
+    SurfaceStatus {
+        reply: std::sync::mpsc::Sender<(String, String)>,
+    },
 }
 
 /// Managed wrapper for `ReplSession` to be stored in Tauri state.
@@ -166,6 +173,19 @@ impl ManagedReplSession {
                             let report = crate::plugins::load_plugins(&mut session, &config_dir);
                             let _ = reply.send(report);
                         }
+                        ReplCommand::SwitchSurface { surface, reply } => {
+                            let res = ReplSurface::parse(&surface)
+                                .ok_or_else(|| format!("Невідома поверхня: {surface}"))
+                                .and_then(|surface| {
+                                    session.switch_surface(surface)?;
+                                    Ok((surface.code().to_string(), surface.title().to_string()))
+                                });
+                            let _ = reply.send(res);
+                        }
+                        ReplCommand::SurfaceStatus { reply } => {
+                            let surface = session.surface();
+                            let _ = reply.send((surface.code().to_string(), surface.title().to_string()));
+                        }
                     }
                 }
             })
@@ -192,6 +212,42 @@ impl ManagedReplSession {
         reply_rx
             .recv()
             .map_err(|e| format!("failed to receive from repl actor: {e}"))?
+    }
+
+    /// Switches the live session's human-language surface (uk/en/sa/core).
+    /// Returns `(code, title)` on success; user `define`s survive the switch.
+    pub fn switch_surface(&self, surface: &str) -> Result<(String, String), String> {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::SwitchSurface {
+            surface: surface.to_string(),
+            reply: reply_tx,
+        };
+        self.sender
+            .lock()
+            .map_err(|_| "repl actor channel poisoned".to_string())?
+            .send(cmd)
+            .map_err(|e| format!("failed to send to repl actor: {e}"))?;
+
+        reply_rx
+            .recv()
+            .map_err(|e| format!("failed to receive from repl actor: {e}"))?
+    }
+
+    /// Currently active surface as `(code, title)`, e.g. `("ук", "українська")`.
+    pub fn surface_status(&self) -> (String, String) {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::SurfaceStatus { reply: reply_tx };
+        let sent = self
+            .sender
+            .lock()
+            .map(|sender| sender.send(cmd).is_ok())
+            .unwrap_or(false);
+        if !sent {
+            return (ReplSurface::default().code().to_string(), ReplSurface::default().title().to_string());
+        }
+        reply_rx
+            .recv()
+            .unwrap_or_else(|_| (ReplSurface::default().code().to_string(), ReplSurface::default().title().to_string()))
     }
 
     /// Loads `init.lisp`/`plugins/*.lisp` from `config_dir` into the live
