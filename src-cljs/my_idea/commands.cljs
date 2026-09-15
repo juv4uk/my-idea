@@ -136,15 +136,107 @@
 
 ;; ---- eval / oracle / ecosystem ----
 
+(defn- repl-log!
+  "Appends one or more entries to the terminal-style REPL console's
+  scrollback and re-renders. Every actual my-lisp evaluation — whether typed
+  directly into the console or run via the ⚡ button — lands here, alongside
+  the startup banner and :мова/:surface meta-command replies."
+  [entries]
+  (swap! state #(-> % (update :repl-log (fnil into []) entries) (assoc :repl-focus-pending? true)))
+  (render!))
+
 (defn handle-eval-result! [result]
-  (let [{:keys [value output ast engine]} (js->clj result :keywordize-keys true)]
-    (swap! state assoc :output (into [(str engine)] (conj (vec output) (str "=> " value)))
-           :ast ast :error? false)
-    (render!)))
+  (let [{:keys [value output ast]} (js->clj result :keywordize-keys true)]
+    (swap! state assoc :ast ast)
+    (repl-log! (conj (mapv (fn [line] {:kind :stdout :text line}) output)
+                      {:kind :value :text (str "=> " value)}))))
 
 (defn handle-eval-error! [error]
-  (swap! state assoc :output [(str error)] :ast "Parse/evaluation stopped" :error? true)
-  (render!))
+  (swap! state assoc :ast "Parse/evaluation stopped")
+  (repl-log! [{:kind :error :text (str error)}]))
+
+;; ---- native console: a live subprocess running the REAL my-lisp CLI ----
+;;
+;; The console never reimplements :мова/:surface, presentation, or the
+;; banner — it starts the actual `my-lisp` binary (built from the
+;; external/my-lisp submodule) as a child process and streams its own
+;; stdout/stderr verbatim. Typed lines go straight to its stdin, unparsed.
+
+(defonce repl-console-listening?* (atom false))
+
+(defn- repl-console-event-listen []
+  (some-> (aget js/window "__TAURI__") (aget "event") (aget "listen")))
+
+(defn init-repl-console!
+  "Native: subscribes to the real REPL subprocess's output and starts it.
+  Web: no subprocess is possible in a browser — greets with the WASM
+  engine's own surface commands instead (see handle-web-meta-command!)."
+  []
+  (if (workspace/native?)
+    (when-not @repl-console-listening?*
+      (reset! repl-console-listening?* true)
+      (when-let [listen (repl-console-event-listen)]
+        (listen "repl-console-output"
+                (fn [^js event]
+                  (let [{:keys [stream line]} (js->clj (.-payload event) :keywordize-keys true)]
+                    (repl-log! [{:kind (if (= stream "stderr") :error :stdout) :text line}])))))
+      (-> (workspace/invoke! "start_repl_console" {})
+          (.catch #(repl-log! [{:kind :error :text (str "Не вдалося запустити my-lisp REPL: " %)}]))))
+    (repl-log! [{:kind :system :text "my-lisp WASM · поверхня: ядро (core) · :мова ук|en|sa|core · :допомога"}])))
+
+;; ---- web console fallback: no subprocess, drive the WASM module directly ----
+
+(defn- handle-web-meta-command! [line]
+  (let [[command arg] (str/split (str/trim line) #"\s+" 2)]
+    (case command
+      (":мова" ":surface")
+      (cond
+        (not (wasm/ready?))
+        (repl-log! [{:kind :error :text "my-lisp WASM engine is loading… · зачекайте"}])
+        (str/blank? arg)
+        (repl-log! [{:kind :system :text (str "Поточна поверхня: " (wasm/current-surface))}
+                    {:kind :system :text "Поверхні: :мова ук | en | sa | core"}])
+        :else
+        (repl-log! [{:kind :system :text (str "Поверхня: " (wasm/set-surface arg))}]))
+      (":допомога" ":help")
+      (repl-log! [{:kind :system :text "Поверхні: :мова ук | en | sa | core"}
+                  {:kind :system :text "Enter — виконати вираз · ↑/↓ — історія команд."}])
+      (repl-log! [{:kind :error :text (str "Невідома команда: " command)}]))))
+
+(defn- evaluate-repl-line-web! [line]
+  (cond
+    (wasm/ready?)
+    (-> (wasm/evaluate line "my-lisp")
+        (.then handle-eval-result!)
+        (.catch handle-eval-error!))
+    (wasm/failed?)
+    (repl-log! [{:kind :error :text "WebAssembly unavailable (or blocked) · code execution unavailable"}])
+    :else
+    (repl-log! [{:kind :system :text "my-lisp WASM engine is loading… · зачекайте"}])))
+
+(defn repl-submit!
+  "Handles one submitted console line: echoes it as a prompt entry, then
+  either forwards it verbatim to the real REPL subprocess's stdin (native)
+  or, in the web build, dispatches to the WASM engine directly."
+  [line]
+  (when-not (str/blank? line)
+    (swap! state update :repl-history (fnil conj []) line)
+    (swap! state assoc :repl-history-idx nil)
+    (repl-log! [{:kind :prompt :text line}])
+    (if (workspace/native?)
+      (-> (workspace/invoke! "send_repl_console_line" {:line line})
+          (.catch #(repl-log! [{:kind :error :text (str %)}])))
+      (if (str/starts-with? (str/trim line) ":")
+        (handle-web-meta-command! line)
+        (evaluate-repl-line-web! line)))))
+
+(defn repl-history-recall
+  "Returns the history line at `idx` steps back from the end (1 = most
+  recent), or nil past the beginning — for the console input's ↑/↓ arrows."
+  [idx]
+  (let [history (:repl-history @state)]
+    (when (and (pos? idx) (<= idx (count history)))
+      (nth history (- (count history) idx)))))
 
 (defn check-ecosystem! []
   (-> (workspace/invoke! "ecosystem_status" {})

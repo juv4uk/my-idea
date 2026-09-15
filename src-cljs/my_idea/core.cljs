@@ -99,12 +99,34 @@
                                       (set-layout-var! "--rch-h" (str (max 60 (min 600 h)) "px"))))
                                   (fn [] (save "my-idea:rch-h" "--rch-h"))))))))
 
+(defn- repl-line-html [{:keys [kind text]}]
+  (let [css-class (case kind
+                     :prompt "prompt"
+                     :value "value"
+                     :error "error"
+                     :stdout "stdout"
+                     "system")]
+    (str "<div class='repl-line " css-class "'>"
+         (when (= kind :prompt) "<span class='repl-prompt-tag'>λ›</span> ")
+         (esc text)
+         "</div>")))
+
 (defn render-repl-console-panel []
-  (let [{:keys [output error?]} @state]
+  (let [{:keys [repl-log output error?]} @state]
     (str
       "<section class='pane repl-console' id='repl-console'>"
       "<div class='pane-head'>" (t :console) "</div>"
-      "<pre" (when error? " class='error'") ">" (esc (str/join "\n" output)) "</pre>"
+      "<div class='repl-scrollback' id='repl-scrollback'>"
+      (apply str (map repl-line-html repl-log))
+      "</div>"
+      "<div class='repl-inputline'>"
+      "<span class='repl-prompt-tag'>λ›</span>"
+      "<input id='repl-input' class='repl-input' autocomplete='off' spellcheck='false' autocapitalize='off'/>"
+      "</div>"
+      ;; Ecosystem/oracle/swarm tool status — a separate channel from the
+      ;; REPL transcript above, not interleaved into its scrollback.
+      (when (seq output)
+        (str "<pre class='repl-status" (when error? " error") "'>" (esc (str/join "\n" output)) "</pre>"))
       "</section>")))
 
 (defn render-build-output-panel []
@@ -230,7 +252,34 @@
                               (lsp/close! closing-mode path))
                             (swap! state workspace/close-document path)
                             (cmd/persist!)
-                            (render!))))))
+                            (render!))))
+    (when-let [el (.getElementById js/document "repl-input")]
+      (.addEventListener el "keydown"
+                         (fn [^js e]
+                           (case (.-key e)
+                             "Enter" (do (.preventDefault e)
+                                         (let [line (.-value el)]
+                                           (set! (.-value el) "")
+                                           (cmd/repl-submit! line)))
+                             "ArrowUp" (do (.preventDefault e)
+                                           (let [idx (inc (or (:repl-history-idx @state) 0))]
+                                             (when-let [line (cmd/repl-history-recall idx)]
+                                               (swap! state assoc :repl-history-idx idx)
+                                               (set! (.-value el) line))))
+                             "ArrowDown" (do (.preventDefault e)
+                                             (let [idx (dec (or (:repl-history-idx @state) 0))]
+                                               (if (pos? idx)
+                                                 (when-let [line (cmd/repl-history-recall idx)]
+                                                   (swap! state assoc :repl-history-idx idx)
+                                                   (set! (.-value el) line))
+                                                 (do (swap! state assoc :repl-history-idx nil)
+                                                     (set! (.-value el) "")))))
+                             nil)))
+      (when (:repl-focus-pending? @state)
+        (swap! state assoc :repl-focus-pending? false)
+        (.focus el)))
+    (when-let [el (.getElementById js/document "repl-scrollback")]
+      (set! (.-scrollTop el) (.-scrollHeight el)))))
 
 (defn ^:export init []
   (cmd/set-render! render!)
@@ -238,5 +287,6 @@
   (build-output/init!)
   (render!)
   (cmd/restore-native!)
+  (cmd/init-repl-console!)
   (when-not (workspace/native?)
     (wasm/load! render!)))
