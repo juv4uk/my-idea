@@ -59,6 +59,17 @@ impl ReplSession {
         self.evaluate_mode(source, SourceMode::PureLisp)
     }
 
+    /// Дає доступ до внутрішнього оточення my-lisp — потрібно лише хостовим
+    /// розширенням у цьому крейті (наприклад, `editor_api`), які реєструють
+    /// власні capability-функції та токени поверх звичайного REPL.
+    ///
+    /// Exposes the underlying my-lisp environment — needed only by in-crate
+    /// host extensions (e.g. `editor_api`) that install their own capability
+    /// functions and tokens on top of the ordinary REPL.
+    pub(crate) fn environment(&self) -> &my_lisp::Environment {
+        &self.session.environment
+    }
+
     pub fn evaluate_mode(&mut self, source: &str, mode: SourceMode) -> Result<LispEvaluation, String> {
         let (result, forms) = my_lisp_literate::eval_literate(source, mode, &mut self.session)
             .map_err(|error| error.to_string())?;
