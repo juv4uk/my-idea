@@ -13,10 +13,16 @@ fn default_surface_is_core() {
 }
 
 #[test]
-fn core_surface_does_not_expose_ukrainian_names() {
+fn core_surface_presents_canonical_output_not_localized() {
+    // Stable surface peers (like `атом?`) are already bound at core-library
+    // bootstrap regardless of surface (ADR-005: "core is not English") — the
+    // surface layer governs *output presentation* and candidate/missing name
+    // promotion, not whether a stable peer name resolves at all.
     let mut repl = ReplSession::default();
-    let result = repl.evaluate("(атом? 'мама)");
-    assert!(result.is_err());
+    let result = repl
+        .evaluate("(атом? 'мама)")
+        .expect("stable surface peers are bound regardless of surface");
+    assert_eq!(result.value, "t");
 }
 
 #[test]

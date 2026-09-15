@@ -3,6 +3,7 @@ pub mod compiler_build_adapter;
 pub mod editor_api;
 pub mod plugins;
 pub mod repl;
+pub mod repl_surface;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
     ManagedReplSession, ReplSession, StartupTarget,
