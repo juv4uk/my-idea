@@ -3,7 +3,6 @@ pub mod compiler_build_adapter;
 pub mod editor_api;
 pub mod plugins;
 pub mod repl;
-pub mod repl_surface;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
     ManagedReplSession, ReplSession, StartupTarget,
@@ -69,37 +68,6 @@ fn evaluate_my_lisp(
     repl: State<'_, ManagedReplSession>,
 ) -> Result<LispEvaluation, String> {
     repl.evaluate(&source, mode.as_deref())
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReplSurfaceInfo {
-    pub code: String,
-    pub title: String,
-}
-
-impl From<(String, String)> for ReplSurfaceInfo {
-    fn from((code, title): (String, String)) -> Self {
-        Self { code, title }
-    }
-}
-
-/// Switches the REPL console's active my-lisp human-language surface
-/// (uk/en/sa/core) — the terminal-style console's `:мова`/`:surface`
-/// meta-command, mirroring the native my-lisp CLI REPL.
-#[tauri::command]
-fn switch_repl_surface(
-    surface: String,
-    repl: State<'_, ManagedReplSession>,
-) -> Result<ReplSurfaceInfo, String> {
-    repl.switch_surface(&surface).map(ReplSurfaceInfo::from)
-}
-
-/// Reports the REPL console's currently active surface, e.g. for the
-/// startup banner.
-#[tauri::command]
-fn repl_surface_status(repl: State<'_, ManagedReplSession>) -> ReplSurfaceInfo {
-    repl.surface_status().into()
 }
 
 #[derive(Serialize)]
@@ -605,8 +573,6 @@ pub fn run_with_target(target: StartupTarget) {
             lsp_adapter::rust_lsp_symbols,
             save_as_dialog,
             evaluate_my_lisp,
-            switch_repl_surface,
-            repl_surface_status,
             reload_plugins,
             build_runner::start_build,
             build_runner::cancel_build,

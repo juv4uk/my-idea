@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use my_lisp_literate::SourceMode;
-use crate::repl_surface::{self, ReplSurface};
 use crate::LispEvaluation;
 
 /// Desired workspace target upon starting the desktop application.
@@ -39,35 +38,14 @@ pub fn resolve_initial_workspace(target: StartupTarget) -> Option<PathBuf> {
 }
 
 /// Retained `my-lisp` session preserving definitions across sequential evaluations.
-///
-/// Holds three environment layers, matching the native `my-lisp` CLI REPL
-/// (`crates/my-lisp-cli/src/repl.rs`): a `base_environment` (core + macro
-/// library, never mutated by surface switches), a surface layer built from
-/// `repl_surface::build_surface_layer` (uk/en/sa/core human names), and the
-/// live `session.environment` sitting on top of it, where user `define`s and
-/// closures actually land. Switching surfaces re-parents only the middle
-/// layer, so user definitions survive a `:мова`/`switch_surface` call.
 pub struct ReplSession {
     session: my_lisp::Session,
-    base_environment: my_lisp::Environment,
-    surface: ReplSurface,
 }
 
 impl Default for ReplSession {
     fn default() -> Self {
-        let mut session = my_lisp::Session::default();
-        my_lisp::load_core_library(&mut session)
-            .expect("embedded core library must bootstrap a default Session");
-        let base_environment = session.environment.clone();
-        let surface = ReplSurface::default();
-        let surface_environment = repl_surface::build_surface_layer(&base_environment, surface)
-            .expect("the default (core) surface layer must always build");
-        session.environment = surface_environment.child();
-
         Self {
-            session,
-            base_environment,
-            surface,
+            session: my_lisp::Session::default(),
         }
     }
 }
@@ -92,32 +70,12 @@ impl ReplSession {
         &self.session.environment
     }
 
-    /// Currently active human-language surface (uk/en/sa/core).
-    pub fn surface(&self) -> ReplSurface {
-        self.surface
-    }
-
-    /// Re-parents the surface layer only; user `define`s and closures in
-    /// `session.environment` are untouched and remain reachable.
-    pub fn switch_surface(&mut self, surface: ReplSurface) -> Result<(), String> {
-        if self.surface == surface {
-            return Ok(());
-        }
-        let surface_environment = repl_surface::build_surface_layer(&self.base_environment, surface)?;
-        self.session
-            .environment
-            .reparent(surface_environment)
-            .map_err(str::to_string)?;
-        self.surface = surface;
-        Ok(())
-    }
-
     pub fn evaluate_mode(&mut self, source: &str, mode: SourceMode) -> Result<LispEvaluation, String> {
         let (result, forms) = my_lisp_literate::eval_literate(source, mode, &mut self.session)
-            .map_err(|error| my_lisp::render_error_for_presentation(&error, source, self.surface.presentation()))?;
+            .map_err(|error| error.to_string())?;
 
         Ok(LispEvaluation {
-            value: my_lisp::render_value_for_presentation(&result.value, self.surface.presentation()),
+            value: result.value.to_string(),
             output: result.output,
             ast: format!("{forms:#?}"),
             engine: "my-lisp · Rust",
@@ -134,13 +92,6 @@ enum ReplCommand {
     LoadPlugins {
         config_dir: PathBuf,
         reply: std::sync::mpsc::Sender<crate::plugins::PluginLoadReport>,
-    },
-    SwitchSurface {
-        surface: String,
-        reply: std::sync::mpsc::Sender<Result<(String, String), String>>,
-    },
-    SurfaceStatus {
-        reply: std::sync::mpsc::Sender<(String, String)>,
     },
 }
 
@@ -173,19 +124,6 @@ impl ManagedReplSession {
                             let report = crate::plugins::load_plugins(&mut session, &config_dir);
                             let _ = reply.send(report);
                         }
-                        ReplCommand::SwitchSurface { surface, reply } => {
-                            let res = ReplSurface::parse(&surface)
-                                .ok_or_else(|| format!("Невідома поверхня: {surface}"))
-                                .and_then(|surface| {
-                                    session.switch_surface(surface)?;
-                                    Ok((surface.code().to_string(), surface.title().to_string()))
-                                });
-                            let _ = reply.send(res);
-                        }
-                        ReplCommand::SurfaceStatus { reply } => {
-                            let surface = session.surface();
-                            let _ = reply.send((surface.code().to_string(), surface.title().to_string()));
-                        }
                     }
                 }
             })
@@ -212,42 +150,6 @@ impl ManagedReplSession {
         reply_rx
             .recv()
             .map_err(|e| format!("failed to receive from repl actor: {e}"))?
-    }
-
-    /// Switches the live session's human-language surface (uk/en/sa/core).
-    /// Returns `(code, title)` on success; user `define`s survive the switch.
-    pub fn switch_surface(&self, surface: &str) -> Result<(String, String), String> {
-        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
-        let cmd = ReplCommand::SwitchSurface {
-            surface: surface.to_string(),
-            reply: reply_tx,
-        };
-        self.sender
-            .lock()
-            .map_err(|_| "repl actor channel poisoned".to_string())?
-            .send(cmd)
-            .map_err(|e| format!("failed to send to repl actor: {e}"))?;
-
-        reply_rx
-            .recv()
-            .map_err(|e| format!("failed to receive from repl actor: {e}"))?
-    }
-
-    /// Currently active surface as `(code, title)`, e.g. `("ук", "українська")`.
-    pub fn surface_status(&self) -> (String, String) {
-        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
-        let cmd = ReplCommand::SurfaceStatus { reply: reply_tx };
-        let sent = self
-            .sender
-            .lock()
-            .map(|sender| sender.send(cmd).is_ok())
-            .unwrap_or(false);
-        if !sent {
-            return (ReplSurface::default().code().to_string(), ReplSurface::default().title().to_string());
-        }
-        reply_rx
-            .recv()
-            .unwrap_or_else(|_| (ReplSurface::default().code().to_string(), ReplSurface::default().title().to_string()))
     }
 
     /// Loads `init.lisp`/`plugins/*.lisp` from `config_dir` into the live
@@ -289,5 +191,3 @@ pub fn evaluate_source_in_session(
     };
     repl.evaluate_mode(source, source_mode)
 }
-
-
