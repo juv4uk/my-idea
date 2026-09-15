@@ -231,7 +231,7 @@ test('Rust benchmarks the my-lisp programs', () => {
   const runner = readFileSync('scripts/benchmark.mjs', 'utf8');
   const rust = readFileSync('external/my-lisp/crates/my-lisp/examples/benchmark.rs', 'utf8');
   for (const name of ['arithmetic', 'lists', 'recursion', 'closures', 'parser']) {
-    assert.match(readFileSync(`benchmarks/${name}.my`, 'utf8'), /·/);
+    assert.match(readFileSync(`benchmarks/${name}.lisp`, 'utf8'), /·/);
   }
   assert.match(runner, /MY_LISP_BENCH_ITERATIONS/);
   assert.match(rust, /BENCH_RESULT/);
