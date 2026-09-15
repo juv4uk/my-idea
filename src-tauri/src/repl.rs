@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use my_lisp_literate::SourceMode;
 use crate::LispEvaluation;
@@ -89,6 +89,10 @@ enum ReplCommand {
         mode: Option<String>,
         reply: std::sync::mpsc::Sender<Result<LispEvaluation, String>>,
     },
+    LoadPlugins {
+        config_dir: PathBuf,
+        reply: std::sync::mpsc::Sender<crate::plugins::PluginLoadReport>,
+    },
 }
 
 /// Managed wrapper for `ReplSession` to be stored in Tauri state.
@@ -116,6 +120,10 @@ impl ManagedReplSession {
                             let res = evaluate_source_in_session(&mut session, &source, mode.as_deref());
                             let _ = reply.send(res);
                         }
+                        ReplCommand::LoadPlugins { config_dir, reply } => {
+                            let report = crate::plugins::load_plugins(&mut session, &config_dir);
+                            let _ = reply.send(report);
+                        }
                     }
                 }
             })
@@ -142,6 +150,30 @@ impl ManagedReplSession {
         reply_rx
             .recv()
             .map_err(|e| format!("failed to receive from repl actor: {e}"))?
+    }
+
+    /// Loads `init.lisp`/`plugins/*.lisp` from `config_dir` into the live
+    /// session on the actor thread -- called once at startup, and again
+    /// whenever an explicit reload is requested.
+    ///
+    /// Завантажує `init.lisp`/`plugins/*.lisp` з `config_dir` у живу сесію
+    /// на потоці-акторі — викликається один раз при старті, і знову за
+    /// явним запитом reload.
+    pub fn load_plugins(&self, config_dir: &Path) -> crate::plugins::PluginLoadReport {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::LoadPlugins {
+            config_dir: config_dir.to_path_buf(),
+            reply: reply_tx,
+        };
+        let sent = self
+            .sender
+            .lock()
+            .map(|sender| sender.send(cmd).is_ok())
+            .unwrap_or(false);
+        if !sent {
+            return crate::plugins::PluginLoadReport::default();
+        }
+        reply_rx.recv().unwrap_or_default()
     }
 }
 
