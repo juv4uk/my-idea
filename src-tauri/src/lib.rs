@@ -1,4 +1,5 @@
 pub mod compiler_bridge;
+pub mod editor_api;
 pub mod repl;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
