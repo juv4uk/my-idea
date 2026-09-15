@@ -137,7 +137,9 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
   const commands = readFileSync('src-cljs/my_idea/commands.cljs', 'utf8');
-  assert.match(cargo, /my-lisp\s*=\s*\{\s*git\s*=\s*"https:\/\/github\.com\/juv4uk\/my-lisp\.git"/);
+  // Single-channel pin (SUBMODULE-DEPENDENCY-MODEL-2026-09-16): the
+  // external/my-lisp submodule, not a floating git branch dependency.
+  assert.match(cargo, /my-lisp\s*=\s*\{\s*path\s*=\s*"\.\.\/external\/my-lisp\/crates\/my-lisp"/);
   assert.match(rust, /fn evaluate_my_lisp/);
   assert.match(commands, /invoke! "evaluate_my_lisp"/);
   // ClojureScript prototype is removed — WASM is the only web engine

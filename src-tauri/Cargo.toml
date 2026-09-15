@@ -27,8 +27,14 @@ tauri-build = { version = "2", features = [] }
 indexmap = { version = "1.9", features = ["std"] }
 
 [dependencies]
-my-lisp = { git = "https://github.com/juv4uk/my-lisp.git", branch = "main" }
-my-lisp-literate = { git = "https://github.com/juv4uk/my-lisp.git", branch = "main" }
+# Single-channel pin (SUBMODULE-DEPENDENCY-MODEL-2026-09-16): the
+# external/my-lisp git submodule's checked-out SHA is the only place
+# my-idea's my-lisp version is decided. No floating `branch = "main"`
+# alongside it — this crate consumes several surfaces of the same tree
+# (in-process eval here, the CLI subprocess behind the REPL console, and
+# the WASM build), so all of them must resolve from one exact commit.
+my-lisp = { path = "../external/my-lisp/crates/my-lisp" }
+my-lisp-literate = { path = "../external/my-lisp/crates/my-lisp-literate" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
