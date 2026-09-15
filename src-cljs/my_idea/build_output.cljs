@@ -28,17 +28,6 @@
     (when (seq parts)
       (str "Missing tool: " (first parts) ". Ensure it is installed and in PATH."))))
 
-(defn init! []
-  (when (and (workspace/native?) (not @listening?*))
-    (when-let [listen (event-listen)]
-      (reset! listening?* true)
-      (reset! listener-ready*
-              (listen "build-output"
-                      (fn [^js event]
-                        (let [e (js->clj (.-payload event) :keywordize-keys true)]
-                          (when (= (:schema e) 1)
-                            (handle-event! e)))))))))
-
 (defn- after-listener [f]
   (if-let [ready @listener-ready*]
     (.then ready f)
@@ -109,3 +98,14 @@
 
 (defn has-active-build? []
   (some? @active-run*))
+
+(defn init! []
+  (when (and (workspace/native?) (not @listening?*))
+    (when-let [listen (event-listen)]
+      (reset! listening?* true)
+      (reset! listener-ready*
+              (listen "build-output"
+                      (fn [^js event]
+                        (let [e (js->clj (.-payload event) :keywordize-keys true)]
+                          (when (= (:schema e) 1)
+                            (handle-event! e)))))))))
