@@ -42,5 +42,5 @@ jobs:
         run: bunx playwright install chromium --with-deps
       - run: bun run test
       - run: bun run check
-      - name: Check my-idea against the my-lisp git dependency · Перевірити my-idea проти git-залежності my-lisp · my-idea gegen die my-lisp-Git-Abhängigkeit prüfen
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Execute Rust witness tests · Виконати Rust тести-свідки · Rust-Zeugentests ausführen
+        run: cargo test --manifest-path src-tauri/Cargo.toml --tests
