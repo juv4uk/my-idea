@@ -1,6 +1,9 @@
 pub mod compiler_bridge;
 pub mod repl;
-pub use repl::{parse_startup_target, ReplSession, StartupTarget};
+pub use repl::{
+    evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
+    ManagedReplSession, ReplSession, StartupTarget,
+};
 mod build_runner;
 mod ecosystem;
 pub mod lsp_client;
@@ -10,8 +13,6 @@ pub mod process_service;
 mod swarm;
 mod swarm_dashboard;
 
-use my_lisp::Session;
-use my_lisp_literate::SourceMode;
 use serde::Serialize;
 use std::{
     fs,
@@ -57,20 +58,15 @@ pub struct LispEvaluation {
 /// Wertet capability-freien my-lisp-Code mit der kanonischen Rust-Engine aus.
 /// Verwendet Single-Pass-Parsing (`eval_parsed_expressions`), um doppeltes Parsing zu vermeiden.
 #[tauri::command]
-fn evaluate_my_lisp(source: String, mode: Option<String>) -> Result<LispEvaluation, String> {
-    let mode_str = mode.as_deref().unwrap_or("my-lisp");
-    let source_mode = if mode_str == "markdown" { SourceMode::Literate } else { SourceMode::PureLisp };
-    let mut session = Session::default();
-    let (result, forms) = my_lisp_literate::eval_literate(&source, source_mode, &mut session)
-        .map_err(|error| error.to_string())?;
-        
-    Ok(LispEvaluation {
-        value: result.value.to_string(),
-        output: result.output,
-        ast: format!("{forms:#?}"),
-        engine: "my-lisp · Rust",
-    })
+fn evaluate_my_lisp(
+    source: String,
+    mode: Option<String>,
+    repl: State<'_, ManagedReplSession>,
+) -> Result<LispEvaluation, String> {
+    repl.evaluate(&source, mode.as_deref())
 }
+
+
 
 /// Scans sibling repos (my-lisp, fpga-lisp, cml) and their machine-readable
 /// contracts to report whether the ecosystem is currently coherent. System
@@ -136,16 +132,30 @@ fn swarm_dashboard(port: Option<u16>) -> swarm_dashboard::SwarmDashboard {
 
 #[cfg(test)]
 mod language_adapter_tests {
-    use super::evaluate_my_lisp;
+    use super::{evaluate_source_in_session, ReplSession};
 
     #[test]
     fn native_adapter_loads_bootstrap_library_and_preserves_exact_values() {
-        let result = evaluate_my_lisp("(cons (second (quote (radio antenna))) (cons (/ 1 3) (quote ())))".into(), Some("my-lisp".to_string()))
-            .expect("native evaluation should succeed");
+        let mut session = ReplSession::default();
+        let result = evaluate_source_in_session(
+            &mut session,
+            "(cons (second (quote (radio antenna))) (cons (/ 1 3) (quote ())))",
+            Some("my-lisp"),
+        )
+        .expect("native evaluation should succeed");
         assert_eq!(result.value, "(antenna 1/3)");
         assert_eq!(result.engine, "my-lisp · Rust");
     }
+
+    #[test]
+    fn native_adapter_preserves_definitions_across_sequential_evaluations() {
+        let mut session = ReplSession::default();
+        evaluate_source_in_session(&mut session, "(define ide-persisted 42)", Some("my-lisp")).unwrap();
+        let result = evaluate_source_in_session(&mut session, "(+ ide-persisted 8)", Some("my-lisp")).unwrap();
+        assert_eq!(result.value, "50");
+    }
 }
+
 
 #[cfg(test)]
 mod workspace_creation_tests {
@@ -370,6 +380,16 @@ fn reopen_workspace(path: String, state: State<'_, Workspace>) -> Result<String,
 }
 
 #[tauri::command]
+fn current_workspace(state: State<'_, Workspace>) -> Result<Option<String>, String> {
+    state
+        .0
+        .lock()
+        .map_err(|_| "workspace lock is poisoned".to_string())
+        .map(|guard| guard.as_ref().map(|path| path.to_string_lossy().into_owned()))
+}
+
+
+#[tauri::command]
 fn list_workspace(state: State<'_, Workspace>) -> Result<Vec<FileNode>, String> {
     let root = root(&state)?;
     scan(&root, &root)
@@ -456,8 +476,16 @@ fn save_as_dialog(
 /// Startet die Hülle mit ausschließlich arbeitsbereichsgebundenen Dateioperationen.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let target = parse_startup_target(std::env::args().skip(1))
+        .unwrap_or(StartupTarget::DefaultWorkspace);
+    run_with_target(target);
+}
+
+pub fn run_with_target(target: StartupTarget) {
+    let initial_workspace = resolve_initial_workspace(target);
     tauri::Builder::default()
-        .manage(Workspace::default())
+        .manage(Workspace(Mutex::new(initial_workspace)))
+        .manage(ManagedReplSession::default())
         .manage(process_service::ProcessService::default())
         .manage(build_runner::BuildRegistry::default())
         .manage(lsp_adapter::LspSessions::default())
@@ -467,6 +495,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             choose_workspace,
             reopen_workspace,
+            current_workspace,
             list_workspace,
             read_workspace_file,
             save_workspace_file,
@@ -499,3 +528,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running my-idea");
 }
+

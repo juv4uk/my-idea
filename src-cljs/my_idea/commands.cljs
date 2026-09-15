@@ -325,9 +325,33 @@
       (render!))))
 
 (defn restore-native! []
-  (when-let [{:keys [root open-paths active-path]} (workspace/restored)]
-    (when (and root (workspace/native?))
-      (-> (workspace/invoke! "reopen_workspace" {:path root})
-          (.then #(do (swap! state assoc :root % :open-paths [] :active-path nil :documents {})
-                      (-> (workspace/invoke! "list_workspace" {}) (.then (fn [nodes] (swap! state assoc :tree (js->clj nodes :keywordize-keys true)) (doseq [path open-paths] (open-file! path)) (when active-path (swap! state assoc :active-path active-path)) (render!))))))
-          (.catch (fn [_] (.removeItem js/localStorage workspace/storage-key)))))))
+  (when (workspace/native?)
+    (-> (workspace/invoke! "current_workspace" {})
+        (.then (fn [initial-root]
+                 (let [restored (workspace/restored)
+                       root (or initial-root (:root restored))
+                       open-paths (:open-paths restored)
+                       active-path (:active-path restored)]
+                   (when root
+                     (-> (workspace/invoke! "reopen_workspace" {:path root})
+                         (.then #(do (swap! state assoc :root % :open-paths [] :active-path nil :documents {})
+                                     (-> (workspace/invoke! "list_workspace" {})
+                                         (.then (fn [nodes]
+                                                  (swap! state assoc :tree (js->clj nodes :keywordize-keys true))
+                                                  (doseq [path open-paths] (open-file! path))
+                                                  (when active-path (swap! state assoc :active-path active-path))
+                                                  (render!))))))
+                         (.catch (fn [_] (.removeItem js/localStorage workspace/storage-key))))))))
+        (.catch (fn [_]
+                  (when-let [{:keys [root open-paths active-path]} (workspace/restored)]
+                    (when root
+                      (-> (workspace/invoke! "reopen_workspace" {:path root})
+                          (.then #(do (swap! state assoc :root % :open-paths [] :active-path nil :documents {})
+                                      (-> (workspace/invoke! "list_workspace" {})
+                                          (.then (fn [nodes]
+                                                   (swap! state assoc :tree (js->clj nodes :keywordize-keys true))
+                                                   (doseq [path open-paths] (open-file! path))
+                                                   (when active-path (swap! state assoc :active-path active-path))
+                                                   (render!))))))
+                          (.catch (fn [_] (.removeItem js/localStorage workspace/storage-key)))))))))))
+
