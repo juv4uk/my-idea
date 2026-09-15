@@ -21,7 +21,7 @@
   (or (str/includes? line "command not found")
       (str/includes? line "No such file or directory")
       (str/includes? line "could not start")
-      (str/includes? line "executable not found"))
+      (str/includes? line "executable not found")))
 
 (defn- detect-missing-tool [line]
   (let [parts (str/split line #"\s+")]
@@ -108,4 +108,4 @@
   (reset! missing-tool* nil))
 
 (defn has-active-build? []
-  (some? @active-run*)))
+  (some? @active-run*))
