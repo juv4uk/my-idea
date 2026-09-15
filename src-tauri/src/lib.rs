@@ -1,3 +1,4 @@
+pub mod compiler_bridge;
 mod build_runner;
 mod ecosystem;
 pub mod lsp_client;
