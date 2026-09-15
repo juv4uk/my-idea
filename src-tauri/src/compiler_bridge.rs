@@ -315,21 +315,22 @@ fn diagnostics_from_output(
 ) -> Vec<CompilerDiagnostic> {
     let path = request.source.to_string_lossy().into_owned();
     let mut diagnostics = Vec::new();
-    diagnostics.extend(lines(stdout).map(|message| {
+    diagnostics.extend(lines(stdout).into_iter().map(|message| {
         CompilerDiagnostic::new(DiagnosticStream::Stdout, path.clone(), None, None, message)
     }));
-    diagnostics.extend(lines(stderr).map(|message| {
+    diagnostics.extend(lines(stderr).into_iter().map(|message| {
         CompilerDiagnostic::new(DiagnosticStream::Stderr, path.clone(), None, None, message)
     }));
     diagnostics
 }
 
-fn lines(bytes: &[u8]) -> impl Iterator<Item = String> + '_ {
+fn lines(bytes: &[u8]) -> Vec<String> {
     String::from_utf8_lossy(bytes)
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .map(str::to_owned)
+        .collect()
 }
 
 fn compiler_identity(executable: &Path) -> String {
