@@ -1,8 +1,8 @@
-//! RED contract for #43 (IDE-HELP-INDEX-1): one deterministic, provenance-
+//! Contract for #43 (IDE-HELP-INDEX-1): one deterministic, provenance-
 //! preserving documentation index over multiple repositories.
 
-use my_idea_lib::ecosystem::documentation::{
-    DocumentStatus, DocumentationIndex, DocumentationSource,
+use my_idea_lib::documentation::{
+    DocumentRecord, DocumentStatus, DocumentationIndex, DocumentationSource,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -42,11 +42,7 @@ impl Drop for TestRepo {
     }
 }
 
-fn record<'a>(
-    records: &'a [my_idea_lib::ecosystem::documentation::DocumentRecord],
-    repo: &str,
-    path: &str,
-) -> &'a my_idea_lib::ecosystem::documentation::DocumentRecord {
+fn record<'a>(records: &'a [DocumentRecord], repo: &str, path: &str) -> &'a DocumentRecord {
     records
         .iter()
         .find(|record| record.repo == repo && record.path == path)
@@ -129,7 +125,7 @@ fn root_readme_and_nested_markdown_are_indexed_but_non_markdown_is_not() {
     ]);
     let records = index.records();
 
-    assert!(record(&records, "cml", "README.md").source_kind == "readme");
+    assert_eq!(record(&records, "cml", "README.md").source_kind, "readme");
     assert_eq!(record(&records, "cml", "README.md").category, "root");
     assert_eq!(record(&records, "cml", "docs/compiler/lowering.md").category, "compiler");
     assert!(!records.iter().any(|item| item.path.ends_with("raw.txt")));
@@ -149,7 +145,8 @@ fn full_text_search_and_rebuild_order_are_deterministic() {
     assert_eq!(first.search("quantum bridge"), second.search("quantum bridge"));
     assert_eq!(first.search(""), first.records());
 
-    let paths: Vec<&str> = first.search("quantum bridge").iter().map(|item| item.path.as_str()).collect();
+    let hits = first.search("quantum bridge");
+    let paths: Vec<&str> = hits.iter().map(|item| item.path.as_str()).collect();
     assert_eq!(paths, vec!["docs/a-first.md", "docs/z-last.md"]);
 }
 
@@ -165,8 +162,10 @@ fn changing_only_source_sha_changes_provenance_not_repo_path_or_title() {
         repo.source("my-lisp", "2222222222222222222222222222222222222222"),
     ]);
 
-    let old_record = &old.records()[0];
-    let new_record = &new.records()[0];
+    let old_records = old.records();
+    let new_records = new.records();
+    let old_record = &old_records[0];
+    let new_record = &new_records[0];
     assert_eq!(old_record.repo, new_record.repo);
     assert_eq!(old_record.path, new_record.path);
     assert_eq!(old_record.title, new_record.title);
