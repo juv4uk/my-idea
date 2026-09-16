@@ -24,7 +24,6 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
           workflow_path = Path('.github/workflows/publish-release.yml')
           text = workflow_path.read_text()
           start = text.index('  build-flatpak:')
@@ -35,18 +34,18 @@ jobs:
               anchor = '      - run: bun install --frozen-lockfile\n'
               local_at = section.index(anchor) + len(anchor)
               insert_at = start + local_at
-              step = '''      - name: Build my-lisp CLI sidecar from latest main · Зібрати сайдкар my-lisp з останнього main
-        run: |
-          set -euo pipefail
-          git clone --depth 1 https://github.com/juv4uk/my-lisp.git "$RUNNER_TEMP/my-lisp-sidecar-src"
-          mkdir -p src-tauri/binaries
-          cargo build --release --manifest-path "$RUNNER_TEMP/my-lisp-sidecar-src/Cargo.toml" -p my-lisp-cli --bin my-lisp --target x86_64-unknown-linux-gnu
-          cp "$RUNNER_TEMP/my-lisp-sidecar-src/target/x86_64-unknown-linux-gnu/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-unknown-linux-gnu
-'''
+              step = '\n'.join([
+                  '      - name: Build my-lisp CLI sidecar from latest main · Зібрати сайдкар my-lisp з останнього main',
+                  '        run: |',
+                  '          set -euo pipefail',
+                  '          git clone --depth 1 https://github.com/juv4uk/my-lisp.git "$RUNNER_TEMP/my-lisp-sidecar-src"',
+                  '          mkdir -p src-tauri/binaries',
+                  '          cargo build --release --manifest-path "$RUNNER_TEMP/my-lisp-sidecar-src/Cargo.toml" -p my-lisp-cli --bin my-lisp --target x86_64-unknown-linux-gnu',
+                  '          cp "$RUNNER_TEMP/my-lisp-sidecar-src/target/x86_64-unknown-linux-gnu/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-unknown-linux-gnu',
+              ]) + '\n'
               text = text[:insert_at] + step + text[insert_at:]
               workflow_path.write_text(text)
           PY
-
           git rm .github/workflows/apply-flatpak-green.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
