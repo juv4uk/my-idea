@@ -11,6 +11,7 @@ pub use repl::{
 };
 mod build_runner;
 mod ecosystem;
+pub use ecosystem::{documentation, documentation_index, documentation_search};
 pub mod lsp_client;
 mod lsp_adapter;
 mod oracle;
