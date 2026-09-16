@@ -4,6 +4,7 @@ version = "0.13.7"
 description = "Lightweight programming IDE / Легка IDE для програмування / Leichtgewichtige Programmier-IDE"
 authors = ["juv4uk"]
 edition = "2021"
+license-file = "../LICENSE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
