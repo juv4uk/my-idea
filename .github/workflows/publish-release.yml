@@ -244,13 +244,28 @@ jobs:
       - name: Install frontend dependencies · Встановити залежності · Abhängigkeiten installieren
         run: bun install --frozen-lockfile
       - name: Build my-lisp CLI sidecar from latest main · Зібрати сайдкар my-lisp з останнього main
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          git clone --depth 1 https://github.com/juv4uk/my-lisp.git "$RUNNER_TEMP/my-lisp-sidecar-src"
-          mkdir -p src-tauri/binaries
-          cargo build --release --manifest-path "$RUNNER_TEMP/my-lisp-sidecar-src/Cargo.toml" -p my-lisp-cli --bin my-lisp --target aarch64-pc-windows-msvc
-          cp "$RUNNER_TEMP/my-lisp-sidecar-src/target/aarch64-pc-windows-msvc/release/my-lisp.exe" src-tauri/binaries/my-lisp-aarch64-pc-windows-msvc.exe
+          $ErrorActionPreference = 'Stop'
+          $sidecarSrc = Join-Path $env:RUNNER_TEMP 'my-lisp-sidecar-src'
+          & git clone --depth 1 https://github.com/juv4uk/my-lisp.git $sidecarSrc
+          if ($LASTEXITCODE -ne 0) { throw 'git clone failed for my-lisp ARM64 sidecar' }
+
+          New-Item -ItemType Directory -Force -Path 'src-tauri/binaries' | Out-Null
+
+          $linker = Get-Command link.exe -CommandType Application | Select-Object -First 1
+          if (-not $linker -or $linker.Source -notmatch '[\\/]VC[\\/]Tools[\\/]MSVC[\\/]') {
+            throw "Microsoft MSVC linker is not first on PATH: $($linker.Source)"
+          }
+          $env:CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER = $linker.Source
+          Write-Host "Cargo ARM64 linker: $env:CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER"
+
+          & cargo build --release --manifest-path (Join-Path $sidecarSrc 'Cargo.toml') -p my-lisp-cli --bin my-lisp --target aarch64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { throw 'cargo build failed for my-lisp ARM64 sidecar' }
+
+          $sidecarExe = Join-Path $sidecarSrc 'target/aarch64-pc-windows-msvc/release/my-lisp.exe'
+          if (-not (Test-Path $sidecarExe)) { throw "Expected sidecar was not produced: $sidecarExe" }
+          Copy-Item -LiteralPath $sidecarExe -Destination 'src-tauri/binaries/my-lisp-aarch64-pc-windows-msvc.exe'
       - name: Build native Windows ARM64 · Зібрати Windows ARM64 · Windows ARM64 bauen
         run: bun run tauri build --target aarch64-pc-windows-msvc --bundles nsis
       - name: Verify ARM64 PE header · Перевірити PE-заголовок · PE-Kopf prüfen
