@@ -1,6 +1,7 @@
 pub mod compiler_bridge;
 pub mod compiler_build_adapter;
 pub mod editor_api;
+pub mod help_api;
 pub mod plugins;
 pub mod repl;
 pub mod repl_console;
