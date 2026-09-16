@@ -411,6 +411,33 @@
                            :error? true)
                     (render!)))))))
 
+(defn compile-and-run!
+  "Compiles the active .lisp file through the real cml compiler (issue #16:
+  cml is the sole authoritative project compiler, my-idea never
+  reimplements its semantics) and, on success, runs the resulting native
+  artifact through the existing Build Output panel — the same substrate
+  `run-build!` uses, just fed a compiler-produced profile instead of the
+  interpreter-script one. Distinct from `run-build!` (interprets via the
+  `my-lisp` CLI) and `execute!` (in-process eval): cml is an early-stage
+  freestanding-ELF backend today (pure computation only, no stdout/IO yet),
+  so this is deliberately a separate action rather than silently replacing
+  either of those."
+  []
+  (when-let [path (:active-path @state)]
+    (when (workspace/native?)
+      (build-output/clear!)
+      (-> (workspace/invoke! "compile_lisp_source" {:path path})
+          (.then (fn [outcome]
+                   (let [{:keys [ok diagnostics build-spec error]} (js->clj outcome :keywordize-keys true)]
+                     (doseq [{:keys [stream message]} diagnostics]
+                       (repl-log! [{:kind (if (= stream "stderr") :error :stdout) :text message}]))
+                     (if ok
+                       (-> (workspace/invoke! "start_build" build-spec)
+                           (.then (fn [run-id] (js/console.log "cml build started, run-id:" run-id)))
+                           (.catch (fn [e] (repl-log! [{:kind :error :text (str "Не вдалося запустити скомпільований артефакт: " e)}]))))
+                       (repl-log! [{:kind :error :text (str "Компіляція cml не вдалась" (when error (str ": " error)))}])))))
+          (.catch (fn [e] (repl-log! [{:kind :error :text (str "compile_lisp_source: " e)}])))))))
+
 (defn stop-build! []
   (when (build-output/has-active-build?)
     (-> (workspace/invoke! "cancel_build" {})

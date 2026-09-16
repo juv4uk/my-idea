@@ -196,6 +196,101 @@ fn editor_list_keymaps(repl: State<'_, ManagedReplSession>) -> Vec<KeymapEntryDt
         .collect()
 }
 
+/// Resolves the real `cml` compiler binary (issue #16: cml is the sole
+/// authoritative project compiler, my-idea is a mechanism-only client of
+/// it) — an env override, a sibling `cml` checkout next to the open
+/// workspace, or a bare `cml` on PATH, in that order. Mirrors
+/// `lsp_adapter::find_my_lisp`'s exact resolution shape.
+fn find_cml(workspace: &Path) -> PathBuf {
+    if let Some(path) = std::env::var_os("MY_IDEA_CML_BIN") {
+        return path.into();
+    }
+    let sibling = workspace.parent().map(|parent| parent.join("cml/target/release/cml"));
+    if let Some(path) = sibling.filter(|path| path.is_file()) {
+        return path;
+    }
+    "cml".into()
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CompileDiagnosticDto {
+    stream: &'static str,
+    path: String,
+    line: Option<usize>,
+    column: Option<usize>,
+    message: String,
+}
+
+impl From<&compiler_bridge::CompilerDiagnostic> for CompileDiagnosticDto {
+    fn from(diagnostic: &compiler_bridge::CompilerDiagnostic) -> Self {
+        Self {
+            stream: match diagnostic.stream() {
+                compiler_bridge::DiagnosticStream::Stdout => "stdout",
+                compiler_bridge::DiagnosticStream::Stderr => "stderr",
+            },
+            path: diagnostic.path().to_string(),
+            line: diagnostic.line(),
+            column: diagnostic.column(),
+            message: diagnostic.message().to_string(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CompileOutcomeDto {
+    ok: bool,
+    diagnostics: Vec<CompileDiagnosticDto>,
+    /// Present exactly when `ok` — hand this straight to `start_build` to
+    /// actually run the compiled artifact through the existing Build
+    /// Output panel; this command only compiles, it never runs anything.
+    build_spec: Option<build_runner::BuildSpec>,
+    error: Option<String>,
+}
+
+/// Compiles a canonical `.lisp` source file through the real `cml` compiler
+/// (never an internal reimplementation of its semantics) and, on success,
+/// returns the fixed `compiled-lisp-artifact` profile ready to hand to
+/// `start_build`. On failure, returns whatever diagnostics `cml` produced
+/// plus the failure message — cml's own compiler errors, verbatim, not an
+/// IDE-invented interpretation of them.
+#[tauri::command]
+fn compile_lisp_source(
+    path: String,
+    workspace: State<'_, Workspace>,
+) -> Result<CompileOutcomeDto, String> {
+    let root = root(&workspace)?;
+    let source = safe_existing(&root, &path)?;
+    let compiler = compiler_build_adapter::CompilerBuildAdapter::new(
+        compiler_bridge::CompilerBridge::at(find_cml(&root)),
+    );
+    let request = compiler_bridge::CompilerRequest::new(&source, "x86_64-linux")?;
+
+    match compiler.compile_project(&request) {
+        Ok(compiled) => {
+            let diagnostics = compiled.diagnostics().iter().map(CompileDiagnosticDto::from).collect();
+            let build_spec = compiled.process_spec().ok().map(|spec| build_runner::BuildSpec {
+                profile: spec.profile,
+                executable: spec.executable.to_string_lossy().into_owned(),
+                args: spec.args,
+            });
+            Ok(CompileOutcomeDto {
+                ok: build_spec.is_some(),
+                diagnostics,
+                build_spec,
+                error: None,
+            })
+        }
+        Err(failure) => Ok(CompileOutcomeDto {
+            ok: false,
+            diagnostics: failure.diagnostics().iter().map(CompileDiagnosticDto::from).collect(),
+            build_spec: None,
+            error: Some(failure.to_string()),
+        }),
+    }
+}
+
 
 
 /// Scans sibling repos (my-lisp, fpga-lisp, cml) and their machine-readable
@@ -662,6 +757,7 @@ pub fn run_with_target(target: StartupTarget) {
             editor_emit_event,
             editor_list_commands,
             editor_list_keymaps,
+            compile_lisp_source,
             build_runner::start_build,
             build_runner::cancel_build,
             build_runner::active_build,

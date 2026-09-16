@@ -164,6 +164,7 @@
         mode (or (:language-mode doc) "text")
         preview? (or (= mode "markdown") (= mode "mermaid"))
         runnable? (or (= mode "my-lisp") (= mode "markdown"))
+        compilable? (and (= mode "my-lisp") (workspace/native?))
         repl-panel (render-repl-console-panel)
         build-panel (render-build-output-panel)]
     (apply-theme! theme)
@@ -176,6 +177,8 @@
            (when runnable?
              (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"
                   "<button class='run' id='run'>▶ " (t :run) "</button>"))
+           (when compilable?
+             (str "<button class='compile' id='compile' title='" (t :compile-cml) "'>🔧 " (t :compile-cml) "</button>"))
            "</div></header>"
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<div class='splitter vsplit-l' id='vsplit-l'></div>"
@@ -224,6 +227,8 @@
       (.addEventListener el "click" cmd/execute!))
     (when-let [el (.getElementById js/document "run")]
       (.addEventListener el "click" cmd/run-build!))
+    (when-some [el (.getElementById js/document "compile")]
+      (.addEventListener el "click" cmd/compile-and-run!))
     (when-let [el (.getElementById js/document "build-stop")]
       (.addEventListener el "click" cmd/stop-build!))
     (.addEventListener (.getElementById js/document "programming-language") "click" cmd/cycle-programming-language!)

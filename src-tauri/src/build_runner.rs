@@ -29,7 +29,9 @@ pub const BUILD_OUTPUT_EVENT: &str = "build-output";
 ///
 /// Exactly mirrors the `ProcessSpec` contract shape: three separate fields,
 /// no concatenated command string. `args` is a JSON array of argv entries.
-#[derive(Deserialize, Debug)]
+/// `Serialize` too: a compiler adapter (e.g. `compile_lisp_source`) hands
+/// one of these straight back to the frontend to feed into `start_build`.
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildSpec {
     pub profile: String,
