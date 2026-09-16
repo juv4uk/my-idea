@@ -395,6 +395,32 @@ headless shell) are also machine-local and not provided by Guix; without
 them `tests/smoke.test.mjs` / `tests/eco-panel.test.mjs` cannot run at
 all (they hard-fail on missing `my-idea-web.html` first).
 
+## Known fix: `cargo build`/`cargo check` need the REPL sidecar present first
+
+`tauri.conf.json`'s `bundle.externalBin` (`["binaries/my-lisp"]`) makes
+`tauri-build`'s `build.rs` step fail closed with `resource path
+"binaries/my-lisp-<host-triple>" doesn't exist` unless that file is
+already on disk — even for a plain `cargo build`/`cargo check`, before any
+actual bundling happens. This is Tauri's own compile-time validation, not
+a bug here.
+
+One-time (or "whenever `external/my-lisp` moves") local setup:
+
+```bash
+bash scripts/build-repl-sidecar.sh
+```
+
+This builds `my-lisp-cli` from the local `external/my-lisp` submodule and
+places it at `src-tauri/binaries/my-lisp-<host-triple>` — gitignored,
+never committed. The actual release build does *not* use this script or
+the submodule's pinned commit for this binary: `.github/workflows/
+publish-release.yml` clones and builds my-lisp's own latest `main` fresh
+for each target platform instead, since the sidecar is an external CLI
+tool driven over a stable stdin/stdout text protocol (not a compiled-in
+library API) — see `repl_console.rs`'s module doc and `src-tauri/
+Cargo.toml`'s comment on the my-lisp path deps for why these two are
+deliberately different policies for the "same" upstream.
+
 ## If `cargo check` fails with "rustc X is not supported"
 
 Tauri's dependency tree moves faster than Guix's packaged `rust`; a

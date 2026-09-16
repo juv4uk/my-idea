@@ -546,6 +546,7 @@ pub fn run_with_target(target: StartupTarget) {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             if let Some(config_dir) = plugins::default_config_dir() {
                 app.state::<ManagedReplSession>().load_plugins(&config_dir);

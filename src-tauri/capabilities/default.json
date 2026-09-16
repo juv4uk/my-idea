@@ -11,6 +11,15 @@
     "dialog:allow-save",
     "fs:default",
     "fs:allow-read-text-file",
-    "fs:allow-write-text-file"
+    "fs:allow-write-text-file",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/my-lisp",
+          "sidecar": true
+        }
+      ]
+    }
   ]
 }

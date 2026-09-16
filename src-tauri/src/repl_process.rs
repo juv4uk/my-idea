@@ -113,17 +113,108 @@ fn spawn_line_forwarder<R: Read + Send + 'static>(
 /// `external/my-lisp` git submodule if it isn't already built (cargo's own
 /// incremental cache makes every call after the first effectively free).
 /// `repo_root` is my-idea's own repository root (the parent of `src-tauri`).
+///
+/// Only usable when that repo root actually has the submodule checked out —
+/// true for a source/dev checkout, never true for a packaged install (see
+/// `resolve_or_fetch_my_lisp_binary`, which this repo's console command
+/// actually calls).
 pub fn resolve_my_lisp_binary(repo_root: &Path) -> Result<PathBuf, String> {
     let submodule = repo_root.join("external").join("my-lisp");
-    let manifest = submodule.join("Cargo.toml");
-    if !manifest.exists() {
+    if !submodule.join("Cargo.toml").exists() {
         return Err(format!(
             "external/my-lisp submodule not checked out at {} — run `git submodule update --init`",
             submodule.display()
         ));
     }
+    build_my_lisp_cli(&submodule)
+}
 
-    let target_dir = submodule.join("target");
+/// The exact `my-lisp` commit `external/my-lisp` was checked out at when
+/// this my-idea binary was compiled (`src-tauri/build.rs`) — a plain string
+/// identifier, never a filesystem path, so it stays meaningful on whatever
+/// machine later runs the compiled binary. Empty if the submodule was
+/// somehow missing at compile time.
+pub fn my_lisp_pinned_sha() -> &'static str {
+    env!("MY_LISP_PINNED_SHA")
+}
+
+/// The real upstream URL `resolve_or_fetch_my_lisp_binary` clones when no
+/// local submodule checkout is available.
+pub const MY_LISP_GIT_URL: &str = "https://github.com/juv4uk/my-lisp.git";
+
+/// Resolves the my-lisp CLI binary via the local `external/my-lisp`
+/// submodule when a source/dev checkout of my-idea provides one (fast path,
+/// no network) — otherwise falls back to cloning the exact pinned commit
+/// directly from its real GitHub URL into `cache_dir` and building it
+/// there. The fallback is what makes a *packaged* my-idea install able to
+/// run the console at all: an installed app's own directory never has
+/// my-idea's source tree, let alone its submodule, on disk — the only
+/// thing that can possibly be "checked out" on that machine is a git
+/// reference (URL + pinned SHA), never a filesystem path baked in when the
+/// binary was compiled somewhere else entirely.
+pub fn resolve_or_fetch_my_lisp_binary(repo_root: &Path, cache_dir: &Path) -> Result<PathBuf, String> {
+    let local_submodule = repo_root.join("external").join("my-lisp");
+    if local_submodule.join("Cargo.toml").exists() {
+        return build_my_lisp_cli(&local_submodule);
+    }
+    fetch_and_build_my_lisp(cache_dir)
+}
+
+fn fetch_and_build_my_lisp(cache_dir: &Path) -> Result<PathBuf, String> {
+    let pinned_sha = my_lisp_pinned_sha();
+    if pinned_sha.is_empty() {
+        return Err(
+            "my-lisp's pinned commit was not recorded when my-idea was built (external/my-lisp \
+             submodule was missing at compile time) — the REPL console cannot resolve which \
+             my-lisp to run"
+                .to_string(),
+        );
+    }
+
+    std::fs::create_dir_all(cache_dir)
+        .map_err(|error| format!("failed to create {}: {error}", cache_dir.display()))?;
+    let checkout = cache_dir.join("my-lisp");
+
+    if !checkout.join(".git").exists() {
+        run_git(None, &["clone", MY_LISP_GIT_URL, &checkout.to_string_lossy()])?;
+    }
+
+    let already_on_pinned_commit = Command::new("git")
+        .arg("-C")
+        .arg(&checkout)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim() == pinned_sha)
+        .unwrap_or(false);
+
+    if !already_on_pinned_commit {
+        run_git(Some(&checkout), &["fetch", "--depth", "1", "origin", pinned_sha])?;
+        run_git(Some(&checkout), &["checkout", "--detach", pinned_sha])?;
+    }
+
+    build_my_lisp_cli(&checkout)
+}
+
+fn run_git(cwd: Option<&Path>, args: &[&str]) -> Result<(), String> {
+    let mut command = Command::new("git");
+    if let Some(dir) = cwd {
+        command.arg("-C").arg(dir);
+    }
+    let status = command
+        .args(args)
+        .status()
+        .map_err(|error| format!("failed to run git {args:?}: {error}"))?;
+    if !status.success() {
+        return Err(format!("git {args:?} failed"));
+    }
+    Ok(())
+}
+
+fn build_my_lisp_cli(my_lisp_checkout: &Path) -> Result<PathBuf, String> {
+    let manifest = my_lisp_checkout.join("Cargo.toml");
+    let target_dir = my_lisp_checkout.join("target");
     let status = Command::new("cargo")
         .args(["build", "--release", "-p", "my-lisp-cli", "--bin", "my-lisp"])
         .arg("--manifest-path")
@@ -133,9 +224,7 @@ pub fn resolve_my_lisp_binary(repo_root: &Path) -> Result<PathBuf, String> {
         .status()
         .map_err(|error| format!("failed to run cargo build for the my-lisp CLI: {error}"))?;
     if !status.success() {
-        return Err(
-            "cargo build for the my-lisp CLI (external/my-lisp submodule) failed".to_string(),
-        );
+        return Err("cargo build for the my-lisp CLI failed".to_string());
     }
 
     let binary_name = if cfg!(windows) { "my-lisp.exe" } else { "my-lisp" };
