@@ -4,7 +4,7 @@
 
 use my_idea_lib::documentation::{DocumentationIndex, DocumentationSource};
 use my_idea_lib::help_api::{HelpCatalog, HelpRegistry};
-use my_idea_lib::ReplSession;
+use my_idea_lib::{ManagedReplSession, ReplSession};
 use my_lisp::language_items;
 use std::fs;
 use std::path::PathBuf;
@@ -167,4 +167,21 @@ fn installed_lisp_help_api_returns_native_data_for_topic_and_search() {
         .evaluate("(help/topic 'this-topic-does-not-exist)")
         .expect("unknown help topic should fail closed as data");
     assert_eq!(unknown.value, "()");
+}
+
+#[test]
+fn production_managed_repl_installs_the_same_help_api() {
+    let identity = language_items()
+        .into_iter()
+        .find(|item| item.name == "car" && item.semantic_id.is_some())
+        .and_then(|item| item.semantic_id)
+        .expect("pinned my-lisp should expose car with a semantic identity");
+
+    let repl = ManagedReplSession::new();
+    let topic = repl
+        .evaluate("(help/topic 'car)", Some("my-lisp"))
+        .expect("production ManagedReplSession must install HelpRegistry before evaluation");
+
+    assert!(topic.value.contains(identity));
+    assert!(topic.value.starts_with('('));
 }
