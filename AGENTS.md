@@ -421,6 +421,34 @@ library API) — see `repl_console.rs`'s module doc and `src-tauri/
 Cargo.toml`'s comment on the my-lisp path deps for why these two are
 deliberately different policies for the "same" upstream.
 
+## #50's live-editor witness needs a separately-built harness binary
+
+`tests/live_editor_witness.mjs` (`bun run witness:editor`, not part of the
+default `bun run test` glob since it's cross-language and needs a Rust
+build) drives a real headless-Chromium CodeMirror instance against the
+real `ManagedReplSession`/`EditorCommandRegistry` through
+`src-tauri/src/bin/editor_bridge_harness.rs` — build it first:
+
+```bash
+cd src-tauri && cargo build --bin editor_bridge_harness
+```
+
+then, if your `CARGO_TARGET_DIR` isn't the default (see the DrvFs section
+above), point the test at it: `MY_IDEA_EDITOR_HARNESS_BIN=<path>
+bun run witness:editor`. Also regenerate `my-idea-web.html` first if it
+predates your CLJS changes — `bun run build` does **not** do this itself
+(`scripts/build.mjs` only produces `dist/`); run
+`node scripts/make-portable-web.mjs dist/index.html my-idea-web.html`
+explicitly (the same command `ci.yml`/`publish-release.yml` run), or the
+witness will silently exercise a stale bundle.
+
+The harness stands in only for Tauri's WebView IPC *transport* — real
+`tauri-driver`/WebView-WebDriver automation needs `webkit2gtk-driver` on
+Linux, which isn't installable without root in this sandbox and isn't
+packaged in this project's Guix channel either. Same class of gap as
+Bun/wasm-pack elsewhere in this file: documented, not silently worked
+around.
+
 ## If `cargo check` fails with "rustc X is not supported"
 
 Tauri's dependency tree moves faster than Guix's packaged `rust`; a

@@ -296,3 +296,25 @@
   (cmd/refresh-editor-registry!)
   (when-not (workspace/native?)
     (wasm/load! render!)))
+
+;; ---- #50 live-editor witness: test-only entry points ----
+;;
+;; Mounts just the real CodeMirror editor (production editor/mount!, same
+;; @view* the whole app shares) without booting the rest of the app
+;; (workspace restore, sidebar, tabs) — Playwright drives these three
+;; exports directly against a real DOM, real CodeMirror, and the real
+;; commands.cljs dispatch path (which still goes through
+;; workspace/invoke! -> window.__TAURI__.core.invoke, exactly as
+;; production does; the test only swaps what's behind that global for a
+;; harness process instead of a real WebView, see
+;; tests/live_editor_witness.mjs).
+
+(defn ^:export mount-editor-witness! [container-id initial-text keymap-key]
+  (editor/set-editor-keymap!
+   [{:key keymap-key :run (fn [_view] (cmd/dispatch-editor-key! keymap-key) true)}])
+  (editor/mount! (.getElementById js/document container-id) initial-text "my-lisp" "witness.lisp"
+                 (fn [_ _] #js []) (fn [_]) (fn [_])))
+
+(defn ^:export witness-select-range! [from to] (editor/select-range! from to))
+(defn ^:export witness-invoke-command! [name] (cmd/invoke-editor-command! name))
+(defn ^:export witness-dispatch-key! [key] (cmd/dispatch-editor-key! key))

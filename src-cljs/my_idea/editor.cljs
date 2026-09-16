@@ -99,6 +99,14 @@
 ;; commands.cljs itself uses for render! (see set-render!).
 (defonce editor-keymap-bindings* (atom []))
 
+(defn select-range!
+  "Sets the real CodeMirror selection to [from, to) via a real transaction
+  — used by the #50 live-editor witness as a deterministic, still-real-
+  CodeMirror alternative to simulating a mouse drag."
+  [from to]
+  (when-let [^js view @view*]
+    (.dispatch view #js {:selection #js {:anchor from :head to}})))
+
 (defn set-editor-keymap!
   "Installs the current set of `{:key :run}` CodeMirror bindings a my-lisp
   plugin claimed via `editor/keymap`. Re-mounting the editor (tab switch,
