@@ -8,7 +8,6 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Once;
 
 use my_lisp::{
     eval_expr, exact_arity, language_items, register_capability, Environment, ErrorKind, Expr,
@@ -207,14 +206,15 @@ fn help_related(
     Ok(Value::Nil)
 }
 
-fn ensure_capabilities_installed() {
-    static INSTALL: Once = Once::new();
-    INSTALL.call_once(|| {
-        register_capability("help/topic", help_topic);
-        register_capability("help/search", help_search);
-        register_capability("help/source", help_source);
-        register_capability("help/related", help_related);
-    });
+fn install_capabilities() {
+    // The upstream capability registry is deliberately mutable: re-registering
+    // replaces a handler and a host may withdraw capabilities. Installing a
+    // HelpRegistry must therefore establish its four surfaces *now*, rather
+    // than relying on a process-lifetime Once that can become stale.
+    register_capability("help/topic", help_topic);
+    register_capability("help/search", help_search);
+    register_capability("help/source", help_source);
+    register_capability("help/related", help_related);
 }
 
 pub struct HelpRegistry {
@@ -235,7 +235,7 @@ impl HelpRegistry {
     }
 
     pub fn install_into(&self, repl: &mut ReplSession) {
-        ensure_capabilities_installed();
+        install_capabilities();
         repl.environment().define(
             TOKEN_ENV_KEY,
             Value::HostHandle {
