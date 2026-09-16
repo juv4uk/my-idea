@@ -1,0 +1,60 @@
+name: Apply Android release GREEN
+
+on:
+  push:
+    branches:
+      - fix/android-disable-desktop-sidecar
+    paths:
+      - .github/workflows/apply-android-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/android-disable-desktop-sidecar
+          fetch-depth: 0
+      - name: Apply minimal Android externalBin override
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow_path = Path('.github/workflows/publish-release.yml')
+          text = workflow_path.read_text()
+          start = text.index('  build-android:')
+          checkout_anchor = '          submodules: true\n'
+          insert_at = start + text[start:].index(checkout_anchor) + len(checkout_anchor)
+          marker = 'Disable desktop sidecar for Android'
+          if marker not in text[start:]:
+              step = '''      - name: Disable desktop sidecar for Android · Вимкнути desktop sidecar для Android · Desktop-Sidecar für Android deaktivieren
+        run: |
+          cat > src-tauri/tauri.android.conf.json <<'EOF'
+          {
+            "bundle": {
+              "externalBin": []
+            }
+          }
+          EOF
+'''
+              text = text[:insert_at] + step + text[insert_at:]
+              workflow_path.write_text(text)
+
+          Path('src-tauri/tauri.android.conf.json').write_text('''{
+            "bundle": {
+              "externalBin": []
+            }
+          }\n''')
+          PY
+
+          git rm .github/workflows/apply-android-green.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/publish-release.yml src-tauri/tauri.android.conf.json
+          git commit -m 'fix(release): disable desktop sidecar on Android'
+          git push origin HEAD:fix/android-disable-desktop-sidecar
