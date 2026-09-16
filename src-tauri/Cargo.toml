@@ -41,6 +41,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-fs = "2.5.1"
+# Resolves/spawns the bundled my-lisp CLI sidecar for the REPL console
+# (repl_console.rs) — a separate concern from the my-lisp/my-lisp-literate
+# path deps above: those are a compiled-in library API (pinned to an exact
+# commit on purpose, single-channel), while the sidecar is an external CLI
+# tool driven over a stable stdin/stdout text protocol, deliberately built
+# fresh from my-lisp's latest main during each my-idea release (see
+# .github/workflows/publish-release.yml) rather than pinned.
+tauri-plugin-shell = "2"
 
 
 
