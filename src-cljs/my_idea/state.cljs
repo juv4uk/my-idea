@@ -13,7 +13,14 @@
                        :open-paths []
                        :active-path nil
                        :documents {}
-                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true}))
+                       :output ["Ready · Готово · Bereit"] :ast "[]" :error? false :sidebar? true
+                       ;; Terminal-style REPL console: :repl-log's own entries come
+                       ;; from the real my-lisp CLI subprocess (native) or the WASM
+                       ;; engine (web) — see commands/init-repl-console!. Nothing here
+                       ;; reimplements the REPL's banner or surface-switching text.
+                       :repl-log []
+                       :repl-history []
+                       :repl-history-idx nil}))
 
 (defn active-doc
   "Returns the currently active document from state, or nil."

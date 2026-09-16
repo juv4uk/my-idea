@@ -191,5 +191,3 @@ pub fn evaluate_source_in_session(
     };
     repl.evaluate_mode(source, source_mode)
 }
-
-
