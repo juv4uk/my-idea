@@ -17,7 +17,7 @@
 :root[data-theme=forest]{color-scheme:dark;--bg:#0d1512;--panel:#141f1a;--raised:#1c2b23;--line:#30483a;--text:#d2ddd5;--muted:#89998e;--accent:#67aa86;--accent-warm:#c28b55;--editor:#111a17;--console:#a9cbb6;--ast:#aaa9c9;--error:#d98b86}
 
 .splitter{border-radius:3px;cursor:col-resize;z-index:2;min-width:0}
-.hsplit{cursor:row-resize}
+.hsplit{cursor:row-resize;height:5px}
 .vsplit-l:hover,.vsplit-r:hover{background:var(--line)}
 .hsplit:hover{background:var(--line)}
 
