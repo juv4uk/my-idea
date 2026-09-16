@@ -96,6 +96,8 @@ jobs:
             macos-latest)
               build_one x86_64-apple-darwin
               build_one aarch64-apple-darwin
+              cp "$RUNNER_TEMP/my-lisp-sidecar-src/target/x86_64-apple-darwin/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-apple-darwin
+              cp "$RUNNER_TEMP/my-lisp-sidecar-src/target/aarch64-apple-darwin/release/my-lisp" src-tauri/binaries/my-lisp-aarch64-apple-darwin
               lipo -create -output src-tauri/binaries/my-lisp-universal-apple-darwin \
                 "$RUNNER_TEMP/my-lisp-sidecar-src/target/x86_64-apple-darwin/release/my-lisp" \
                 "$RUNNER_TEMP/my-lisp-sidecar-src/target/aarch64-apple-darwin/release/my-lisp"
