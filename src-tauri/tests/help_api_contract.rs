@@ -51,23 +51,32 @@ fn topic_identity_signature_and_peer_surfaces_come_from_my_lisp() {
         .iter()
         .find(|item| item.name == "car" && item.semantic_id.is_some())
         .expect("pinned my-lisp should expose car through language_items");
-    let identity = canonical.semantic_id.expect("car must have upstream semantic identity");
+    let identity = canonical
+        .semantic_id
+        .expect("car must have upstream semantic identity");
     let peer = items
         .iter()
         .find(|item| item.semantic_id == Some(identity) && item.name != canonical.name)
         .expect("semantic registry should expose at least one peer surface for this witness");
 
     let catalog = HelpCatalog::new(DocumentationIndex::default());
-    let topic = catalog.topic(&canonical.name).expect("canonical surface should resolve");
+    let topic = catalog
+        .topic(&canonical.name)
+        .expect("canonical surface should resolve");
     let peer_topic = catalog.topic(&peer.name).expect("peer surface should resolve");
+    let id_topic = catalog
+        .topic(identity)
+        .expect("semantic identity itself should resolve to the same topic");
 
     assert_eq!(topic.identity, identity);
     assert_eq!(peer_topic.identity, identity);
+    assert_eq!(id_topic.identity, identity);
     assert_eq!(topic.signature, canonical.signature);
     assert_eq!(topic.summary, canonical.documentation);
     assert!(topic.surfaces.contains(&canonical.name));
     assert!(topic.surfaces.contains(&peer.name));
     assert_eq!(topic.identity, peer_topic.identity);
+    assert_eq!(topic.identity, id_topic.identity);
 }
 
 #[test]
@@ -102,7 +111,9 @@ fn installed_lisp_help_api_returns_native_data_for_topic_and_search() {
         .iter()
         .find(|item| item.name == "car" && item.semantic_id.is_some())
         .expect("pinned my-lisp should expose car through language_items");
-    let identity = canonical.semantic_id.expect("car must have upstream semantic identity");
+    let identity = canonical
+        .semantic_id
+        .expect("car must have upstream semantic identity");
     let peer = items
         .iter()
         .find(|item| item.semantic_id == Some(identity) && item.name != canonical.name)
@@ -121,11 +132,19 @@ fn installed_lisp_help_api_returns_native_data_for_topic_and_search() {
         .evaluate("(help/topic 'car)")
         .expect("help/topic should evaluate in the installed live session");
     let peer_topic = repl
-        .evaluate(&format!("(help/topic '{} )", peer.name).replace("'{} ", &format!("'{} ", peer.name)))
+        .evaluate(&format!("(help/topic '{})", peer.name))
         .expect("peer surface should reach the same help capability");
-    assert!(topic.value.starts_with('('), "help/topic must return Lisp data, not an opaque JSON string: {}", topic.value);
+    let id_topic = repl
+        .evaluate(&format!("(help/topic \"{identity}\")"))
+        .expect("semantic ID should reach the same help capability");
+    assert!(
+        topic.value.starts_with('('),
+        "help/topic must return Lisp data, not an opaque JSON string: {}",
+        topic.value
+    );
     assert!(topic.value.contains(identity));
     assert!(peer_topic.value.contains(identity));
+    assert!(id_topic.value.contains(identity));
     assert!(!topic.value.trim_start().starts_with("{\""));
 
     let search = repl
