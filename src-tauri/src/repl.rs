@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use my_lisp_literate::SourceMode;
 use crate::editor_api::{EditorCommandRegistry, EditorEffect, EditorState};
+use crate::help_api::{HelpCatalog, HelpRegistry};
 use crate::LispEvaluation;
 
 /// Desired workspace target upon starting the desktop application.
@@ -142,6 +143,8 @@ impl ManagedReplSession {
                 // the very first line they evaluate.
                 let registry = EditorCommandRegistry::new();
                 registry.install_into(&mut session);
+                let help_registry = HelpRegistry::new(HelpCatalog::new(crate::documentation_index()));
+                help_registry.install_into(&mut session);
                 while let Ok(cmd) = rx.recv() {
                     match cmd {
                         ReplCommand::Evaluate { source, mode, reply } => {
