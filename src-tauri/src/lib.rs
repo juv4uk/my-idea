@@ -1,6 +1,7 @@
 pub mod compiler_bridge;
 pub mod compiler_build_adapter;
 pub mod editor_api;
+pub mod keymap_authority;
 pub mod plugins;
 pub mod repl;
 pub mod repl_console;
@@ -19,7 +20,7 @@ pub mod process_service;
 mod swarm;
 mod swarm_dashboard;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     fs::OpenOptions,
@@ -195,6 +196,40 @@ fn editor_list_keymaps(repl: State<'_, ManagedReplSession>) -> Vec<KeymapEntryDt
         .into_iter()
         .map(|(key, command)| KeymapEntryDto { key, command })
         .collect()
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BuiltinBindingDto {
+    key: String,
+    command: String,
+}
+
+/// Resolves every key binding — real Lisp `editor/keymap` registrations
+/// plus whatever built-in bindings the frontend reports (it owns those,
+/// e.g. `editor.cljs`'s go-to-definition; Rust has no other way to know
+/// about them) — into one explicit, inspectable precedence table (issue
+/// #51: policy is data, not silent extension-array/load-order authority).
+#[tauri::command]
+fn resolve_keymaps(
+    builtins: Vec<BuiltinBindingDto>,
+    repl: State<'_, ManagedReplSession>,
+) -> Vec<keymap_authority::Resolution> {
+    let mut bindings: Vec<keymap_authority::Binding> = repl
+        .list_keymaps()
+        .into_iter()
+        .map(|(key, command)| keymap_authority::Binding {
+            key,
+            command,
+            source: keymap_authority::Source::UserPlugin,
+        })
+        .collect();
+    bindings.extend(builtins.into_iter().map(|builtin| keymap_authority::Binding {
+        key: builtin.key,
+        command: builtin.command,
+        source: keymap_authority::Source::BuiltIn,
+    }));
+    keymap_authority::resolve(bindings)
 }
 
 /// Resolves the real `cml` compiler binary (issue #16: cml is the sole
@@ -758,6 +793,7 @@ pub fn run_with_target(target: StartupTarget) {
             editor_emit_event,
             editor_list_commands,
             editor_list_keymaps,
+            resolve_keymaps,
             compile_lisp_source,
             build_runner::start_build,
             build_runner::cancel_build,

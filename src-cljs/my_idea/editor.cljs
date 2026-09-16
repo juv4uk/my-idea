@@ -19,6 +19,19 @@
 ;; Eine CodeMirror-Instanz versorgt den Arbeitsbereich.
 (defonce view* (atom nil))
 
+;; [#51 IDE-KEYMAP-AUTHORITY-1] Was F12, colliding with the WebView's own
+;; devtools shortcut (enabled by the `devtools` Cargo feature) the moment
+;; that feature shipped — two things claiming the same physical key with
+;; no way to say which one actually fires. F12 is kept for devtools (a
+;; universal, host-level convention we don't control) and go-to-definition
+;; moves to Alt-. — Emacs' own `M-.` (`xref-find-definitions`), matching
+;; the Emacs framing the rest of this plugin/keymap system already uses.
+;; `commands.cljs`'s `resolve-keymaps!` reports this binding to Rust's
+;; `resolve_keymaps` (keymap_authority.rs) as a `built-in` source alongside
+;; real Lisp `editor/keymap` bindings, so any future collision on this key
+;; is explicit data, not another silent surprise.
+(def go-to-definition-key "Alt-.")
+
 (def completions
   (completeFromList
    #js [#js {:label "def" :type "keyword" :detail "Bind a value"}
@@ -176,7 +189,7 @@
                                              (diagnose-fn (.. view -state -doc toString) mode))))
                                  (.of keymap
                                       (.concat #js [indentWithTab]
-                                               #js [#js {:key "F12"
+                                               #js [#js {:key go-to-definition-key
                                                          :run (fn [view]
                                                                 (when (and (lsp/supported? mode)
                                                                            (workspace/native?))

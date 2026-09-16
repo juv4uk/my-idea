@@ -129,7 +129,11 @@ test('native WsmLS adapter owns WSM diagnostics and completion', () => {
   assert.match(frontend, /command-prefix mode\) "hover"/);
   assert.match(frontend, /command-prefix mode\) "definition"/);
   assert.match(editor, /hoverTooltip/);
-  assert.match(editor, /:key "F12"/);
+  // #51 IDE-KEYMAP-AUTHORITY-1: go-to-definition moved off F12 (which now
+  // belongs solely to the WebView's own devtools shortcut) to Alt-.,
+  // Emacs' own M-. (xref-find-definitions).
+  assert.match(editor, /:key go-to-definition-key/);
+  assert.doesNotMatch(editor, /:key "F12"/);
   assert.match(editor, /forceLinting/);
 });
 

@@ -25,7 +25,7 @@
 ;; editor lifecycle events, but the Editor API bridge that implements them
 ;; lives near the bottom, alongside the rest of the my-lisp plugin bridge
 ;; it belongs with.
-(declare emit-editor-event! dispatch-editor-key!)
+(declare emit-editor-event! dispatch-editor-key! resolve-keymaps!)
 
 ;; ---- helpers ----
 
@@ -515,20 +515,37 @@
         (.then #(reset! editor-commands* (js->clj %)))
         (.catch #(js/console.warn "editor_list_commands failed" %)))
     (-> (workspace/invoke! "editor_list_keymaps" {})
-        (.then (fn [keymaps]
-                 (let [keymaps (js->clj keymaps :keywordize-keys true)]
-                   (reset! editor-keymaps* keymaps)
-                   ;; CodeMirror needs to know *which physical keys* to
-                   ;; intercept, but never resolves key -> command itself:
-                   ;; that stays fail-closed and Lisp-authoritative on the
-                   ;; Rust side (editor_dispatch_key), matching issue #11 --
-                   ;; a key whose command got removed since this list was
-                   ;; fetched still fails closed instead of silently no-op'ing.
+        (.then (fn [keymaps] (reset! editor-keymaps* (js->clj keymaps :keywordize-keys true))))
+        (.catch #(js/console.warn "editor_list_keymaps failed" %)))
+    (resolve-keymaps!)))
+
+(defn- source-kw [candidate] (keyword (:source candidate)))
+
+(defn resolve-keymaps!
+  "[#51 IDE-KEYMAP-AUTHORITY-1] Asks Rust's keymap_authority for one
+  explicit, data-driven resolution per key — real Lisp `editor/keymap`
+  bindings plus the one built-in binding this app has (go-to-definition) —
+  instead of letting CodeMirror's extension-array order silently decide a
+  collision. Only a key this app's own resolution actually awards to a
+  plugin gets installed as a live CodeMirror binding; anything host-
+  reserved or lost to the built-in is reported, not silently attempted."
+  []
+  (when (workspace/native?)
+    (-> (workspace/invoke! "resolve_keymaps" {:builtins [{:key editor/go-to-definition-key :command "go-to-definition"}]})
+        (.then (fn [resolutions]
+                 (let [resolutions (js->clj resolutions :keywordize-keys true)]
                    (editor/set-editor-keymap!
-                    (mapv (fn [{:keys [key]}]
-                            {:key key :run (fn [_view] (dispatch-editor-key! key) true)})
-                          keymaps)))))
-        (.catch #(js/console.warn "editor_list_keymaps failed" %)))))
+                    (keep (fn [{:keys [key winner]}]
+                            (when (and winner (= (source-kw winner) :user-plugin))
+                              {:key key :run (fn [_view] (dispatch-editor-key! key) true)}))
+                          resolutions))
+                   (doseq [{:keys [key candidates reason]} resolutions]
+                     (when (> (count candidates) 1)
+                       (repl-log! [{:kind :error
+                                    :text (str "Конфлікт клавіші \"" key "\": "
+                                               (str/join ", " (map :command candidates))
+                                               " — " reason)}]))))))
+        (.catch #(js/console.warn "resolve_keymaps failed" %)))))
 
 (defn reload-editor-plugins!
   "Explicit reload of init.lisp/plugins/*.lisp (no file-watcher, matching
