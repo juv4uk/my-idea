@@ -32,6 +32,15 @@ fn git_output(repo: &Path, args: &[&str]) -> Option<String> {
     }
 }
 
+/// Full commit SHA for the repository checkout at `repo`.
+///
+/// Повний commit SHA checkout-а репозиторію. На відміну від `RepoInfo.sha`,
+/// який навмисно короткий для UI, documentation provenance потребує точний
+/// machine-readable `HEAD`.
+pub(crate) fn repo_head_sha(repo: &Path) -> Option<String> {
+    git_output(repo, &["rev-parse", "HEAD"])
+}
+
 /// Reports branch + short SHA for a locally cloned ecosystem repo, if present.
 /// Повідомляє branch + короткий SHA для локально клонованого репо екосистеми, якщо він є.
 pub fn repo_info(name: &str, path: &Path) -> RepoInfo {
