@@ -76,6 +76,36 @@
     (.. view -state -doc toString)
     ""))
 
+(defn selection-text
+  "The text of the current (possibly empty) selection — the `selection`
+  half of the EditorState snapshot my-lisp plugins see via the Editor API."
+  []
+  (if-let [^js view @view*]
+    (let [main (.. view -state -selection -main)]
+      (.sliceString (.. view -state -doc) (.-from main) (.-to main)))
+    ""))
+
+(defn replace-selection!
+  "Replaces the current selection with `text` — the effect a my-lisp plugin
+  command requests via `editor/replace-selection`."
+  [text]
+  (when-let [^js view @view*]
+    (let [main (.. view -state -selection -main)]
+      (.dispatch view #js {:changes #js {:from (.-from main) :to (.-to main) :insert text}}))))
+
+;; Set by my-idea.commands (refresh-editor-registry!), read here at mount
+;; time — commands.cljs already requires this namespace, so this namespace
+;; cannot require commands.cljs back without a cycle; the same indirection
+;; commands.cljs itself uses for render! (see set-render!).
+(defonce editor-keymap-bindings* (atom []))
+
+(defn set-editor-keymap!
+  "Installs the current set of `{:key :run}` CodeMirror bindings a my-lisp
+  plugin claimed via `editor/keymap`. Re-mounting the editor (tab switch,
+  language change) picks up whatever was set most recently."
+  [bindings]
+  (reset! editor-keymap-bindings* bindings))
+
 (defn set-source! [text]
   (when-let [view @view*]
     (.dispatch view
@@ -120,7 +150,14 @@
   (let [state (.create EditorState
                        #js {:doc source-text
                             :extensions
-                            #js [(lineNumbers) (highlightActiveLineGutter) (foldGutter)
+                            #js [;; Plugin keymaps go first so a my-lisp
+                                 ;; `editor/keymap` binding takes priority
+                                 ;; over CodeMirror's own defaults below —
+                                 ;; the same "your config wins" precedence
+                                 ;; Emacs gives user keybindings.
+                                 (.of keymap (clj->js (map (fn [{:keys [key run]}] #js {:key key :run run})
+                                                            @editor-keymap-bindings*)))
+                                 (lineNumbers) (highlightActiveLineGutter) (foldGutter)
                                  (history) (drawSelection) (indentOnInput)
                                  (bracketMatching) (highlightActiveLine)
                                  (language-extensions mode path)

@@ -170,6 +170,9 @@
     (set! (.-innerHTML app)
       (str "<div class='shell'><header class='topbar'><div class='brand'><button id='menu' class='icon'>☰</button><div class='mark'>λ</div><div><strong>my-idea</strong><small>lightweight programming IDE</small></div></div>"
            "<div class='actions'><button id='language' title='Language'>" (get i18n/language-labels language) "</button><button id='theme' title='Theme'>" (get i18n/theme-icons theme) " " (get-in i18n/messages [language :themes theme]) "</button><button id='open'>" (t :open) "</button><button id='save'>" (t :save) "</button><button id='save-as'>" (t :save-as) "</button>"
+           (when (workspace/native?)
+             (str "<button id='editor-commands' title='" (t :editor-commands) "'>⌘ " (t :editor-commands) "</button>"
+                  "<button id='reload-plugins' title='" (t :reload-plugins) "'>⟲</button>"))
            (when runnable?
              (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"
                   "<button class='run' id='run'>▶ " (t :run) "</button>"))
@@ -213,6 +216,10 @@
     (.addEventListener (.getElementById js/document "open-sidebar") "click" cmd/choose-workspace!)
     (.addEventListener (.getElementById js/document "save") "click" cmd/save!)
     (.addEventListener (.getElementById js/document "save-as") "click" cmd/save-as!)
+    (when-some [el (.getElementById js/document "editor-commands")]
+      (.addEventListener el "click" cmd/run-editor-command!))
+    (when-some [el (.getElementById js/document "reload-plugins")]
+      (.addEventListener el "click" cmd/reload-editor-plugins!))
     (when-let [el (.getElementById js/document "eval")]
       (.addEventListener el "click" cmd/execute!))
     (when-let [el (.getElementById js/document "run")]
@@ -281,5 +288,6 @@
   (render!)
   (cmd/restore-native!)
   (cmd/init-repl-console!)
+  (cmd/refresh-editor-registry!)
   (when-not (workspace/native?)
     (wasm/load! render!)))

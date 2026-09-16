@@ -119,6 +119,83 @@ fn reload_plugins(repl: State<'_, ManagedReplSession>) -> Result<PluginLoadRepor
     Ok(repl.load_plugins(&config_dir).into())
 }
 
+/// Dispatches a key press to the command a Lisp plugin bound it to via
+/// `editor/keymap` (issue #11/#9, "our own Emacs"). An unbound key or a
+/// keymap pointing at a command that no longer exists are both errors, so
+/// the frontend can fall back to CodeMirror's own default handling for that
+/// key rather than silently swallowing it.
+#[tauri::command]
+fn editor_dispatch_key(
+    key: String,
+    state: editor_api::EditorState,
+    repl: State<'_, ManagedReplSession>,
+) -> Result<editor_api::EditorEffect, String> {
+    repl.dispatch_key(&key, state)
+}
+
+/// Invokes a command a Lisp plugin registered via `editor/register-command`
+/// by name — the target of a keymap dispatch, and also directly reachable
+/// from the frontend's command palette.
+#[tauri::command]
+fn editor_invoke_command(
+    name: String,
+    state: editor_api::EditorState,
+    repl: State<'_, ManagedReplSession>,
+) -> Result<editor_api::EditorEffect, String> {
+    repl.invoke_command(&name, state)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EditorEventReportDto {
+    applied: Vec<editor_api::EditorEffect>,
+    failures: Vec<String>,
+}
+
+/// Fires an editor lifecycle event (e.g. "after-open", "before-save") to
+/// every handler a Lisp plugin subscribed via `editor/on`, isolated: one
+/// handler failing never stops the rest (same isolation as plugin loading).
+#[tauri::command]
+fn editor_emit_event(
+    event: String,
+    state: editor_api::EditorState,
+    repl: State<'_, ManagedReplSession>,
+) -> EditorEventReportDto {
+    let mut applied = Vec::new();
+    let mut failures = Vec::new();
+    for result in repl.emit_event(&event, state) {
+        match result {
+            Ok(effect) => applied.push(effect),
+            Err(message) => failures.push(message),
+        }
+    }
+    EditorEventReportDto { applied, failures }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct KeymapEntryDto {
+    key: String,
+    command: String,
+}
+
+/// Lists every command name currently registered by a loaded plugin — feeds
+/// the frontend's command palette.
+#[tauri::command]
+fn editor_list_commands(repl: State<'_, ManagedReplSession>) -> Vec<String> {
+    repl.list_commands()
+}
+
+/// Lists every key/command keymap binding currently registered by a loaded
+/// plugin — the frontend installs these as CodeMirror key bindings.
+#[tauri::command]
+fn editor_list_keymaps(repl: State<'_, ManagedReplSession>) -> Vec<KeymapEntryDto> {
+    repl.list_keymaps()
+        .into_iter()
+        .map(|(key, command)| KeymapEntryDto { key, command })
+        .collect()
+}
+
 
 
 /// Scans sibling repos (my-lisp, fpga-lisp, cml) and their machine-readable
@@ -580,6 +657,11 @@ pub fn run_with_target(target: StartupTarget) {
             repl_console::start_repl_console,
             repl_console::send_repl_console_line,
             reload_plugins,
+            editor_dispatch_key,
+            editor_invoke_command,
+            editor_emit_event,
+            editor_list_commands,
+            editor_list_keymaps,
             build_runner::start_build,
             build_runner::cancel_build,
             build_runner::active_build,

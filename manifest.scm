@@ -45,7 +45,11 @@
    ;; provided by "webkitgtk-for-gtk3" specifically.
    "webkitgtk-for-gtk3"
    "gtk+"
-   "libappindicator"))
+   "libappindicator"
+   ;; zbus (pulled in transitively by tauri/rfd) needs dbus-1.pc at build
+   ;; time even though this dev container's dbus *runtime* package is
+   ;; already present — only the pkg-config .pc file/headers were missing.
+   "dbus"))
 
 ;; AppImage bundling (tauri build's third Linux bundle format, after
 ;; .deb/.rpm) shells out to xdg-open at bundle time — without it that one

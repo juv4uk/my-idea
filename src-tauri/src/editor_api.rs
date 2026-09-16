@@ -293,7 +293,8 @@ fn ensure_capabilities_installed() {
 
 /// Знімок стану редактора, видимий плагіну під час виклику команди.
 /// A snapshot of editor state visible to a plugin during command invocation.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EditorState {
     pub buffer: String,
     pub selection: String,
@@ -301,7 +302,8 @@ pub struct EditorState {
 
 /// Побічний ефект, який команда плагіна попросила застосувати до редактора.
 /// The effect a plugin command asked the editor to apply.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EditorEffect {
     pub replacement: Option<String>,
     pub message: Option<String>,

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use my_lisp_literate::SourceMode;
+use crate::editor_api::{EditorCommandRegistry, EditorEffect, EditorState};
 use crate::LispEvaluation;
 
 /// Desired workspace target upon starting the desktop application.
@@ -93,6 +94,27 @@ enum ReplCommand {
         config_dir: PathBuf,
         reply: std::sync::mpsc::Sender<crate::plugins::PluginLoadReport>,
     },
+    DispatchKey {
+        key: String,
+        state: EditorState,
+        reply: std::sync::mpsc::Sender<Result<EditorEffect, String>>,
+    },
+    InvokeCommand {
+        name: String,
+        state: EditorState,
+        reply: std::sync::mpsc::Sender<Result<EditorEffect, String>>,
+    },
+    EmitEvent {
+        event: String,
+        state: EditorState,
+        reply: std::sync::mpsc::Sender<Vec<Result<EditorEffect, String>>>,
+    },
+    ListCommands {
+        reply: std::sync::mpsc::Sender<Vec<String>>,
+    },
+    ListKeymaps {
+        reply: std::sync::mpsc::Sender<Vec<(String, String)>>,
+    },
 }
 
 /// Managed wrapper for `ReplSession` to be stored in Tauri state.
@@ -114,6 +136,12 @@ impl ManagedReplSession {
             .name("my-idea-repl".into())
             .spawn(move || {
                 let mut session = ReplSession::default();
+                // Installed before any plugin ever loads: init.lisp/plugins/*.lisp
+                // (loaded below and again on explicit reload) can call
+                // editor/register-command, editor/keymap, editor/on etc. from
+                // the very first line they evaluate.
+                let registry = EditorCommandRegistry::new();
+                registry.install_into(&mut session);
                 while let Ok(cmd) = rx.recv() {
                     match cmd {
                         ReplCommand::Evaluate { source, mode, reply } => {
@@ -123,6 +151,24 @@ impl ManagedReplSession {
                         ReplCommand::LoadPlugins { config_dir, reply } => {
                             let report = crate::plugins::load_plugins(&mut session, &config_dir);
                             let _ = reply.send(report);
+                        }
+                        ReplCommand::DispatchKey { key, state, reply } => {
+                            let res = registry.dispatch_key(&mut session, &key, &state);
+                            let _ = reply.send(res);
+                        }
+                        ReplCommand::InvokeCommand { name, state, reply } => {
+                            let res = registry.invoke_command(&mut session, &name, &state);
+                            let _ = reply.send(res);
+                        }
+                        ReplCommand::EmitEvent { event, state, reply } => {
+                            let res = registry.emit_event(&mut session, &event, &state);
+                            let _ = reply.send(res);
+                        }
+                        ReplCommand::ListCommands { reply } => {
+                            let _ = reply.send(registry.list_commands());
+                        }
+                        ReplCommand::ListKeymaps { reply } => {
+                            let _ = reply.send(registry.list_keymaps());
                         }
                     }
                 }
@@ -172,6 +218,85 @@ impl ManagedReplSession {
             .unwrap_or(false);
         if !sent {
             return crate::plugins::PluginLoadReport::default();
+        }
+        reply_rx.recv().unwrap_or_default()
+    }
+
+    /// Dispatches a key press to whatever command a Lisp plugin bound it to
+    /// via `editor/keymap` — an unbound key or a keymap pointing at a
+    /// command that no longer exists are both fail-closed errors (issue #11).
+    pub fn dispatch_key(&self, key: &str, state: EditorState) -> Result<EditorEffect, String> {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::DispatchKey { key: key.to_string(), state, reply: reply_tx };
+        self.sender
+            .lock()
+            .map_err(|_| "repl actor channel poisoned".to_string())?
+            .send(cmd)
+            .map_err(|e| format!("failed to send to repl actor: {e}"))?;
+        reply_rx
+            .recv()
+            .map_err(|e| format!("failed to receive from repl actor: {e}"))?
+    }
+
+    /// Invokes a command a Lisp plugin registered via `editor/register-command`
+    /// by name — used both for command-palette-style invocation and as the
+    /// target a keymap resolves to.
+    pub fn invoke_command(&self, name: &str, state: EditorState) -> Result<EditorEffect, String> {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::InvokeCommand { name: name.to_string(), state, reply: reply_tx };
+        self.sender
+            .lock()
+            .map_err(|_| "repl actor channel poisoned".to_string())?
+            .send(cmd)
+            .map_err(|e| format!("failed to send to repl actor: {e}"))?;
+        reply_rx
+            .recv()
+            .map_err(|e| format!("failed to receive from repl actor: {e}"))?
+    }
+
+    /// Runs every handler a Lisp plugin subscribed to `event` via
+    /// `editor/on`, isolated — one handler failing never stops the rest.
+    pub fn emit_event(&self, event: &str, state: EditorState) -> Vec<Result<EditorEffect, String>> {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::EmitEvent { event: event.to_string(), state, reply: reply_tx };
+        let sent = self
+            .sender
+            .lock()
+            .map(|sender| sender.send(cmd).is_ok())
+            .unwrap_or(false);
+        if !sent {
+            return Vec::new();
+        }
+        reply_rx.recv().unwrap_or_default()
+    }
+
+    /// Lists every command name currently registered by a loaded plugin.
+    pub fn list_commands(&self) -> Vec<String> {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::ListCommands { reply: reply_tx };
+        let sent = self
+            .sender
+            .lock()
+            .map(|sender| sender.send(cmd).is_ok())
+            .unwrap_or(false);
+        if !sent {
+            return Vec::new();
+        }
+        reply_rx.recv().unwrap_or_default()
+    }
+
+    /// Lists every `(key, command-name)` keymap binding currently registered
+    /// by a loaded plugin.
+    pub fn list_keymaps(&self) -> Vec<(String, String)> {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        let cmd = ReplCommand::ListKeymaps { reply: reply_tx };
+        let sent = self
+            .sender
+            .lock()
+            .map(|sender| sender.send(cmd).is_ok())
+            .unwrap_or(false);
+        if !sent {
+            return Vec::new();
         }
         reply_rx.recv().unwrap_or_default()
     }

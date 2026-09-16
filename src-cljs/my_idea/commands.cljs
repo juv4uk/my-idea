@@ -21,6 +21,12 @@
 (defn set-render! "Wire the render callback from core.cljs." [f] (reset! render-fn f))
 (defn- render! [] (@render-fn))
 
+;; Forward declarations: open-file!/save! (near the top of this file) fire
+;; editor lifecycle events, but the Editor API bridge that implements them
+;; lives near the bottom, alongside the rest of the my-lisp plugin bridge
+;; it belongs with.
+(declare emit-editor-event! dispatch-editor-key!)
+
 ;; ---- helpers ----
 
 (defn t [key] (i18n/t (:language @state) key))
@@ -65,6 +71,7 @@
           (.then #(do (swap! state workspace/open-document path %)
                       (persist!)
                       (render!)
+                      (emit-editor-event! "after-open")
                       (when on-open (on-open))))
           (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
       (if-let [p (workspace/read-file-from-handle path)]
@@ -73,6 +80,7 @@
                      (swap! state workspace/open-document path contents)
                      (persist!)
                      (render!)
+                     (emit-editor-event! "after-open")
                      (when on-open (on-open))))
             (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!))))
         (do (swap! state assoc
@@ -87,7 +95,7 @@
   (let [name (js/prompt (case (:language @state)
                           "uk" "Назва файлу:"
                           "de" "Dateiname:"
-                          "File name:") "untitled.my")]
+                          "File name:") "untitled.lisp")]
     (when (and name (not (str/blank? name)))
       (let [path (if (:root @state) name (str/trim name))]
         (swap! state workspace/open-document path "")
@@ -107,10 +115,12 @@
       (if (and (workspace/native?) (:root @state))
         (let [new? (true? (get-in @state [:documents path :new?]))
               command (if new? "create_workspace_file" "save_workspace_file")]
+          (emit-editor-event! "before-save")
           (-> (workspace/invoke! command {:path path :contents contents})
               (.then #(do (swap! state update-in [:documents path] merge
                                 {:contents contents :saved contents :dirty? false :new? false})
-                          (if new? (refresh-tree!) (render!))))
+                          (if new? (refresh-tree!) (render!))
+                          (emit-editor-event! "after-save")))
               (.catch #(do (swap! state assoc :output [(str %)] :error? true) (render!)))))
         (do (workspace/download! path contents)
             (swap! state update-in [:documents path] merge {:contents contents :saved contents :dirty? false})
@@ -118,7 +128,7 @@
 
 (defn save-as! []
   (let [contents (editor/source)
-        path (or (:active-path @state) "untitled.my")]
+        path (or (:active-path @state) "untitled.lisp")]
     (if (workspace/native?)
       (-> (workspace/invoke! "save_as_dialog" {:path path :contents contents})
           (.then (fn [new-path]
@@ -446,4 +456,112 @@
                                                    (when active-path (swap! state assoc :active-path active-path))
                                                    (render!))))))
                           (.catch (fn [_] (.removeItem js/localStorage workspace/storage-key)))))))))))
+
+;; ---- my-lisp plugin bridge: Editor API (Emacs-style configuration) ----
+;;
+;; init.lisp / plugins/*.lisp (issue #10) register commands, keymaps and
+;; event handlers through the Editor API (issue #9/#11: editor/register-
+;; command, editor/keymap, editor/on). The host (here) supplies only
+;; mechanism: a snapshot of the buffer/selection going in, and applying
+;; whatever effect (replace-selection, message) comes back — the actual
+;; behavior every command/handler implements is entirely Lisp-owned, the
+;; same way Emacs' own keybindings and commands are Emacs Lisp, not C.
+
+(defonce editor-commands* (atom []))
+(defonce editor-keymaps* (atom []))
+
+(defn- editor-snapshot []
+  {:buffer (editor/source) :selection (editor/selection-text)})
+
+(defn- apply-editor-effect! [effect]
+  (let [{:keys [replacement message]} (js->clj effect :keywordize-keys true)]
+    (when replacement (editor/replace-selection! replacement))
+    (when message (repl-log! [{:kind :system :text message}]))))
+
+(defn refresh-editor-registry!
+  "Refetches the set of commands/keymaps currently registered by loaded
+  plugins — called once at startup and again after every explicit
+  `reload-editor-plugins!`."
+  []
+  (when (workspace/native?)
+    (-> (workspace/invoke! "editor_list_commands" {})
+        (.then #(reset! editor-commands* (js->clj %)))
+        (.catch #(js/console.warn "editor_list_commands failed" %)))
+    (-> (workspace/invoke! "editor_list_keymaps" {})
+        (.then (fn [keymaps]
+                 (let [keymaps (js->clj keymaps :keywordize-keys true)]
+                   (reset! editor-keymaps* keymaps)
+                   ;; CodeMirror needs to know *which physical keys* to
+                   ;; intercept, but never resolves key -> command itself:
+                   ;; that stays fail-closed and Lisp-authoritative on the
+                   ;; Rust side (editor_dispatch_key), matching issue #11 --
+                   ;; a key whose command got removed since this list was
+                   ;; fetched still fails closed instead of silently no-op'ing.
+                   (editor/set-editor-keymap!
+                    (mapv (fn [{:keys [key]}]
+                            {:key key :run (fn [_view] (dispatch-editor-key! key) true)})
+                          keymaps)))))
+        (.catch #(js/console.warn "editor_list_keymaps failed" %)))))
+
+(defn reload-editor-plugins!
+  "Explicit reload of init.lisp/plugins/*.lisp (no file-watcher, matching
+  issue #10's deterministic-and-explicit design) — then refreshes the
+  command/keymap registry the editor keymap and command palette use."
+  []
+  (-> (workspace/invoke! "reload_plugins" {})
+      (.then (fn [^js report]
+               (refresh-editor-registry!)
+               (repl-log!
+                (into (mapv (fn [path] {:kind :system :text (str "plugin: " path)})
+                            (aget report "loaded"))
+                      (mapv (fn [failure] {:kind :error :text (str (aget failure "path") ": " (aget failure "message"))})
+                            (aget report "failures"))))))
+      (.catch #(repl-log! [{:kind :error :text (str "Не вдалося перезавантажити плагіни: " %)}]))))
+
+(defn invoke-editor-command!
+  "Invokes a plugin-registered command by name — the command-palette path,
+  and also the target a keymap dispatch resolves to."
+  [name]
+  (when (workspace/native?)
+    (-> (workspace/invoke! "editor_invoke_command" {:name name :state (editor-snapshot)})
+        (.then apply-editor-effect!)
+        (.catch #(repl-log! [{:kind :error :text (str "Команда \"" name "\" впала: " %)}])))))
+
+(defn dispatch-editor-key!
+  "Dispatches `key` to whatever command a plugin bound it to. Fire-and-
+  forget from the CodeMirror keymap's point of view — `editor-key-bound?`
+  already made the synchronous claim/no-claim decision."
+  [key]
+  (-> (workspace/invoke! "editor_dispatch_key" {:key key :state (editor-snapshot)})
+      (.then apply-editor-effect!)
+      (.catch #(repl-log! [{:kind :error :text (str %)}]))))
+
+(defn emit-editor-event!
+  "Fires an editor lifecycle event (\"after-open\", \"before-save\", ...) to
+  every handler subscribed via editor/on. Isolated and best-effort — a
+  missing handler is not an error, a plugin throwing is logged but never
+  blocks the host operation the event is wrapped around."
+  [event]
+  (when (workspace/native?)
+    (-> (workspace/invoke! "editor_emit_event" {:event event :state (editor-snapshot)})
+        (.then (fn [^js report]
+                 (doseq [effect (aget report "applied")] (apply-editor-effect! effect))
+                 (doseq [message (aget report "failures")]
+                   (repl-log! [{:kind :error :text (str "editor/on \"" event "\": " message)}]))))
+        (.catch #(js/console.warn "editor_emit_event failed" %)))))
+
+(defn run-editor-command!
+  "The command-palette entry point (Emacs' M-x, in spirit) — prompts for a
+  plugin-registered command name and invokes it."
+  []
+  (if (seq @editor-commands*)
+    (let [name (js/prompt (case (:language @state)
+                            "uk" (str "Команда (" (str/join ", " @editor-commands*) "):")
+                            "de" (str "Befehl (" (str/join ", " @editor-commands*) "):")
+                            (str "Command (" (str/join ", " @editor-commands*) "):")))]
+      (when (and name (not (str/blank? name))) (invoke-editor-command! name)))
+    (repl-log! [{:kind :system :text (case (:language @state)
+                                       "uk" "Жодна команда не зареєстрована — додай editor/register-command у plugins/*.lisp"
+                                       "de" "Keine Befehle registriert — editor/register-command in plugins/*.lisp hinzufügen"
+                                       "No commands registered — add editor/register-command in plugins/*.lisp")}])))
 

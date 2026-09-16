@@ -5,12 +5,15 @@
 
 (def messages
   {"en" {:open "Open folder" :new-file "New File" :save "Save" :save-as "Save As" :run "Run" :evaluate "Evaluate" :files "Explorer" :console "Console" :ast "Language Lab / AST" :preview "Preview" :ecosystem "Ecosystem"
+         :editor-commands "Commands" :reload-plugins "Reload plugins"
          :build-output "Build Output" :build-running "Running…" :build-succeeded "Succeeded" :build-failed "Failed" :build-cancelled "Cancelled" :build-stop "Stop" :build-profile "Profile" :build-exit "Exit" :build-missing-tool "Missing tool" :stdout "stdout" :stderr "stderr" :system "system"
          :themes {"auto" "Auto" "light" "Day" "dark" "Night" "sepia" "Sepia" "signal" "Signal" "amber" "Amber" "forest" "Forest"}}
     "uk" {:open "Відкрити папку" :new-file "Новий файл" :save "Зберегти" :save-as "Зберегти як" :run "Запустити" :evaluate "Обчислити" :files "Файли" :console "Консоль" :ast "Лабораторія мов / AST" :preview "Попередній перегляд" :ecosystem "Екосистема"
+          :editor-commands "Команди" :reload-plugins "Перезавантажити плагіни"
           :build-output "Вивід збірки" :build-running "Виконується…" :build-succeeded "Успішно" :build-failed "Помилка" :build-cancelled "Скасовано" :build-stop "Зупинити" :build-profile "Профіль" :build-exit "Вихід" :build-missing-tool "Відсутній інструмент" :stdout "stdout" :stderr "stderr" :system "система"
           :themes {"auto" "Авто" "light" "День" "dark" "Ніч" "sepia" "Сепія" "signal" "Сигнал" "amber" "Бурштин" "forest" "Ліс"}}
     "de" {:open "Ordner öffnen" :new-file "Neue Datei" :save "Speichern" :save-as "Speichern unter" :run "Starten" :evaluate "Auswerten" :files "Explorer" :console "Konsole" :ast "Sprachlabor / AST" :preview "Vorschau" :ecosystem "Ökosystem"
+          :editor-commands "Befehle" :reload-plugins "Plugins neu laden"
           :build-output "Build-Ausgabe" :build-running "Läuft…" :build-succeeded "Erfolgreich" :build-failed "Fehlgeschlagen" :build-cancelled "Abgebrochen" :build-stop "Stoppen" :build-profile "Profil" :build-exit "Exit" :build-missing-tool "Fehlendes Werkzeug" :stdout "stdout" :stderr "stderr" :system "system"
           :themes {"auto" "Auto" "light" "Tag" "dark" "Nacht" "sepia" "Sepia" "signal" "Signal" "amber" "Bernstein" "forest" "Wald"}}})
 
