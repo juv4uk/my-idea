@@ -23,8 +23,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
+          import json
           from pathlib import Path
-
           workflow_path = Path('.github/workflows/publish-release.yml')
           text = workflow_path.read_text()
           start = text.index('  build-android:')
@@ -32,26 +32,22 @@ jobs:
           insert_at = start + text[start:].index(checkout_anchor) + len(checkout_anchor)
           marker = 'Disable desktop sidecar for Android'
           if marker not in text[start:]:
-              step = '''      - name: Disable desktop sidecar for Android · Вимкнути desktop sidecar для Android · Desktop-Sidecar für Android deaktivieren
-        run: |
-          cat > src-tauri/tauri.android.conf.json <<'EOF'
-          {
-            "bundle": {
-              "externalBin": []
-            }
-          }
-          EOF
-'''
+              step = '\n'.join([
+                  '      - name: Disable desktop sidecar for Android · Вимкнути desktop sidecar для Android · Desktop-Sidecar für Android deaktivieren',
+                  '        run: |',
+                  "          cat > src-tauri/tauri.android.conf.json <<'EOF'",
+                  '          {',
+                  '            "bundle": {',
+                  '              "externalBin": []',
+                  '            }',
+                  '          }',
+                  '          EOF',
+              ]) + '\n'
               text = text[:insert_at] + step + text[insert_at:]
               workflow_path.write_text(text)
-
-          Path('src-tauri/tauri.android.conf.json').write_text('''{
-            "bundle": {
-              "externalBin": []
-            }
-          }\n''')
+          config = {'bundle': {'externalBin': []}}
+          Path('src-tauri/tauri.android.conf.json').write_text(json.dumps(config, indent=2) + '\n')
           PY
-
           git rm .github/workflows/apply-android-green.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
