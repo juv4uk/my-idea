@@ -42,5 +42,11 @@ jobs:
         run: bunx playwright install chromium --with-deps
       - run: bun run test
       - run: bun run check
+      - name: Build my-lisp CLI sidecar for tests · Зібрати sidecar my-lisp для тестів
+        # tauri.conf.json's externalBin makes tauri-build validate this file
+        # exists even for `cargo test` — from the local submodule here (fast,
+        # matches AGENTS.md's dev setup), not a fresh main clone: that policy
+        # is specific to actual releases (publish-release.yml).
+        run: bash scripts/build-repl-sidecar.sh
       - name: Execute Rust witness tests · Виконати Rust тести-свідки · Rust-Zeugentests ausführen
         run: cargo test --manifest-path src-tauri/Cargo.toml --tests
