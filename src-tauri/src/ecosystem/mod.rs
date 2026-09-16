@@ -1,4 +1,5 @@
 mod contracts;
+pub mod documentation;
 mod evidence;
 mod git;
 mod repo_graph;
@@ -113,6 +114,29 @@ pub fn status() -> EcosystemStatus {
         evidence_matrix,
         embedded_my_lisp_sha,
     }
+}
+
+/// Builds a fresh documentation index from the three explicitly registered
+/// v0 sources. Each repository remains the authority for its own Markdown;
+/// this layer records exact on-disk Git provenance and never copies the corpus.
+pub fn documentation_index() -> documentation::DocumentationIndex {
+    let Some(root) = siblings_root() else {
+        return documentation::DocumentationIndex::default();
+    };
+
+    let mut sources = Vec::new();
+    for repo in ["my-lisp", "my-idea", "cml"] {
+        let path = root.join(repo);
+        if let Some(sha) = git::repo_head_sha(&path) {
+            sources.push(documentation::DocumentationSource::new(repo, path, sha));
+        }
+    }
+    documentation::DocumentationIndex::build(&sources)
+}
+
+/// Convenience lookup over a fresh sibling-repository documentation index.
+pub fn documentation_search(query: &str) -> Vec<documentation::DocumentRecord> {
+    documentation_index().search(query)
 }
 
 #[derive(Serialize)]
