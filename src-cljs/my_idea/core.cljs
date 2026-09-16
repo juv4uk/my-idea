@@ -30,7 +30,7 @@
 
 (defn- restore-layout! []
   (let [style (.-style (.. js/document -documentElement))]
-    (doseq [[var key] [["--sb-w" "my-idea:sb-w"] ["--rw-w" "my-idea:rw-w"] ["--ph-h" "my-idea:ph-h"] ["--rch-h" "my-idea:rch-h"]]]
+    (doseq [[var key] [["--sb-w" "my-idea:sb-w"] ["--rw-w" "my-idea:rw-w"] ["--rch-h" "my-idea:rch-h"]]]
       (when-some [v (.getItem js/localStorage key)]
         (.setProperty style var v)))))
 
@@ -60,17 +60,10 @@
     (when-some [el (.getElementById js/document "vsplit-r")]
       (.addEventListener el "mousedown"
                          (fn [e]
-                           (let [rect (.getBoundingClientRect (.getElementById js/document "right"))]
+                           (let [rect (.getBoundingClientRect (.getElementById js/document "right-pane"))]
                              (drag! e
                                     (fn [x _] (set-layout-var! "--rw-w" (str (max 220 (min 900 (- (.-right rect) x))) "px")))
-                                    (fn [] (save "my-idea:rw-w" "--rw-w")))))))
-    (when-some [el (.getElementById js/document "hsplit")]
-      (.addEventListener el "mousedown"
-                         (fn [e]
-                           (let [rect (.getBoundingClientRect (.getElementById js/document "right"))]
-                             (drag! e
-                                    (fn [_ y] (set-layout-var! "--ph-h" (str (max 60 (min (- (.-height rect) 100) (- y (.-top rect)))) "px")))
-                                    (fn [] (save "my-idea:ph-h" "--ph-h")))))))))
+                                    (fn [] (save "my-idea:rw-w" "--rw-w")))))))))
 
 (defn- init-build-splitter! []
   (when-some [el (.getElementById js/document "bhsplit")]
@@ -185,8 +178,8 @@
            "<div class='splitter vsplit-l' id='vsplit-l'></div>"
            "<section class='center'><div class='tabs'>" (apply str (map #(str "<button class='tab" (when (= % active-path) " active") "' data-tab='" (esc-attr %) "'>" (esc (workspace/filename %)) (when (get-in @state [:documents % :dirty?]) " •") "<span data-close='" (esc-attr %) "'>×</span></button>") open-paths)) "</div><div id='editor'></div></section>"
            (cond
-            preview? (str "<div class='splitter hsplit' id='hsplit'></div><section class='pane preview'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
-            (= mode "my-lisp") (str "<div class='splitter hsplit' id='hsplit'></div><section class='pane ast'><div class='pane-head'>WSM AST</div><pre>" (esc ast) "</pre></section>")
+            preview? (str "<div class='splitter vsplit-r' id='vsplit-r'></div><section class='pane preview' id='right-pane'><div class='pane-head'>" (t :preview) "</div><div id='preview-content' class='preview-body'></div></section>")
+            (= mode "my-lisp") (str "<div class='splitter vsplit-r' id='vsplit-r'></div><section class='pane ast' id='right-pane'><div class='pane-head'>WSM AST</div><pre>" (esc ast) "</pre></section>")
             :else "")
            "</main>"
            "<div class='splitter hsplit' id='rchsplit'></div>" repl-panel
