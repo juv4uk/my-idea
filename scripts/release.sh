@@ -40,14 +40,26 @@ node -e '
 sed -E -i "0,/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/s//version = \"$VERSION\"/" src-tauri/Cargo.toml
 
 # The my-lisp Rust crates ship independently of src-tauri (CLI, WASM); a release must not skip their tests.
+# These four cargo invocations intentionally use whatever Rust toolchain is
+# already active on PATH (the reproducible Guix profile, when run the
+# documented way) -- only the wasm-pack build below needs to override that.
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
 cargo test --manifest-path external/my-lisp/crates/my-lisp-cli/Cargo.toml
 cargo test --manifest-path external/my-lisp/crates/my-lisp-literate/Cargo.toml
 bun install --frozen-lockfile
+
+# `bun run build` compiles external/my-lisp/crates/my-lisp-wasm via
+# wasm-pack, which needs the wasm32-unknown-unknown target -- Guix's own
+# Rust package ships without cross targets and doesn't carry wasm-pack
+# either (AGENTS.md's "Known fix" section). Machine-local rustup/wasm-pack
+# must win on PATH for this one step only, so the cargo checks above still
+# run against the reproducible Guix toolchain. Also runs before the test/
+# check steps below: they compile ClojureScript that imports
+# public/wasm/my_lisp_wasm.js, which only exists after this build.
+PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH" bun run build
 bun run test
 bun run check
-bun run build
 
 # src-tauri is a member of the root Cargo workspace, so the single
 # lockfile lives at the repo root — there is no src-tauri/Cargo.lock.

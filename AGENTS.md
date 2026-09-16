@@ -354,10 +354,9 @@ Working setup (verified end-to-end 2026-08-22: `build.mjs` EXIT=0,
 `my-idea-web.html` produced, `npm test` 37/37 PASS):
 
 ```bash
-# one-time machine-local installs (same pattern as Bun/xdg-utils above)
-curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal \
-  --default-toolchain stable --target wasm32-unknown-unknown   # -> ~/.cargo
-mkdir -p ~/.local/bin && install wasm-pack-0.13.x-binary ~/.local/bin  # -> ~/.local/bin
+# one-time machine-local installs (Bun + rustup/wasm-pack together) —
+# idempotent, safe to re-run:
+bash scripts/bootstrap-dev-environment.sh
 
 # then run the build with both toolchains on PATH ahead of Guix's
 guix shell -m manifest.scm -- bash -lc '
@@ -366,6 +365,11 @@ guix shell -m manifest.scm -- bash -lc '
   export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
   node scripts/build.mjs'
 ```
+
+`scripts/release.sh` already applies this same PATH override internally
+around its own `bun run build` step — this manual form is only needed for
+ad hoc `node scripts/build.mjs`/`bun run wasm` invocations outside the
+release flow.
 
 rustup's rustc/cargo win over Guix's on PATH for this invocation — that
 is deliberate here (only the WASM crate needs the cross target), while
