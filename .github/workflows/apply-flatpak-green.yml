@@ -1,0 +1,55 @@
+name: Apply Flatpak release GREEN
+
+on:
+  push:
+    branches:
+      - fix/flatpak-stage-my-lisp-sidecar
+    paths:
+      - .github/workflows/apply-flatpak-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/flatpak-stage-my-lisp-sidecar
+          fetch-depth: 0
+      - name: Apply minimal Flatpak sidecar staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow_path = Path('.github/workflows/publish-release.yml')
+          text = workflow_path.read_text()
+          start = text.index('  build-flatpak:')
+          next_job = text.index('\n  build-web:', start)
+          section = text[start:next_job]
+          marker = 'Build my-lisp CLI sidecar from latest main'
+          if marker not in section:
+              anchor = '      - run: bun install --frozen-lockfile\n'
+              local_at = section.index(anchor) + len(anchor)
+              insert_at = start + local_at
+              step = '''      - name: Build my-lisp CLI sidecar from latest main · Зібрати сайдкар my-lisp з останнього main
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/juv4uk/my-lisp.git "$RUNNER_TEMP/my-lisp-sidecar-src"
+          mkdir -p src-tauri/binaries
+          cargo build --release --manifest-path "$RUNNER_TEMP/my-lisp-sidecar-src/Cargo.toml" -p my-lisp-cli --bin my-lisp --target x86_64-unknown-linux-gnu
+          cp "$RUNNER_TEMP/my-lisp-sidecar-src/target/x86_64-unknown-linux-gnu/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-unknown-linux-gnu
+'''
+              text = text[:insert_at] + step + text[insert_at:]
+              workflow_path.write_text(text)
+          PY
+
+          git rm .github/workflows/apply-flatpak-green.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/publish-release.yml
+          git commit -m 'fix(release): stage my-lisp sidecar in Flatpak job'
+          git push origin HEAD:fix/flatpak-stage-my-lisp-sidecar
