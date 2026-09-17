@@ -289,6 +289,31 @@ mod cml_resolver_tests {
             "production resolver must select the host-integration cml-compile binary"
         );
     }
+
+    #[test]
+    fn missing_sibling_falls_back_to_cml_compile_path_name() {
+        assert!(
+            std::env::var_os("MY_IDEA_CML_BIN").is_none(),
+            "resolver witness requires MY_IDEA_CML_BIN to be unset"
+        );
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock must be after Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("my-idea-cml-fallback-{nonce}"));
+        let workspace = root.join("workspace");
+        fs::create_dir_all(&workspace).expect("temporary workspace must be created");
+
+        let resolved = find_cml(&workspace);
+        let _ = fs::remove_dir_all(&root);
+
+        assert_eq!(
+            resolved,
+            PathBuf::from("cml-compile"),
+            "PATH fallback must name the host-integration cml-compile binary"
+        );
+    }
 }
 
 #[derive(Serialize)]
