@@ -18,7 +18,7 @@ any Tauri command or UI button. This wires it up for the first time.
 - **🔧 Compile (cml)** — compiles through cml, our separate, authoritative
   native compiler, and runs the resulting artifact.
 
-my-idea never reimplements cml's semantics — it only runs `cml` as an
+my-idea never reimplements cml's semantics — it only runs `cml-compile` as an
 external process and surfaces its diagnostics verbatim.
 
 ## Honest boundary
@@ -36,4 +36,4 @@ work, not my-idea's.
 ## Binary resolution
 
 Same pattern as the `my-lisp` sidecar: `MY_IDEA_CML_BIN` env override →
-sibling `../cml/target/release/cml` → `cml` on PATH.
+sibling `../cml/target/release/cml-compile` → `cml-compile` on PATH.
