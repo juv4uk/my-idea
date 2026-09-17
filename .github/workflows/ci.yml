@@ -42,5 +42,17 @@ jobs:
         run: bunx playwright install chromium --with-deps
       - run: bun run test
       - run: bun run check
+      - name: Checkout pinned CML compiler · Отримати зафіксований CML · Gepinnten CML auschecken
+        uses: actions/checkout@v5
+        with:
+          repository: juv4uk/cml
+          ref: de207354b0257722b0a20408657c0a79ce1808f9
+          path: cml
+          submodules: true
+      - name: Build authoritative CML compiler · Зібрати авторитетний CML · Autoritativen CML bauen
+        run: cargo build --manifest-path cml/Cargo.toml --bin cml-compile
       - name: Execute Rust witness tests · Виконати Rust тести-свідки · Rust-Zeugentests ausführen
+        env:
+          MY_IDEA_CML_COMPILER: ${{ github.workspace }}/cml/target/debug/cml-compile
+          MY_IDEA_CML_REVISION: de207354b0257722b0a20408657c0a79ce1808f9
         run: cargo test --manifest-path src-tauri/Cargo.toml --tests
