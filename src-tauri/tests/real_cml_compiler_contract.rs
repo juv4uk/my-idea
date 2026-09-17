@@ -1,9 +1,9 @@
 //! Real-CML integration contract for #54.
 //!
 //! This is intentionally a normal test, not `#[ignore]`: CI that claims
-//! compiler integration coverage must provision the exact CML binary and
-//! revision. Local runs without that opt-in simply leave this external-system
-//! witness dormant, like other environment-backed integration probes.
+//! compiler integration coverage must provision the exact CML host-integration
+//! binary and revision. Local runs without that opt-in leave this external-system
+//! witness dormant, while CI fails closed if provisioning disappears.
 
 #![cfg(unix)]
 
@@ -67,7 +67,7 @@ fn pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance(
         .expect("the pinned real CML compiler must produce a native artifact");
 
     let artifact = compiled.artifact();
-    assert_eq!(artifact.compiler(), "cml");
+    assert_eq!(artifact.compiler(), "cml-compile");
     assert_eq!(artifact.compiler_revision(), expected_cml_revision);
     assert_eq!(artifact.input_revision(), expected_input_revision);
     let bytes = fs::read(artifact.path()).expect("compiled artifact must be readable");
