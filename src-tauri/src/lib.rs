@@ -232,20 +232,20 @@ fn resolve_keymaps(
     keymap_authority::resolve(bindings)
 }
 
-/// Resolves the real `cml` compiler binary (issue #16: cml is the sole
+/// Resolves the real CML host compiler binary (issues #16/#58: CML is the
 /// authoritative project compiler, my-idea is a mechanism-only client of
-/// it) — an env override, a sibling `cml` checkout next to the open
-/// workspace, or a bare `cml` on PATH, in that order. Mirrors
-/// `lsp_adapter::find_my_lisp`'s exact resolution shape.
+/// it) — an env override, a sibling `cml-compile` from a CML checkout next
+/// to the open workspace, or a bare `cml-compile` on PATH, in that order.
+/// Mirrors `lsp_adapter::find_my_lisp`'s resolution shape.
 fn find_cml(workspace: &Path) -> PathBuf {
     if let Some(path) = std::env::var_os("MY_IDEA_CML_BIN") {
         return path.into();
     }
-    let sibling = workspace.parent().map(|parent| parent.join("cml/target/release/cml"));
+    let sibling = workspace.parent().map(|parent| parent.join("cml/target/release/cml-compile"));
     if let Some(path) = sibling.filter(|path| path.is_file()) {
         return path;
     }
-    "cml".into()
+    "cml-compile".into()
 }
 
 #[cfg(test)]
