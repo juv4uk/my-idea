@@ -79,3 +79,14 @@ jobs:
           test "$(git -C "${MY_IDEA_CML_TEST_DIR}" rev-parse HEAD)" = "${MY_IDEA_CML_TEST_REVISION}"
       - name: Execute Rust witness tests · Виконати Rust тести-свідки · Rust-Zeugentests ausführen
         run: cargo test --manifest-path src-tauri/Cargo.toml --tests
+      - name: Expose real-CML provenance evidence · Показати provenance реального CML
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG="${RUNNER_TEMP}/real-cml-provenance.log"
+          cargo test --manifest-path src-tauri/Cargo.toml \
+            --test real_cml_compiler_contract \
+            pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance \
+            -- --exact --nocapture 2>&1 | tee "${LOG}"
+          grep -F "real-cml provenance: compiler=cml-compile compiler_revision=${MY_IDEA_CML_TEST_REVISION}" "${LOG}"
+          grep -E 'input_revision=[0-9a-f]{40} artifact=.+' "${LOG}"
