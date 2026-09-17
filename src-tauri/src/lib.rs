@@ -248,6 +248,49 @@ fn find_cml(workspace: &Path) -> PathBuf {
     "cml".into()
 }
 
+#[cfg(test)]
+mod cml_resolver_tests {
+    use super::find_cml;
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[test]
+    fn sibling_checkout_prefers_cml_compile_over_legacy_cml() {
+        assert!(
+            std::env::var_os("MY_IDEA_CML_BIN").is_none(),
+            "resolver witness requires MY_IDEA_CML_BIN to be unset"
+        );
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock must be after Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("my-idea-cml-resolver-{nonce}"));
+        let workspace = root.join("workspace");
+        let release = root.join("cml/target/release");
+        fs::create_dir_all(&workspace).expect("temporary workspace must be created");
+        fs::create_dir_all(&release).expect("temporary sibling CML checkout must be created");
+
+        let legacy = release.join("cml");
+        let host_compiler = release.join("cml-compile");
+        fs::write(&legacy, b"legacy").expect("legacy cml fixture must be created");
+        fs::write(&host_compiler, b"host compiler")
+            .expect("cml-compile fixture must be created");
+
+        let resolved = find_cml(&workspace);
+        let _ = fs::remove_dir_all(&root);
+
+        assert_eq!(
+            resolved,
+            PathBuf::from(host_compiler),
+            "production resolver must select the host-integration cml-compile binary"
+        );
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CompileDiagnosticDto {
