@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
 
+env:
+  # Exact merged CML revision that provides the host-integration `cml-compile`
+  # process boundary. Keep this immutable: provenance assertions below depend
+  # on the binary being built from precisely this checkout.
+  CML_REVISION: de207354b0257722b0a20408657c0a79ce1808f9
+
 jobs:
   web:
     runs-on: ubuntu-latest
@@ -48,5 +54,39 @@ jobs:
         # matches AGENTS.md's dev setup), not a fresh main clone: that policy
         # is specific to actual releases (publish-release.yml).
         run: bash scripts/build-repl-sidecar.sh
+      - name: Fetch exact CML host compiler outside the my-idea workspace · Отримати точний CML поза workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          CML_DIR="${RUNNER_TEMP}/cml-${CML_REVISION}"
+          rm -rf "${CML_DIR}"
+          git init -q "${CML_DIR}"
+          git -C "${CML_DIR}" remote add origin https://github.com/juv4uk/cml.git
+          git -C "${CML_DIR}" fetch --depth=1 origin "${CML_REVISION}"
+          git -C "${CML_DIR}" checkout --detach FETCH_HEAD
+          git -C "${CML_DIR}" submodule update --init --recursive --depth=1
+          ACTUAL_REVISION="$(git -C "${CML_DIR}" rev-parse HEAD)"
+          test "${ACTUAL_REVISION}" = "${CML_REVISION}"
+          echo "MY_IDEA_CML_TEST_DIR=${CML_DIR}" >> "${GITHUB_ENV}"
+          echo "MY_IDEA_CML_TEST_BIN=${CML_DIR}/target/release/cml-compile" >> "${GITHUB_ENV}"
+          echo "MY_IDEA_CML_TEST_REVISION=${CML_REVISION}" >> "${GITHUB_ENV}"
+      - name: Build pinned CML host compiler · Зібрати зафіксований CML host compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked --release --manifest-path "${MY_IDEA_CML_TEST_DIR}/Cargo.toml" --bin cml-compile
+          test -x "${MY_IDEA_CML_TEST_BIN}"
+          test "$(git -C "${MY_IDEA_CML_TEST_DIR}" rev-parse HEAD)" = "${MY_IDEA_CML_TEST_REVISION}"
       - name: Execute Rust witness tests · Виконати Rust тести-свідки · Rust-Zeugentests ausführen
         run: cargo test --manifest-path src-tauri/Cargo.toml --tests
+      - name: Expose real-CML provenance evidence · Показати provenance реального CML
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG="${RUNNER_TEMP}/real-cml-provenance.log"
+          cargo test --manifest-path src-tauri/Cargo.toml \
+            --test real_cml_compiler_contract \
+            pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance \
+            -- --exact --nocapture 2>&1 | tee "${LOG}"
+          grep -F "real-cml provenance: compiler=cml-compile compiler_revision=${MY_IDEA_CML_TEST_REVISION}" "${LOG}"
+          grep -E 'input_revision=[0-9a-f]{40} artifact=.+' "${LOG}"

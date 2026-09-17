@@ -1,45 +1,113 @@
-//! Empirical proof that #16's vertical slice (`CompilerBridge` +
-//! `CompilerBuildAdapter`) works against the *real* `cml` compiler binary,
-//! not just `compiler_build_vertical_contract.rs`'s fake-script stand-in.
-//! Ignored by default (needs a real, built `cml`) the same way
-//! `lsp_client.rs`'s real-server tests are — set `MY_IDEA_CML_TEST_BIN` to
-//! a `cml` binary built from `cargo build --release --bin cml` in the
-//! `cml` repo to run it.
+//! Real-CML integration contract for #54.
+//!
+//! This is intentionally a normal test, not `#[ignore]`: CI that claims
+//! compiler integration coverage must provision the exact CML host-integration
+//! binary and revision. Local runs without that opt-in leave this external-system
+//! witness dormant, while CI fails closed if provisioning disappears.
 
-use my_idea_lib::compiler_bridge::{CompilerBridge, CompilerRequest};
-use my_idea_lib::compiler_build_adapter::CompilerBuildAdapter;
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+#![cfg(unix)]
+
+use my_idea_lib::{
+    compiler_bridge::{CompilerBridge, CompilerRequest},
+    compiler_build_adapter::CompilerBuildAdapter,
+    process_service::{EventSink, ProcessService, RunState},
+};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{mpsc, Arc},
+    time::Duration,
+};
+
+fn configured_real_cml() -> Option<(PathBuf, String)> {
+    let compiler = match std::env::var("MY_IDEA_CML_TEST_BIN") {
+        Ok(value) => PathBuf::from(value),
+        Err(_) if std::env::var_os("CI").is_some() => {
+            panic!("CI must provision MY_IDEA_CML_TEST_BIN for the real-CML witness")
+        }
+        Err(_) => return None,
+    };
+    let revision = std::env::var("MY_IDEA_CML_TEST_REVISION")
+        .expect("a configured real CML binary must have an exact pinned revision");
+    Some((compiler, revision))
+}
+
+fn git_revision(path: &Path) -> String {
+    let directory = path.parent().expect("fixture must have a parent directory");
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(directory)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .expect("git must be available for input provenance");
+    assert!(output.status.success(), "input provenance must resolve from git");
+    String::from_utf8(output.stdout)
+        .expect("git revision must be UTF-8")
+        .trim()
+        .to_owned()
+}
 
 #[test]
-#[ignore = "requires MY_IDEA_CML_TEST_BIN pointing at a real built cml binary"]
-fn real_cml_compiles_pure_arithmetic_to_a_runnable_native_elf() {
-    let cml_bin = std::env::var("MY_IDEA_CML_TEST_BIN")
-        .expect("set MY_IDEA_CML_TEST_BIN to a real cml binary to run this test");
+fn pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance() {
+    let Some((cml_bin, expected_cml_revision)) = configured_real_cml() else {
+        return;
+    };
+    assert!(cml_bin.is_file(), "configured real CML binary must exist");
 
-    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let dir = std::env::temp_dir().join(format!("my-idea-real-cml-contract-{nonce}"));
-    fs::create_dir_all(&dir).expect("temp dir should be created");
-    let source = dir.join("hello.lisp");
-    fs::write(&source, "(+ 40 2)\n").expect("source should be written");
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/real_cml_pure_arithmetic.lisp");
+    assert!(source.is_file(), "canonical tracked Lisp fixture must exist");
+    let expected_input_revision = git_revision(&source);
 
-    let adapter = CompilerBuildAdapter::new(CompilerBridge::at(PathBuf::from(cml_bin)));
+    let adapter = CompilerBuildAdapter::new(CompilerBridge::at(&cml_bin));
     let request = CompilerRequest::new(&source, "x86_64-linux").expect("valid request");
     let compiled = adapter
         .compile_project(&request)
-        .expect("the real cml compiler should compile pure arithmetic to a native artifact");
+        .expect("the pinned real CML compiler must produce a native artifact");
+
+    let artifact = compiled.artifact();
+    assert_eq!(artifact.compiler(), "cml-compile");
+    assert_eq!(artifact.compiler_revision(), expected_cml_revision);
+    assert_eq!(artifact.input_revision(), expected_input_revision);
+    let bytes = fs::read(artifact.path()).expect("compiled artifact must be readable");
+    assert!(bytes.starts_with(&[0x7f, b'E', b'L', b'F']));
+
+    eprintln!(
+        "real-cml provenance: compiler={} compiler_revision={} input_revision={} artifact={}",
+        artifact.compiler(),
+        artifact.compiler_revision(),
+        artifact.input_revision(),
+        artifact.path().display()
+    );
 
     let spec = compiled
         .process_spec()
-        .expect("a successfully compiled artifact should yield a runnable process spec");
+        .expect("the compiled artifact must yield the production run profile");
     assert_eq!(spec.profile, "compiled-lisp-artifact");
 
-    let status = Command::new(&spec.executable)
-        .status()
-        .expect("the compiled native ELF artifact should actually run");
-    assert!(status.success(), "the compiled artifact should exit successfully");
+    let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let service = ProcessService::default();
+    let (sender, receiver) = mpsc::channel();
+    let sink: EventSink = Arc::new(move |event| sender.send(event).unwrap());
+    let run_id = service
+        .start(&workspace, spec, sink)
+        .expect("the existing ProcessService must start the compiled artifact");
 
-    let _ = fs::remove_dir_all(&dir);
+    let mut events = Vec::new();
+    loop {
+        let event = receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("compiled artifact must reach a terminal run state");
+        let terminal = event.state != RunState::Running;
+        events.push(event);
+        if terminal {
+            break;
+        }
+    }
+
+    assert!(events.iter().all(|event| event.run_id == run_id));
+    assert_eq!(events.last().unwrap().state, RunState::Succeeded);
+
+    let _ = fs::remove_file(artifact.path());
 }
