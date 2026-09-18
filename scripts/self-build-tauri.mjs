@@ -25,8 +25,8 @@ function run(program, args, options = {}) {
   return result;
 }
 
-// Rust owns compiler-stage construction and verification. This wrapper never
-// parses or interprets Lisp; it only transports machine-readable evidence.
+// Rust owns compiler-stage construction and verification. This wrapper only
+// transports machine-readable compiler evidence and launches declared stages.
 const stage = run(
   'cargo',
   ['run', '--quiet', '--manifest-path', 'src-tauri/Cargo.toml', '--bin', 'self-build-stage'],
