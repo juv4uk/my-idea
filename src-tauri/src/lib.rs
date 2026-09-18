@@ -6,6 +6,7 @@ pub mod plugins;
 pub mod repl;
 pub mod repl_console;
 pub mod repl_process;
+pub mod self_build;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
     ManagedReplSession, ReplSession, StartupTarget,
