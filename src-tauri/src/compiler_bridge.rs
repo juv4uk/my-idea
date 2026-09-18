@@ -210,6 +210,18 @@ impl CompilerBridge {
     }
 
     pub fn compile_observed(&self, request: &CompilerRequest) -> Result<CompilerRun, CompilerFailure> {
+        let output_path = artifact_path(request)?;
+        self.compile_observed_to(request, output_path)
+    }
+
+    /// Compile to an explicit artifact path. The generic IDE compile path
+    /// remains derived by `compile_observed`; self-build uses this entry
+    /// point so execution matches the artifact declared by its plan.
+    pub fn compile_observed_to(
+        &self,
+        request: &CompilerRequest,
+        output_path: impl AsRef<Path>,
+    ) -> Result<CompilerRun, CompilerFailure> {
         if !self.executable.is_file() {
             return Err(CompilerFailure::new(
                 format!(
@@ -235,8 +247,16 @@ impl CompilerBridge {
             ));
         }
 
+        let output_path = output_path.as_ref().to_path_buf();
+        if output_path.as_os_str().is_empty() {
+            return Err(CompilerFailure::new(
+                "compiler artifact path must not be empty",
+                Vec::new(),
+                None,
+            ));
+        }
+
         let source_modified = modified(&request.source)?;
-        let output_path = artifact_path(request)?;
         if let Some(parent) = output_path.parent() {
             fs::create_dir_all(parent).map_err(|error| {
                 CompilerFailure::new(
