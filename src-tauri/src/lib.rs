@@ -74,6 +74,11 @@ fn evaluate_my_lisp(
     repl.evaluate(&source, mode.as_deref())
 }
 
+#[tauri::command]
+fn my_lisp_runtime_provenance() -> repl_process::MyLispRuntimeProvenance {
+    repl_process::my_lisp_runtime_provenance()
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginLoadReportDto {
@@ -876,6 +881,7 @@ pub fn run_with_target(target: StartupTarget) {
             lsp_adapter::rust_lsp_symbols,
             save_as_dialog,
             evaluate_my_lisp,
+            my_lisp_runtime_provenance,
             repl_console::start_repl_console,
             repl_console::send_repl_console_line,
             reload_plugins,

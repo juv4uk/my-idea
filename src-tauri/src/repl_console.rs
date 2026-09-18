@@ -6,9 +6,10 @@
 // Two ways the binary gets there, tried in order:
 //
 // 1. **Sidecar** (packaged releases): `.github/workflows/publish-release.yml`
-//    builds `my-lisp` fresh from its own latest `main` for every target
-//    platform and bundles it via Tauri's `externalBin` mechanism — an
-//    installed app never needs git, cargo, or a network connection to run
+//    builds `my-lisp` from the release tag's exact `external/my-lisp`
+//    gitlink revision for every desktop target and bundles it via Tauri's
+//    `externalBin` mechanism — the same semantic revision as embedded/WASM,
+//    so an installed app needs no git, cargo, or network connection to run
 //    the console at all.
 // 2. **Local build** (source/dev checkouts, or an install that predates
 //    sidecar bundling for its platform): `repl_process::

@@ -7,8 +7,8 @@
 //! through it.
 
 use my_idea_lib::repl_process::{
-    my_idea_repo_root, my_lisp_pinned_sha, resolve_my_lisp_binary, resolve_or_fetch_my_lisp_binary,
-    ReplProcess, ReplProcessStream,
+    my_idea_repo_root, my_lisp_pinned_sha, my_lisp_runtime_provenance, resolve_my_lisp_binary,
+    resolve_or_fetch_my_lisp_binary, ReplProcess, ReplProcessStream,
 };
 use std::path::Path;
 use std::sync::mpsc::channel;
@@ -82,6 +82,18 @@ fn my_lisp_pinned_sha_is_recorded_at_build_time_from_the_checked_out_submodule()
     let sha = my_lisp_pinned_sha();
     assert_eq!(sha.len(), 40, "expected a full commit SHA, got: {sha:?}");
     assert!(sha.chars().all(|c| c.is_ascii_hexdigit()), "not a hex SHA: {sha:?}");
+}
+
+#[test]
+fn runtime_provenance_reports_one_exact_revision_for_all_shipped_lisp_paths() {
+    let sha = my_lisp_pinned_sha();
+    let provenance = my_lisp_runtime_provenance();
+
+    assert_eq!(provenance.embedded_revision(), sha);
+    assert_eq!(provenance.wasm_revision(), sha);
+    assert_eq!(provenance.sidecar_revision(), sha);
+    assert_eq!(sha.len(), 40);
+    assert!(sha.chars().all(|c| c.is_ascii_hexdigit()));
 }
 
 #[test]

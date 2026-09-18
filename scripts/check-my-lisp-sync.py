@@ -23,6 +23,8 @@ CARGO_TOML = ROOT / "src-tauri" / "Cargo.toml"
 LOCKFILE = ROOT / "Cargo.lock"
 PACKAGES = {"my-lisp", "my-lisp-literate"}
 SUBMODULE_PATH = ROOT / "external" / "my-lisp"
+BUILD_MJS = ROOT / "scripts" / "build.mjs"
+PUBLISH_RELEASE = ROOT / ".github" / "workflows" / "publish-release.yml"
 
 
 def gitlink_sha() -> str:
@@ -31,6 +33,18 @@ def gitlink_sha() -> str:
     осиротілий (порожній `.gitmodules`-запис зловив би це раніше)."""
     result = subprocess.run(
         ["git", "rev-parse", ":external/my-lisp"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def checked_out_submodule_sha() -> str:
+    """Повертає фактичний checkout SHA external/my-lisp."""
+    result = subprocess.run(
+        ["git", "-C", str(SUBMODULE_PATH), "rev-parse", "HEAD"],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -68,6 +82,90 @@ def cargo_lock_git_sources() -> dict[str, str]:
     return offenders
 
 
+def wasm_uses_submodule() -> bool:
+    """WASM build must consume the checked-out external/my-lisp tree."""
+    text = BUILD_MJS.read_text(encoding="utf-8")
+    return "external/my-lisp/crates/my-lisp-wasm" in text
+
+
+def release_sidecar_uses_submodule() -> tuple[bool, str]:
+    """Every release sidecar must build from the same checked-out gitlink tree."""
+    text = PUBLISH_RELEASE.read_text(encoding="utf-8")
+    if "git clone --depth 1 https://github.com/juv4uk/my-lisp.git" in text:
+        return False, "release recipe still creates an independent floating my-lisp checkout"
+
+    step_blocks = text.split("\n      - name:")
+    sidecar_steps = [block for block in step_blocks if "my-lisp-cli --bin my-lisp" in block]
+    if not sidecar_steps:
+        return False, "release recipe has no identifiable my-lisp sidecar build steps"
+
+    offenders: list[str] = []
+    for index, block in enumerate(sidecar_steps, start=1):
+        direct_manifest = "external/my-lisp/Cargo.toml" in block
+        powershell_manifest = (
+            "$sidecarSrc = Join-Path $PWD 'external/my-lisp'" in block
+            and "Join-Path $sidecarSrc 'Cargo.toml'" in block
+        )
+        if not (direct_manifest or powershell_manifest):
+            offenders.append(str(index))
+    if offenders:
+        return (
+            False,
+            "sidecar build step(s) do not use external/my-lisp/Cargo.toml: "
+            + ", ".join(offenders),
+        )
+    return True, f"{len(sidecar_steps)} release sidecar build step(s) use the pinned submodule"
+
+
+def release_validates_runtime_pin() -> bool:
+    """The release itself must run the same guard on the exact release tag."""
+    text = PUBLISH_RELEASE.read_text(encoding="utf-8")
+    try:
+        validate = text.split("  validate-release:", 1)[1].split("  build-desktop:", 1)[0]
+    except IndexError:
+        return False
+    return (
+        "ref: ${{ env.RELEASE_TAG }}" in validate
+        and "submodules: true" in validate
+        and "python3 scripts/check-my-lisp-sync.py" in validate
+    )
+
+
+def android_explicitly_disables_sidecar() -> bool:
+    """Mobile is the documented exception: Android ships no desktop sidecar."""
+    text = PUBLISH_RELEASE.read_text(encoding="utf-8")
+    try:
+        android = text.split("  build-android:", 1)[1]
+    except IndexError:
+        return False
+    return '"externalBin": []' in android
+
+
+def runtime_revision_map(sha: str) -> dict[str, str]:
+    declared = cargo_toml_uses_path_dependency()
+    missing = PACKAGES - declared
+    if missing:
+        raise RuntimeError(
+            "Cargo.toml має оголошувати ці пакети через "
+            f'path = "../external/my-lisp/...": {", ".join(sorted(missing))}'
+        )
+    if not wasm_uses_submodule():
+        raise RuntimeError("WASM build no longer consumes external/my-lisp")
+
+    sidecar_ok, sidecar_detail = release_sidecar_uses_submodule()
+    if not sidecar_ok:
+        raise RuntimeError(sidecar_detail)
+    if not release_validates_runtime_pin():
+        raise RuntimeError(
+            "publish-release validate-release job must check out the exact tag "
+            "with submodules and run scripts/check-my-lisp-sync.py"
+        )
+    if not android_explicitly_disables_sidecar():
+        raise RuntimeError("Android release must explicitly disable the desktop sidecar")
+
+    return {"embedded": sha, "wasm": sha, "sidecar": sha}
+
+
 def main() -> int:
     if not SUBMODULE_PATH.exists():
         raise RuntimeError(
@@ -75,14 +173,14 @@ def main() -> int:
             "— run `git submodule update --init`"
         )
     sha = gitlink_sha()
-
-    declared = cargo_toml_uses_path_dependency()
-    missing = PACKAGES - declared
-    if missing:
+    checked_out = checked_out_submodule_sha()
+    if checked_out != sha:
         raise RuntimeError(
-            "Cargo.toml має оголошувати ці пакети через "
-            f"path = \"../external/my-lisp/...\": {', '.join(sorted(missing))}"
+            "external/my-lisp checkout does not match the recorded gitlink: "
+            f"gitlink={sha}, checkout={checked_out}"
         )
+
+    revisions = runtime_revision_map(sha)
 
     git_sources = cargo_lock_git_sources()
     if git_sources:
@@ -93,6 +191,8 @@ def main() -> int:
         )
 
     print(f"my-lisp: single channel confirmed (external/my-lisp @ {sha})")
+    for path, revision in revisions.items():
+        print(f"my-lisp runtime: {path}={revision}")
     return 0
 
 

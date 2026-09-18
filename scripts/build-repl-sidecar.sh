@@ -7,10 +7,10 @@
 # already exist at `src-tauri/binaries/my-lisp-<host-triple>` before
 # `cargo build`/`cargo tauri dev` will even compile — this is a one-time
 # (or "whenever external/my-lisp moves") local setup step, not something
-# that happens automatically. The actual release build instead fetches
-# my-lisp's latest main fresh in CI (.github/workflows/publish-release.yml)
-# — this script uses the local external/my-lisp submodule checkout instead,
-# since that's what a dev checkout already has on disk.
+# that happens automatically. Release builds use the same
+# external/my-lisp gitlink revision in .github/workflows/publish-release.yml;
+# this helper simply stages the host-target binary from that same pinned tree
+# for local development.
 #
 # Usage / Використання: bash scripts/build-repl-sidecar.sh
 

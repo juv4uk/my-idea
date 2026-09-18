@@ -412,14 +412,12 @@ bash scripts/build-repl-sidecar.sh
 
 This builds `my-lisp-cli` from the local `external/my-lisp` submodule and
 places it at `src-tauri/binaries/my-lisp-<host-triple>` — gitignored,
-never committed. The actual release build does *not* use this script or
-the submodule's pinned commit for this binary: `.github/workflows/
-publish-release.yml` clones and builds my-lisp's own latest `main` fresh
-for each target platform instead, since the sidecar is an external CLI
-tool driven over a stable stdin/stdout text protocol (not a compiled-in
-library API) — see `repl_console.rs`'s module doc and `src-tauri/
-Cargo.toml`'s comment on the my-lisp path deps for why these two are
-deliberately different policies for the "same" upstream.
+never committed. Release builds follow the same semantic pin: every
+desktop sidecar is compiled from the release tag's checked-out
+`external/my-lisp` gitlink, exactly like the embedded Rust and WASM
+engines. `scripts/check-my-lisp-sync.py` fail-closes CI/release if that
+single-channel invariant drifts. The sidecar remains a separate *process
+mechanism*, not a separate semantic revision.
 
 ## #50's live-editor witness needs a separately-built harness binary
 
