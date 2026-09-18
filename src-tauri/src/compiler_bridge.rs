@@ -360,7 +360,7 @@ fn lines(bytes: &[u8]) -> Vec<String> {
         .collect()
 }
 
-fn compiler_identity(executable: &Path) -> String {
+pub(crate) fn compiler_identity(executable: &Path) -> String {
     executable
         .file_stem()
         .and_then(|value| value.to_str())
@@ -368,7 +368,7 @@ fn compiler_identity(executable: &Path) -> String {
         .to_owned()
 }
 
-fn git_revision_for(path: &Path) -> String {
+pub(crate) fn git_revision_for(path: &Path) -> String {
     let start = if path.is_dir() {
         path
     } else {
