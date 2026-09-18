@@ -6,6 +6,7 @@ pub mod plugins;
 pub mod repl;
 pub mod repl_console;
 pub mod repl_process;
+pub mod self_build;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
     ManagedReplSession, ReplSession, StartupTarget,
@@ -77,6 +78,20 @@ fn evaluate_my_lisp(
 #[tauri::command]
 fn my_lisp_runtime_provenance() -> repl_process::MyLispRuntimeProvenance {
     repl_process::my_lisp_runtime_provenance()
+}
+
+/// Returns a deterministic, inspectable plan for building the next my-idea
+/// generation. Issue #12 is planning-only: this command discovers exact
+/// provenance and constructs data; it never starts CML, Bun, Cargo or Tauri.
+#[tauri::command]
+fn self_build_plan(
+    workspace: State<'_, Workspace>,
+) -> Result<self_build::SelfBuildPlan, String> {
+    let repo_root = root(&workspace)?;
+    let cml = find_cml(&repo_root);
+    let inputs = self_build::discover_self_build_inputs(&repo_root, &cml)
+        .map_err(|error| error.to_string())?;
+    self_build::build_self_build_plan(inputs).map_err(|error| error.to_string())
 }
 
 #[derive(Serialize)]
@@ -882,6 +897,7 @@ pub fn run_with_target(target: StartupTarget) {
             save_as_dialog,
             evaluate_my_lisp,
             my_lisp_runtime_provenance,
+            self_build_plan,
             repl_console::start_repl_console,
             repl_console::send_repl_console_line,
             reload_plugins,

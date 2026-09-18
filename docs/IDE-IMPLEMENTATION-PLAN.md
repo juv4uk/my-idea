@@ -8,7 +8,7 @@ This plan executes [ADR-003](ADR-003-SIMPLE-SELF-BUILDING-IDE.md).
 |---|---|---|
 | existing `my-idea` | CodeMirror, tabs, dirty state, project tree, layout, Tauri v2 shell, i18n | keep and simplify |
 | `my-lisp` | CLI execution, LSP diagnostics/completion, language semantics | consume; never duplicate |
-| `cml` | future stable compiler CLI | blocked until a CLI contract exists |
+| `cml` | pinned `cml-compile` host boundary | consume exact compiler provenance; current executable target is `x86_64-linux` |
 | `tauricode` | path-normalization, file-tree and process-cancellation design ideas | adapt narrowly; no Observatory/UI transplant |
 | Bun/Cargo/Tauri | frontend checks and native application build | fixed command profiles |
 
@@ -46,7 +46,7 @@ specific dependency graph.
 - Use `my-lisp` CLI for the commands it actually supports.
 - Use WsmLS/my-lisp LSP for diagnostics, completion and symbols.
 - Map diagnostics to files and locations without re-parsing WSM in the IDE.
-- Add a CML Compile action only after `CML-STABLE-CLI-CONTRACT` is ratified.
+- The CML Compile action uses the ratified `cml-compile x86-elf <source> <artifact>` boundary; `my-idea` remains a mechanism-only client.
 
 ### P2A — shared language-server client
 
@@ -61,17 +61,13 @@ specific dependency graph.
 - Missing server binaries are actionable diagnostics, never silent fallback to
   the old hard-coded completion list.
 
-The CML contract must define, before IDE integration:
+Current CML integration status:
 
-- exact executable and argv syntax;
-- named target selection and output artifact path;
-- structured diagnostics and exit-status meanings;
-- typed unsupported reasons rather than a generic green skip;
-- the consumed target-ABI schema/version/digest for freestanding output.
-
-Current CML backend-classification debt must be closed independently; an IDE
-adapter must not turn `panic`, generic `Unsupported`, or documentation drift
-into a successful Compile result.
+- executable/argv is fixed as `cml-compile x86-elf <source> <artifact>`;
+- the production bridge records exact compiler/input/artifact provenance and fails closed when the compiler is unavailable;
+- `x86_64-linux` is the currently proven IDE target;
+- source-location diagnostic transport remains owned upstream by `cml#132` / PR #133; the IDE must not infer locations by parsing prose;
+- backend unsupported/error classification remains upstream CML work and must never be converted into a successful Compile result by the IDE.
 
 ### P3 — Tauri development loop
 
@@ -80,12 +76,12 @@ into a successful Compile result.
 - Show missing-tool errors as one actionable diagnostic.
 - Preserve live stdout, stderr, exit status and cancellation evidence.
 
-### P4 — self-build witness
+### P4 — self-build spine
 
-- Open `my-idea` itself.
-- Build it through the same public adapter used for other Tauri projects.
-- Produce and identify a real bundle.
-- Record commit, toolchain, command profile, artifact path and SHA-256 digest.
+- **#12 plan:** emit a deterministic `self-build-plan-v1` before execution. It records clean source HEAD, the single pinned my-lisp SHA, exact `cml-compile` revision, Rust/Bun/Tauri tool versions, fixed `x86_64-linux` compiler target, ordered CML → frontend → Tauri stages, and a SHA-256 plan digest.
+- **#13 execution:** make the compiler artifact a fresh required input to the Tauri build/bundle stage; stale or missing compiler output must fail closed.
+- **#14 generation witness:** generation 0 builds generation 1; generation 1 itself initiates generation 2; record exact provenance for both transitions.
+- Keep the claim at **self-building using our compiler + Tauri** until stronger bootstrap independence is physically demonstrated.
 
 ### Later — wsm-os target profile
 
