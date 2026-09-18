@@ -99,11 +99,15 @@ def release_sidecar_uses_submodule() -> tuple[bool, str]:
     if not sidecar_steps:
         return False, "release recipe has no identifiable my-lisp sidecar build steps"
 
-    offenders = [
-        str(index)
-        for index, block in enumerate(sidecar_steps, start=1)
-        if "external/my-lisp/Cargo.toml" not in block
-    ]
+    offenders: list[str] = []
+    for index, block in enumerate(sidecar_steps, start=1):
+        direct_manifest = "external/my-lisp/Cargo.toml" in block
+        powershell_manifest = (
+            "$sidecarSrc = Join-Path $PWD 'external/my-lisp'" in block
+            and "Join-Path $sidecarSrc 'Cargo.toml'" in block
+        )
+        if not (direct_manifest or powershell_manifest):
+            offenders.append(str(index))
     if offenders:
         return (
             False,
