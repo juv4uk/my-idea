@@ -6,7 +6,11 @@
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::fmt;
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+    process::{Command, Output},
+};
 
 pub const SELF_BUILD_SCHEMA: &str = "self-build-plan-v1";
 pub const SELF_BUILD_TARGET: &str = "x86_64-linux";
@@ -232,6 +236,7 @@ pub enum SelfBuildPlanError {
     InvalidProvenance(String),
     UnsupportedTarget(String),
     Serialization(String),
+    Discovery(String),
 }
 
 impl fmt::Display for SelfBuildPlanError {
@@ -239,7 +244,8 @@ impl fmt::Display for SelfBuildPlanError {
         match self {
             Self::InvalidProvenance(message)
             | Self::UnsupportedTarget(message)
-            | Self::Serialization(message) => formatter.write_str(message),
+            | Self::Serialization(message)
+            | Self::Discovery(message) => formatter.write_str(message),
         }
     }
 }
@@ -262,6 +268,110 @@ fn require_value(label: &str, value: &str) -> Result<(), SelfBuildPlanError> {
         )));
     }
     Ok(())
+}
+
+
+fn run_checked(
+    cwd: &Path,
+    program: &str,
+    args: &[&str],
+) -> Result<Output, SelfBuildPlanError> {
+    let output = Command::new(program)
+        .current_dir(cwd)
+        .args(args)
+        .output()
+        .map_err(|error| {
+            SelfBuildPlanError::Discovery(format!(
+                "{program} provenance probe could not start: {error}"
+            ))
+        })?;
+    if !output.status.success() {
+        return Err(SelfBuildPlanError::Discovery(format!(
+            "{program} provenance probe returned non-zero for args {args:?}"
+        )));
+    }
+    Ok(output)
+}
+
+fn stdout_value(
+    cwd: &Path,
+    program: &str,
+    args: &[&str],
+) -> Result<String, SelfBuildPlanError> {
+    let output = run_checked(cwd, program, args)?;
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if value.is_empty() {
+        return Err(SelfBuildPlanError::Discovery(format!(
+            "{program} provenance probe returned empty stdout for args {args:?}"
+        )));
+    }
+    Ok(value)
+}
+
+fn resolve_executable(path: &Path) -> Option<PathBuf> {
+    if path.is_file() {
+        return Some(path.to_path_buf());
+    }
+
+    if path.components().count() != 1 {
+        return None;
+    }
+
+    let search_path = std::env::var_os("PATH")?;
+    std::env::split_paths(&search_path)
+        .map(|directory| directory.join(path))
+        .find(|candidate| candidate.is_file())
+}
+
+/// Discovers only provenance required to describe a self-build. It never
+/// starts a compiler or a build stage.
+pub fn discover_self_build_inputs(
+    repo_root: &Path,
+    cml_executable: &Path,
+) -> Result<SelfBuildInputs, SelfBuildPlanError> {
+    let cml_executable = resolve_executable(cml_executable).ok_or_else(|| {
+        SelfBuildPlanError::Discovery(format!(
+            "authoritative compiler is unavailable: {}",
+            cml_executable.display()
+        ))
+    })?;
+
+    let source_revision = stdout_value(repo_root, "git", &["rev-parse", "HEAD"])?;
+
+    let status = run_checked(repo_root, "git", &["status", "--porcelain"])?;
+    let status = String::from_utf8_lossy(&status.stdout);
+    if !status.trim().is_empty() {
+        return Err(SelfBuildPlanError::Discovery(
+            "source tree is dirty; self-build provenance requires a clean checkout".into(),
+        ));
+    }
+
+    let compiler = crate::compiler_bridge::compiler_identity(&cml_executable);
+    let compiler_revision = crate::compiler_bridge::git_revision_for(&cml_executable);
+    if compiler_revision == "unavailable" {
+        return Err(SelfBuildPlanError::Discovery(format!(
+            "compiler provenance is unavailable for {}",
+            cml_executable.display()
+        )));
+    }
+
+    let rustc_version = stdout_value(repo_root, "rustc", &["--version"])?;
+    let cargo_version = stdout_value(repo_root, "cargo", &["--version"])?;
+    let bun_version = stdout_value(repo_root, "bun", &["--version"])?;
+    let tauri_version = stdout_value(repo_root, "bun", &["run", "tauri", "--version"])?;
+
+    Ok(SelfBuildInputs::new(
+        source_revision,
+        true,
+        crate::repl_process::my_lisp_pinned_sha(),
+        compiler,
+        compiler_revision,
+        SELF_BUILD_TARGET,
+        rustc_version,
+        cargo_version,
+        bun_version,
+        tauri_version,
+    ))
 }
 
 pub fn build_self_build_plan(
