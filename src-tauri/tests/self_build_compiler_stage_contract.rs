@@ -27,11 +27,12 @@ impl TestRepo {
         fs::create_dir_all(root.join("self-build")).unwrap();
         fs::create_dir_all(root.join("target/self-build")).unwrap();
         fs::write(root.join("self-build/my-idea.lisp"), b"(- 40 40)\n").unwrap();
+        fs::write(root.join(".gitignore"), b"/target/\n").unwrap();
 
         run(&root, &["init", "-q"]);
         run(&root, &["config", "user.email", "self-build@test.invalid"]);
         run(&root, &["config", "user.name", "self-build-test"]);
-        run(&root, &["add", "self-build/my-idea.lisp"]);
+        run(&root, &["add", "self-build/my-idea.lisp", ".gitignore"]);
         run(&root, &["commit", "-q", "-m", "fixture"]);
         Self(root)
     }
