@@ -2,8 +2,9 @@
 //! next self-build deterministically before #13 is allowed to execute it.
 
 use my_idea_lib::self_build::{
-    build_self_build_plan, canonical_plan_json, SelfBuildInputs,
+    build_self_build_plan, canonical_plan_json, discover_self_build_inputs, SelfBuildInputs,
 };
+use std::path::{Path, PathBuf};
 
 fn inputs() -> SelfBuildInputs {
     SelfBuildInputs::new(
@@ -183,4 +184,45 @@ fn unsupported_target_fails_closed() {
         .unwrap_err()
         .to_string()
         .contains("x86_64-linux"));
+}
+
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("src-tauri must have the repository root as parent")
+        .to_path_buf()
+}
+
+#[test]
+fn discovery_fails_closed_when_cml_binary_is_missing() {
+    let missing = repo_root().join("target/self-build/definitely-missing-cml-compile");
+    let error = discover_self_build_inputs(&repo_root(), Path::new(&missing))
+        .expect_err("missing authoritative compiler must fail closed");
+
+    assert!(error.to_string().contains("compiler"));
+}
+
+#[test]
+fn provisioned_real_cml_discovery_reports_exact_revisions_when_available() {
+    let Ok(cml_bin) = std::env::var("MY_IDEA_CML_TEST_BIN") else {
+        return;
+    };
+    let expected_cml_revision = std::env::var("MY_IDEA_CML_TEST_REVISION")
+        .expect("provisioned CML binary must have an exact revision");
+
+    let discovered = discover_self_build_inputs(&repo_root(), Path::new(&cml_bin))
+        .expect("CI's exact CML + checkout must be discoverable without running a build");
+    let plan = build_self_build_plan(discovered).expect("discovered provenance must form a plan");
+
+    assert_eq!(plan.compiler_revision(), expected_cml_revision);
+    assert_eq!(
+        plan.my_lisp_revision(),
+        my_idea_lib::repl_process::my_lisp_pinned_sha()
+    );
+    assert_eq!(plan.source_revision().len(), 40);
+    assert!(plan
+        .source_revision()
+        .chars()
+        .all(|character| character.is_ascii_hexdigit()));
 }
