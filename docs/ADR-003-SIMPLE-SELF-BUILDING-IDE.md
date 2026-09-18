@@ -29,6 +29,23 @@ control-plane features belong to `tauricode`. Their existing implementation in
 `my-idea` is historical and may remain temporarily behind the product surface
 while removal is verified, but it is no longer the direction of this repo.
 
+## Implementation status — 2026-09-18
+
+The historical compiler caveat below records the state when this ADR was
+accepted. Since then, executable evidence established `cml-compile` as the
+real host compiler boundary for the currently proven `x86_64-linux` path,
+including exact compiler/input/artifact provenance and compile→ELF→run through
+the existing Build/Run substrate.
+
+Self-build is now deliberately split into three evidence levels:
+
+1. #12 emits an inspectable deterministic plan only;
+2. #13 will require the compiler-produced stage before Tauri build/bundle;
+3. #14 will prove the generation-0 → generation-1 → generation-2 transition.
+
+Tauri remains an explicit bootstrap/platform mechanism. None of these steps
+alone claims full self-hosting.
+
 ## Product boundary
 
 `my-idea` owns:
