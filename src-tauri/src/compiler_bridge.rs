@@ -380,6 +380,46 @@ fn lines(bytes: &[u8]) -> Vec<String> {
         .collect()
 }
 
+pub fn resolve_cml_candidate(
+    workspace: &Path,
+    explicit_override: Option<PathBuf>,
+) -> PathBuf {
+    if let Some(path) = explicit_override {
+        return path;
+    }
+    let sibling = workspace
+        .parent()
+        .map(|parent| parent.join("cml/target/release/cml-compile"));
+    if let Some(path) = sibling.filter(|path| path.is_file()) {
+        return path;
+    }
+    PathBuf::from("cml-compile")
+}
+
+pub fn resolve_cml_executable(
+    workspace: &Path,
+    explicit_override: Option<PathBuf>,
+) -> Result<PathBuf, String> {
+    let candidate = resolve_cml_candidate(workspace, explicit_override);
+    if candidate.is_file() {
+        return Ok(candidate);
+    }
+    if candidate.components().count() == 1 {
+        if let Some(search_path) = std::env::var_os("PATH") {
+            if let Some(path) = std::env::split_paths(&search_path)
+                .map(|directory| directory.join(&candidate))
+                .find(|path| path.is_file())
+            {
+                return Ok(path);
+            }
+        }
+    }
+    Err(format!(
+        "authoritative compiler is unavailable: {}",
+        candidate.display()
+    ))
+}
+
 pub(crate) fn compiler_identity(executable: &Path) -> String {
     executable
         .file_stem()
