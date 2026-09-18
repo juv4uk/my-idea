@@ -232,20 +232,111 @@ fn resolve_keymaps(
     keymap_authority::resolve(bindings)
 }
 
-/// Resolves the real `cml` compiler binary (issue #16: cml is the sole
+/// Resolves the real CML host compiler binary (issues #16/#58: CML is the
 /// authoritative project compiler, my-idea is a mechanism-only client of
-/// it) — an env override, a sibling `cml` checkout next to the open
-/// workspace, or a bare `cml` on PATH, in that order. Mirrors
-/// `lsp_adapter::find_my_lisp`'s exact resolution shape.
+/// it) — an env override, a sibling `cml-compile` from a CML checkout next
+/// to the open workspace, or a bare `cml-compile` on PATH, in that order.
+/// Mirrors `lsp_adapter::find_my_lisp`'s resolution shape.
 fn find_cml(workspace: &Path) -> PathBuf {
-    if let Some(path) = std::env::var_os("MY_IDEA_CML_BIN") {
-        return path.into();
+    resolve_cml_binary(
+        workspace,
+        std::env::var_os("MY_IDEA_CML_BIN").map(PathBuf::from),
+    )
+}
+
+fn resolve_cml_binary(workspace: &Path, explicit_override: Option<PathBuf>) -> PathBuf {
+    if let Some(path) = explicit_override {
+        return path;
     }
-    let sibling = workspace.parent().map(|parent| parent.join("cml/target/release/cml"));
+    let sibling = workspace
+        .parent()
+        .map(|parent| parent.join("cml/target/release/cml-compile"));
     if let Some(path) = sibling.filter(|path| path.is_file()) {
         return path;
     }
-    "cml".into()
+    "cml-compile".into()
+}
+
+#[cfg(test)]
+mod cml_resolver_tests {
+    use super::resolve_cml_binary;
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[test]
+    fn sibling_checkout_prefers_cml_compile_over_legacy_cml() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock must be after Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("my-idea-cml-resolver-{nonce}"));
+        let workspace = root.join("workspace");
+        let release = root.join("cml/target/release");
+        fs::create_dir_all(&workspace).expect("temporary workspace must be created");
+        fs::create_dir_all(&release).expect("temporary sibling CML checkout must be created");
+
+        let legacy = release.join("cml");
+        let host_compiler = release.join("cml-compile");
+        fs::write(&legacy, b"legacy").expect("legacy cml fixture must be created");
+        fs::write(&host_compiler, b"host compiler")
+            .expect("cml-compile fixture must be created");
+
+        let resolved = resolve_cml_binary(&workspace, None);
+        let _ = fs::remove_dir_all(&root);
+
+        assert_eq!(
+            resolved,
+            host_compiler,
+            "production resolver must select the host-integration cml-compile binary"
+        );
+    }
+
+    #[test]
+    fn missing_sibling_falls_back_to_cml_compile_path_name() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock must be after Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("my-idea-cml-fallback-{nonce}"));
+        let workspace = root.join("workspace");
+        fs::create_dir_all(&workspace).expect("temporary workspace must be created");
+
+        let resolved = resolve_cml_binary(&workspace, None);
+        let _ = fs::remove_dir_all(&root);
+
+        assert_eq!(
+            resolved,
+            PathBuf::from("cml-compile"),
+            "PATH fallback must name the host-integration cml-compile binary"
+        );
+    }
+
+    #[test]
+    fn explicit_override_precedes_sibling_and_path_fallback() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock must be after Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("my-idea-cml-override-{nonce}"));
+        let workspace = root.join("workspace");
+        let release = root.join("cml/target/release");
+        fs::create_dir_all(&workspace).expect("temporary workspace must be created");
+        fs::create_dir_all(&release).expect("temporary sibling CML checkout must be created");
+        fs::write(release.join("cml-compile"), b"sibling")
+            .expect("sibling cml-compile fixture must be created");
+
+        let explicit = root.join("custom/cml-compile");
+        let resolved = resolve_cml_binary(&workspace, Some(explicit.clone()));
+        let _ = fs::remove_dir_all(&root);
+
+        assert_eq!(
+            resolved, explicit,
+            "MY_IDEA_CML_BIN must remain the highest-priority resolver input"
+        );
+    }
 }
 
 #[derive(Serialize)]
