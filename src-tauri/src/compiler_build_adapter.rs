@@ -25,6 +25,18 @@ impl CompilerBuildAdapter {
             diagnostics: run.diagnostics().to_vec(),
         })
     }
+
+    pub fn compile_project_to(
+        &self,
+        request: &CompilerRequest,
+        output_path: impl AsRef<std::path::Path>,
+    ) -> Result<CompiledProject, CompilerFailure> {
+        let run = self.bridge.compile_observed_to(request, output_path)?;
+        Ok(CompiledProject {
+            artifact: run.artifact().clone(),
+            diagnostics: run.diagnostics().to_vec(),
+        })
+    }
 }
 
 #[derive(Clone, Debug)]

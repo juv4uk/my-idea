@@ -16,6 +16,7 @@ name = "my_idea_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
+sha2 = "0.10"
 tauri-build = { version = "2", features = [] }
 # indexmap 1.9.3 (pulled in transitively by tauri-build -> schemars 0.8) detects
 # `std` availability via a build.rs autocfg probe when its own `std` Cargo

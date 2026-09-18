@@ -210,6 +210,18 @@ impl CompilerBridge {
     }
 
     pub fn compile_observed(&self, request: &CompilerRequest) -> Result<CompilerRun, CompilerFailure> {
+        let output_path = artifact_path(request)?;
+        self.compile_observed_to(request, output_path)
+    }
+
+    /// Compile to an explicit artifact path. The generic IDE compile path
+    /// remains derived by `compile_observed`; self-build uses this entry
+    /// point so execution matches the artifact declared by its plan.
+    pub fn compile_observed_to(
+        &self,
+        request: &CompilerRequest,
+        output_path: impl AsRef<Path>,
+    ) -> Result<CompilerRun, CompilerFailure> {
         if !self.executable.is_file() {
             return Err(CompilerFailure::new(
                 format!(
@@ -235,8 +247,16 @@ impl CompilerBridge {
             ));
         }
 
+        let output_path = output_path.as_ref().to_path_buf();
+        if output_path.as_os_str().is_empty() {
+            return Err(CompilerFailure::new(
+                "compiler artifact path must not be empty",
+                Vec::new(),
+                None,
+            ));
+        }
+
         let source_modified = modified(&request.source)?;
-        let output_path = artifact_path(request)?;
         if let Some(parent) = output_path.parent() {
             fs::create_dir_all(parent).map_err(|error| {
                 CompilerFailure::new(
@@ -358,6 +378,46 @@ fn lines(bytes: &[u8]) -> Vec<String> {
         .filter(|line| !line.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+pub fn resolve_cml_candidate(
+    workspace: &Path,
+    explicit_override: Option<PathBuf>,
+) -> PathBuf {
+    if let Some(path) = explicit_override {
+        return path;
+    }
+    let sibling = workspace
+        .parent()
+        .map(|parent| parent.join("cml/target/release/cml-compile"));
+    if let Some(path) = sibling.filter(|path| path.is_file()) {
+        return path;
+    }
+    PathBuf::from("cml-compile")
+}
+
+pub fn resolve_cml_executable(
+    workspace: &Path,
+    explicit_override: Option<PathBuf>,
+) -> Result<PathBuf, String> {
+    let candidate = resolve_cml_candidate(workspace, explicit_override);
+    if candidate.is_file() {
+        return Ok(candidate);
+    }
+    if candidate.components().count() == 1 {
+        if let Some(search_path) = std::env::var_os("PATH") {
+            if let Some(path) = std::env::split_paths(&search_path)
+                .map(|directory| directory.join(&candidate))
+                .find(|path| path.is_file())
+            {
+                return Ok(path);
+            }
+        }
+    }
+    Err(format!(
+        "authoritative compiler is unavailable: {}",
+        candidate.display()
+    ))
 }
 
 pub(crate) fn compiler_identity(executable: &Path) -> String {
