@@ -82,6 +82,7 @@ fn fixture() -> (TestRepo, CompilerStageGate) {
         repo.head(),
         "self-build/my-idea.lisp",
         hash(&source),
+        "cml-compile",
         "3333333333333333333333333333333333333333",
         "x86_64-linux",
         "target/self-build/my-idea-x86_64-linux",
