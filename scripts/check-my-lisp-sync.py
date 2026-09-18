@@ -117,6 +117,30 @@ def release_sidecar_uses_submodule() -> tuple[bool, str]:
     return True, f"{len(sidecar_steps)} release sidecar build step(s) use the pinned submodule"
 
 
+def release_validates_runtime_pin() -> bool:
+    """The release itself must run the same guard on the exact release tag."""
+    text = PUBLISH_RELEASE.read_text(encoding="utf-8")
+    try:
+        validate = text.split("  validate-release:", 1)[1].split("  build-desktop:", 1)[0]
+    except IndexError:
+        return False
+    return (
+        "ref: ${{ env.RELEASE_TAG }}" in validate
+        and "submodules: true" in validate
+        and "python3 scripts/check-my-lisp-sync.py" in validate
+    )
+
+
+def android_explicitly_disables_sidecar() -> bool:
+    """Mobile is the documented exception: Android ships no desktop sidecar."""
+    text = PUBLISH_RELEASE.read_text(encoding="utf-8")
+    try:
+        android = text.split("  build-android:", 1)[1]
+    except IndexError:
+        return False
+    return '"externalBin": []' in android
+
+
 def runtime_revision_map(sha: str) -> dict[str, str]:
     declared = cargo_toml_uses_path_dependency()
     missing = PACKAGES - declared
@@ -131,6 +155,13 @@ def runtime_revision_map(sha: str) -> dict[str, str]:
     sidecar_ok, sidecar_detail = release_sidecar_uses_submodule()
     if not sidecar_ok:
         raise RuntimeError(sidecar_detail)
+    if not release_validates_runtime_pin():
+        raise RuntimeError(
+            "publish-release validate-release job must check out the exact tag "
+            "with submodules and run scripts/check-my-lisp-sync.py"
+        )
+    if not android_explicitly_disables_sidecar():
+        raise RuntimeError("Android release must explicitly disable the desktop sidecar")
 
     return {"embedded": sha, "wasm": sha, "sidecar": sha}
 
@@ -150,14 +181,6 @@ def main() -> int:
         )
 
     revisions = runtime_revision_map(sha)
-
-    declared = cargo_toml_uses_path_dependency()
-    missing = PACKAGES - declared
-    if missing:
-        raise RuntimeError(
-            "Cargo.toml має оголошувати ці пакети через "
-            f"path = \"../external/my-lisp/...\": {', '.join(sorted(missing))}"
-        )
 
     git_sources = cargo_lock_git_sources()
     if git_sources:
