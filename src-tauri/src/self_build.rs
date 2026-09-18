@@ -17,10 +17,10 @@ use std::{
 };
 
 pub const SELF_BUILD_SCHEMA: &str = "self-build-plan-v1";
-pub const SELF_BUILD_TARGET: &str = "x86_64-linux";
+pub const SELF_BUILD_TARGET: &str = crate::build_support::SELF_BUILD_TARGET;
 
-pub const PROJECT_SOURCE: &str = "self-build/my-idea.lisp";
-pub const COMPILER_ARTIFACT: &str = "target/self-build/my-idea-x86_64-linux";
+pub const PROJECT_SOURCE: &str = crate::build_support::SELF_BUILD_SOURCE_PATH;
+pub const COMPILER_ARTIFACT: &str = crate::build_support::SELF_BUILD_ARTIFACT_PATH;
 pub const COMPILER_STAGE_SCHEMA: &str = "self-build-compiler-stage-v1";
 const PLATFORM_OUTPUT: &str = "src-tauri/target/release/bundle";
 
