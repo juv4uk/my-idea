@@ -13,6 +13,7 @@
 //! переносить будь-яке виправлення чи розширення поверхні без жодного
 //! дубльованого Rust-коду тут.
 
+use serde::Serialize;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -136,6 +137,41 @@ pub fn resolve_my_lisp_binary(repo_root: &Path) -> Result<PathBuf, String> {
 /// somehow missing at compile time.
 pub fn my_lisp_pinned_sha() -> &'static str {
     env!("MY_LISP_PINNED_SHA")
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyLispRuntimeProvenance {
+    embedded_revision: &'static str,
+    wasm_revision: &'static str,
+    sidecar_revision: &'static str,
+}
+
+impl MyLispRuntimeProvenance {
+    pub fn embedded_revision(&self) -> &str {
+        self.embedded_revision
+    }
+
+    pub fn wasm_revision(&self) -> &str {
+        self.wasm_revision
+    }
+
+    pub fn sidecar_revision(&self) -> &str {
+        self.sidecar_revision
+    }
+}
+
+/// Reports the single exact my-lisp revision backing all canonical execution
+/// paths shipped by this my-idea build. The equality is enforced by the
+/// release/CI single-channel guard; this function only exposes that pinned
+/// build-time fact as inspectable data.
+pub fn my_lisp_runtime_provenance() -> MyLispRuntimeProvenance {
+    let revision = my_lisp_pinned_sha();
+    MyLispRuntimeProvenance {
+        embedded_revision: revision,
+        wasm_revision: revision,
+        sidecar_revision: revision,
+    }
 }
 
 /// The real upstream URL `resolve_or_fetch_my_lisp_binary` clones when no
