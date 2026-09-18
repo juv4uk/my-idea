@@ -4,8 +4,12 @@
 //! starts CML, Bun, Cargo, Tauri, or a generated artifact. Execution begins in
 //! issue #13.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use crate::{
+    compiler_bridge::{CompilerBridge, CompilerRequest},
+    compiler_build_adapter::CompilerBuildAdapter,
+};
 use std::{
     fmt,
     path::{Path, PathBuf},
@@ -15,8 +19,9 @@ use std::{
 pub const SELF_BUILD_SCHEMA: &str = "self-build-plan-v1";
 pub const SELF_BUILD_TARGET: &str = "x86_64-linux";
 
-const PROJECT_SOURCE: &str = "self-build/my-idea.lisp";
-const COMPILER_ARTIFACT: &str = "target/self-build/my-idea-x86_64-linux";
+pub const PROJECT_SOURCE: &str = "self-build/my-idea.lisp";
+pub const COMPILER_ARTIFACT: &str = "target/self-build/my-idea-x86_64-linux";
+pub const COMPILER_STAGE_SCHEMA: &str = "self-build-compiler-stage-v1";
 const PLATFORM_OUTPUT: &str = "src-tauri/target/release/bundle";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -203,6 +208,10 @@ impl SelfBuildPlan {
         &self.compiler.revision
     }
 
+    pub fn compiler_identity(&self) -> &str {
+        &self.compiler.executable
+    }
+
     pub fn compiler_target(&self) -> &str {
         &self.compiler.target
     }
@@ -228,6 +237,116 @@ impl SelfBuildPlan {
             .iter()
             .find(|stage| stage.name == "platform")
             .expect("self-build v1 always has a platform stage")
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompilerStageEvidence {
+    schema_version: String,
+    plan_digest: String,
+    source_revision: String,
+    source_path: String,
+    source_sha256: String,
+    compiler: String,
+    compiler_revision: String,
+    compiler_target: String,
+    artifact_path: String,
+    artifact_sha256: String,
+}
+
+impl CompilerStageEvidence {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        plan_digest: impl Into<String>,
+        source_revision: impl Into<String>,
+        source_path: impl Into<String>,
+        source_sha256: impl Into<String>,
+        compiler: impl Into<String>,
+        compiler_revision: impl Into<String>,
+        compiler_target: impl Into<String>,
+        artifact_path: impl Into<String>,
+        artifact_sha256: impl Into<String>,
+    ) -> Result<Self, SelfBuildPlanError> {
+        let evidence = Self {
+            schema_version: COMPILER_STAGE_SCHEMA.into(),
+            plan_digest: plan_digest.into(),
+            source_revision: source_revision.into(),
+            source_path: source_path.into(),
+            source_sha256: source_sha256.into(),
+            compiler: compiler.into(),
+            compiler_revision: compiler_revision.into(),
+            compiler_target: compiler_target.into(),
+            artifact_path: artifact_path.into(),
+            artifact_sha256: artifact_sha256.into(),
+        };
+        evidence.validate_shape()?;
+        Ok(evidence)
+    }
+
+    fn validate_shape(&self) -> Result<(), SelfBuildPlanError> {
+        if self.schema_version != COMPILER_STAGE_SCHEMA {
+            return Err(SelfBuildPlanError::InvalidProvenance(
+                "compiler-stage evidence schema is unsupported".into(),
+            ));
+        }
+        require_sha256("self-build plan digest", &self.plan_digest)?;
+        require_sha("source revision", &self.source_revision)?;
+        require_sha256("source SHA-256", &self.source_sha256)?;
+        require_sha("compiler revision", &self.compiler_revision)?;
+        require_sha256("artifact SHA-256", &self.artifact_sha256)?;
+        if self.compiler != "cml-compile" {
+            return Err(SelfBuildPlanError::InvalidProvenance(
+                "compiler-stage evidence must name cml-compile".into(),
+            ));
+        }
+        if self.compiler_target != SELF_BUILD_TARGET {
+            return Err(SelfBuildPlanError::UnsupportedTarget(format!(
+                "compiler-stage evidence supports only {SELF_BUILD_TARGET}"
+            )));
+        }
+        if self.source_path != PROJECT_SOURCE || self.artifact_path != COMPILER_ARTIFACT {
+            return Err(SelfBuildPlanError::InvalidProvenance(
+                "compiler-stage evidence paths do not match self-build-plan-v1".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn plan_digest(&self) -> &str {
+        &self.plan_digest
+    }
+
+    pub fn source_revision(&self) -> &str {
+        &self.source_revision
+    }
+
+    pub fn source_path(&self) -> &str {
+        &self.source_path
+    }
+
+    pub fn source_sha256(&self) -> &str {
+        &self.source_sha256
+    }
+
+    pub fn compiler(&self) -> &str {
+        &self.compiler
+    }
+
+    pub fn compiler_revision(&self) -> &str {
+        &self.compiler_revision
+    }
+
+    pub fn compiler_target(&self) -> &str {
+        &self.compiler_target
+    }
+
+    pub fn artifact_path(&self) -> &str {
+        &self.artifact_path
+    }
+
+    pub fn artifact_sha256(&self) -> &str {
+        &self.artifact_sha256
     }
 }
 
@@ -259,6 +378,29 @@ fn require_sha(label: &str, value: &str) -> Result<(), SelfBuildPlanError> {
         )));
     }
     Ok(())
+}
+
+fn require_sha256(label: &str, value: &str) -> Result<(), SelfBuildPlanError> {
+    if value.len() != 64
+        || !value
+            .chars()
+            .all(|character| character.is_ascii_hexdigit() && !character.is_ascii_uppercase())
+    {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "{label} must be a lowercase 64-hex SHA-256"
+        )));
+    }
+    Ok(())
+}
+
+fn file_sha256(path: &Path, label: &str) -> Result<String, SelfBuildPlanError> {
+    let bytes = std::fs::read(path).map_err(|error| {
+        SelfBuildPlanError::InvalidProvenance(format!(
+            "{label} is unavailable at {}: {error}",
+            path.display()
+        ))
+    })?;
+    Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 
 fn require_value(label: &str, value: &str) -> Result<(), SelfBuildPlanError> {
@@ -372,6 +514,134 @@ pub fn discover_self_build_inputs(
         bun_version,
         tauri_version,
     ))
+}
+
+pub fn prepare_compiler_stage(
+    repo_root: &Path,
+    cml_executable: &Path,
+    plan: &SelfBuildPlan,
+) -> Result<CompilerStageEvidence, SelfBuildPlanError> {
+    if plan.compiler_identity() != "cml-compile"
+        || plan.compiler_target() != SELF_BUILD_TARGET
+    {
+        return Err(SelfBuildPlanError::InvalidProvenance(
+            "self-build plan compiler boundary is incompatible with compiler-stage-v1".into(),
+        ));
+    }
+
+    let source = repo_root.join(PROJECT_SOURCE);
+    let output = repo_root.join(COMPILER_ARTIFACT);
+    let request = CompilerRequest::new(&source, SELF_BUILD_TARGET)
+        .map_err(SelfBuildPlanError::InvalidProvenance)?;
+    let adapter = CompilerBuildAdapter::new(CompilerBridge::at(cml_executable));
+    let compiled = adapter.compile_project_to(&request, &output).map_err(|error| {
+        SelfBuildPlanError::Discovery(format!("self-build compiler stage failed: {error}"))
+    })?;
+    let artifact = compiled.artifact();
+
+    if artifact.compiler() != plan.compiler_identity() {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "compiler identity drift: plan={} actual={}",
+            plan.compiler_identity(),
+            artifact.compiler()
+        )));
+    }
+    if artifact.compiler_revision() != plan.compiler_revision() {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "compiler revision drift: plan={} actual={}",
+            plan.compiler_revision(),
+            artifact.compiler_revision()
+        )));
+    }
+    if artifact.input_revision() != plan.source_revision() {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "source revision drift: plan={} actual={}",
+            plan.source_revision(),
+            artifact.input_revision()
+        )));
+    }
+    if artifact.path() != output {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "compiler artifact path drift: expected={} actual={}",
+            output.display(),
+            artifact.path().display()
+        )));
+    }
+
+    let evidence = CompilerStageEvidence::new(
+        plan.digest(),
+        plan.source_revision(),
+        PROJECT_SOURCE,
+        file_sha256(&source, "self-build source")?,
+        artifact.compiler(),
+        artifact.compiler_revision(),
+        plan.compiler_target(),
+        COMPILER_ARTIFACT,
+        file_sha256(&output, "self-build compiler artifact")?,
+    )?;
+    verify_compiler_stage(repo_root, plan, &evidence)?;
+    Ok(evidence)
+}
+
+pub fn verify_compiler_stage(
+    repo_root: &Path,
+    plan: &SelfBuildPlan,
+    evidence: &CompilerStageEvidence,
+) -> Result<(), SelfBuildPlanError> {
+    evidence.validate_shape()?;
+
+    if evidence.plan_digest() != plan.digest() {
+        return Err(SelfBuildPlanError::InvalidProvenance(
+            "compiler-stage plan digest does not match the current self-build plan".into(),
+        ));
+    }
+    if evidence.source_revision() != plan.source_revision() {
+        return Err(SelfBuildPlanError::InvalidProvenance(
+            "compiler-stage source revision does not match the plan".into(),
+        ));
+    }
+    if evidence.compiler() != plan.compiler_identity()
+        || evidence.compiler_revision() != plan.compiler_revision()
+        || evidence.compiler_target() != plan.compiler_target()
+    {
+        return Err(SelfBuildPlanError::InvalidProvenance(
+            "compiler-stage compiler provenance does not match the plan".into(),
+        ));
+    }
+
+    let source = repo_root.join(evidence.source_path());
+    let current_source_sha = file_sha256(&source, "self-build source")?;
+    if current_source_sha != evidence.source_sha256() {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "source SHA-256 mismatch: expected={} actual={current_source_sha}",
+            evidence.source_sha256()
+        )));
+    }
+
+    let artifact = repo_root.join(evidence.artifact_path());
+    let current_artifact_sha = file_sha256(&artifact, "self-build compiler artifact")?;
+    if current_artifact_sha != evidence.artifact_sha256() {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "artifact SHA-256 mismatch: expected={} actual={current_artifact_sha}",
+            evidence.artifact_sha256()
+        )));
+    }
+
+    let current_revision = stdout_value(repo_root, "git", &["rev-parse", "HEAD"])?;
+    if current_revision != evidence.source_revision() {
+        return Err(SelfBuildPlanError::InvalidProvenance(format!(
+            "source revision mismatch: expected={} actual={current_revision}",
+            evidence.source_revision()
+        )));
+    }
+    let status = run_checked(repo_root, "git", &["status", "--porcelain"])?;
+    if !String::from_utf8_lossy(&status.stdout).trim().is_empty() {
+        return Err(SelfBuildPlanError::InvalidProvenance(
+            "source tree is dirty; compiler-stage evidence is not fresh".into(),
+        ));
+    }
+
+    Ok(())
 }
 
 pub fn build_self_build_plan(
