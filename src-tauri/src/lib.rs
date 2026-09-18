@@ -1,3 +1,5 @@
+#[path = "../build_support.rs"]
+pub mod build_support;
 pub mod compiler_bridge;
 pub mod compiler_build_adapter;
 pub mod editor_api;
