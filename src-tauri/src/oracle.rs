@@ -1,4 +1,4 @@
-use my_lisp::{parse, Expr, ExprKind};
+use sens::{parse, Expr, ExprKind};
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;

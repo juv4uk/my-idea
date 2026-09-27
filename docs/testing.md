@@ -16,14 +16,14 @@ The project has two independent test layers: the Rust crates under `crates/` (ru
 | `my-idea` | unit tests (`src-tauri/src/lib.rs`) | 1 | native adapter loads bootstrap library and preserves exact values |
 | **Rust total** | | **53** | |
 
-The language crates live in the `external/my-lisp` git submodule since
+The language crates live in the `external/sens` git submodule since
 the repository split — initialize it first
-(`git submodule update --init external/my-lisp`):
+(`git submodule update --init external/sens`):
 
 ```powershell
-cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
-cargo test --manifest-path external/my-lisp/crates/my-lisp-cli/Cargo.toml
-cargo test --manifest-path external/my-lisp/crates/my-lisp-literate/Cargo.toml
+cargo test --manifest-path external/sens/crates/my-lisp/Cargo.toml
+cargo test --manifest-path external/sens/crates/my-lisp-cli/Cargo.toml
+cargo test --manifest-path external/sens/crates/my-lisp-literate/Cargo.toml
 ```
 
 ### Web/JS suite — `bun run test` (`node --test tests/*.test.mjs`)

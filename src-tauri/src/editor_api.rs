@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Once;
 
-use my_lisp::{
+use sens::{
     eval_expr, exact_arity, register_capability, Environment, ErrorKind, Expr, LanguageError,
     Span, Value,
 };
@@ -73,13 +73,13 @@ struct RegistryState {
     effect: EditorEffect,
 }
 
-// Стан реєстрів — per-thread, а не process-global: `my_lisp::Session` є
+// Стан реєстрів — per-thread, а не process-global: `sens::Session` є
 // `!Send` і завжди живе на одному потоці (див. `ManagedReplSession`), а
 // сама capability-функція (`HostFn`) — звичайний `fn`-покажчик без
 // замикання, тож стан мусить діставатись через `Environment`, а не з
 // captured state. `thread_local!` ізолює тести/сесії одна від одної.
 //
-// Registry state is per-thread, not process-global: `my_lisp::Session` is
+// Registry state is per-thread, not process-global: `sens::Session` is
 // `!Send` and always lives on one thread (see `ManagedReplSession`), and
 // the capability function itself (`HostFn`) is a plain `fn` pointer with
 // no closure, so state must be reached through the `Environment`, not
@@ -497,7 +497,7 @@ impl EditorCommandRegistry {
 
         let call_environment = repl.environment().child();
         call_environment.define(INVOKE_TARGET_KEY, callback);
-        let call_expr = my_lisp::parse(&format!("({INVOKE_TARGET_KEY})"))
+        let call_expr = sens::parse(&format!("({INVOKE_TARGET_KEY})"))
             .map_err(|error| error.to_string())?
             .into_iter()
             .next()

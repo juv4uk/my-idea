@@ -34,8 +34,8 @@ indexmap = { version = "1.9", features = ["std"] }
 # alongside it — this crate consumes several surfaces of the same tree
 # (in-process eval here, the CLI subprocess behind the REPL console, and
 # the WASM build), so all of them must resolve from one exact commit.
-my-lisp = { path = "../external/my-lisp/crates/my-lisp" }
-my-lisp-literate = { path = "../external/my-lisp/crates/my-lisp-literate" }
+sens = { path = "../external/sens/crates/sens" }
+sens-literate = { path = "../external/sens/crates/sens-literate" }
 # "devtools" keeps F12/right-click "Inspect Element" available in release
 # builds too — by default Tauri only wires it up in debug builds.
 tauri = { version = "2", features = ["devtools"] }

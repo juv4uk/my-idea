@@ -4,7 +4,7 @@ use std::process::Command;
 fn main() {
     tauri_build::build();
 
-    // Records the exact commit `external/my-lisp` is checked out at when
+    // Records the exact commit `external/sens` is checked out at when
     // my-idea itself is compiled, as a plain string baked into the binary
     // (never a filesystem path) — repl_process::resolve_or_fetch_my_lisp_binary
     // uses this to `git clone`/checkout the same commit directly from its
@@ -14,7 +14,7 @@ fn main() {
     let repo_root = manifest_dir
         .parent()
         .expect("src-tauri has a parent repo root");
-    let submodule = repo_root.join("external").join("my-lisp");
+    let submodule = repo_root.join("external").join("sens");
 
     let sha = Command::new("git")
         .arg("-C")

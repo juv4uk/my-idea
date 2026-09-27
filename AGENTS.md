@@ -139,7 +139,7 @@ discovers by convention is:
 
 ```
 /mnt/c/GitHub/
-├── my-lisp/
+├── sens/
 ├── cml/
 ├── fpga-lisp/
 └── my-idea/
@@ -376,11 +376,11 @@ is deliberate here (only the WASM crate needs the cross target), while
 everything else still comes from the reproducible Guix profile.
 
 Additionally, `scripts/build.mjs` step 1 compiles the vendored submodule
-`external/my-lisp`; if it was never initialized you get a confusing
+`external/sens`; if it was never initialized you get a confusing
 "crate directory is missing a Cargo.toml". Fix:
 
 ```bash
-git submodule update --init external/my-lisp
+git submodule update --init external/sens
 ```
 
 The standalone artifact used by the Playwright tests is built separately
@@ -404,17 +404,17 @@ already on disk — even for a plain `cargo build`/`cargo check`, before any
 actual bundling happens. This is Tauri's own compile-time validation, not
 a bug here.
 
-One-time (or "whenever `external/my-lisp` moves") local setup:
+One-time (or "whenever `external/sens` moves") local setup:
 
 ```bash
 bash scripts/build-repl-sidecar.sh
 ```
 
-This builds `my-lisp-cli` from the local `external/my-lisp` submodule and
+This builds `my-lisp-cli` from the local `external/sens` submodule and
 places it at `src-tauri/binaries/my-lisp-<host-triple>` — gitignored,
 never committed. Release builds follow the same semantic pin: every
 desktop sidecar is compiled from the release tag's checked-out
-`external/my-lisp` gitlink, exactly like the embedded Rust and WASM
+`external/sens` gitlink, exactly like the embedded Rust and WASM
 engines. `scripts/check-my-lisp-sync.py` fail-closes CI/release if that
 single-channel invariant drifts. The sidecar remains a separate *process
 mechanism*, not a separate semantic revision.
@@ -489,7 +489,7 @@ already require.
 
 ## How to check neighboring repositories
 
-Read `my-lisp/ecosystem-status.my`, `fpga-lisp/ecosystem-status.md`,
+Read `sens/ecosystem-status.my`, `fpga-lisp/ecosystem-status.md`,
 `cml/ecosystem-status.md`/`compatibility.my`, and each neighbor's own
 `evidence/` directory directly rather than asking another agent.
 

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use my_lisp_literate::SourceMode;
+use sens_literate::SourceMode;
 use crate::editor_api::{EditorCommandRegistry, EditorEffect, EditorState};
 use crate::LispEvaluation;
 
@@ -40,13 +40,13 @@ pub fn resolve_initial_workspace(target: StartupTarget) -> Option<PathBuf> {
 
 /// Retained `my-lisp` session preserving definitions across sequential evaluations.
 pub struct ReplSession {
-    session: my_lisp::Session,
+    session: sens::Session,
 }
 
 impl Default for ReplSession {
     fn default() -> Self {
         Self {
-            session: my_lisp::Session::default(),
+            session: sens::Session::default(),
         }
     }
 }
@@ -67,7 +67,7 @@ impl ReplSession {
     /// Exposes the underlying my-lisp environment — needed only by in-crate
     /// host extensions (e.g. `editor_api`) that install their own capability
     /// functions and tokens on top of the ordinary REPL.
-    pub(crate) fn environment(&self) -> &my_lisp::Environment {
+    pub(crate) fn environment(&self) -> &sens::Environment {
         &self.session.environment
     }
 
@@ -118,7 +118,7 @@ enum ReplCommand {
 }
 
 /// Managed wrapper for `ReplSession` to be stored in Tauri state.
-/// Hosts the single-threaded `my_lisp::Session` (!Send) on a dedicated worker thread.
+/// Hosts the single-threaded `sens::Session` (!Send) on a dedicated worker thread.
 pub struct ManagedReplSession {
     sender: Mutex<std::sync::mpsc::Sender<ReplCommand>>,
 }

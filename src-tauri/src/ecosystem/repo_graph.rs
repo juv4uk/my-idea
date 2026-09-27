@@ -1,5 +1,5 @@
 use super::contracts::{as_list, symbol_name};
-use my_lisp::{parse, Expr};
+use sens::{parse, Expr};
 use serde::Serialize;
 use std::fs;
 use std::path::Path;

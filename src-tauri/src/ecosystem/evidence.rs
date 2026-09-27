@@ -1,5 +1,5 @@
 use super::contracts::{as_list, assoc, parse_alist, string_value, symbol_name};
-use my_lisp::Expr;
+use sens::Expr;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;

@@ -1,5 +1,5 @@
 use crate::swarm;
-use my_lisp::{parse, Expr, ExprKind};
+use sens::{parse, Expr, ExprKind};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
