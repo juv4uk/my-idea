@@ -19,7 +19,7 @@ fn symbol_name(expr: &Expr) -> Option<&str> {
 
 /// Finds `(key value ...)` among `items` — swarm-node's flat field shape
 /// (`(node my-idea-1)`, `(roles (voter worker))`), same convention as
-/// `repo.my` — and returns the trailing symbol names.
+/// `repo.lisp` — and returns the trailing symbol names.
 fn symbols_of(expr: &Expr) -> Vec<String> {
     match as_list(expr) {
         Some(list) => list.iter().filter_map(symbol_name).map(str::to_string).collect(),

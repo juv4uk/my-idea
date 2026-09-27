@@ -77,10 +77,10 @@ fn parse_record(raw: &str) -> Option<EvidenceRecord> {
     })
 }
 
-/// Walks `<repo>/evidence/<requirement>/<implementation>/*.my` and parses
+/// Walks `<repo>/evidence/<requirement>/<implementation>/*.lisp` and parses
 /// every record found. Missing `evidence/` (not every repo need have one
 /// yet) is not an error — just no records.
-/// Обходить `<repo>/evidence/<requirement>/<implementation>/*.my` і парсить
+/// Обходить `<repo>/evidence/<requirement>/<implementation>/*.lisp` і парсить
 /// усі знайдені записи. Відсутня `evidence/` — не помилка, просто немає
 /// записів.
 pub fn scan(repo: &Path) -> Vec<EvidenceRecord> {

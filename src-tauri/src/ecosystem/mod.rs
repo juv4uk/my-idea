@@ -147,12 +147,12 @@ pub struct KnowledgeGraph {
 }
 
 /// Phase 1 (repo-level only) of `docs/knowledge-graph-design.md`: scans
-/// every known sibling's `repo.my` self-declaration and derives coarse
+/// every known sibling's `repo.lisp` self-declaration and derives coarse
 /// capability-overlap edges. A separate command from `status()` on
 /// purpose — different data shape, different refresh cadence (repo
 /// declarations change far less often than evidence runs).
 /// Фаза 1 (лише рівень репо) з `docs/knowledge-graph-design.md`: сканує
-/// самодекларацію `repo.my` кожного відомого сусіда й виводить грубі
+/// самодекларацію `repo.lisp` кожного відомого сусіда й виводить грубі
 /// ребра перетину capability. Окрема команда від `status()` навмисно.
 pub fn knowledge_graph() -> KnowledgeGraph {
     let Some(root) = siblings_root() else {

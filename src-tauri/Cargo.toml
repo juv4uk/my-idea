@@ -29,7 +29,7 @@ indexmap = { version = "1.9", features = ["std"] }
 
 [dependencies]
 # Single-channel pin (SUBMODULE-DEPENDENCY-MODEL-2026-09-16): the
-# external/my-lisp git submodule's checked-out SHA is the only place
+# external/sens git submodule's checked-out SHA is the only place
 # my-idea's my-lisp version is decided. No floating `branch = "main"`
 # alongside it — this crate consumes several surfaces of the same tree
 # (in-process eval here, the CLI subprocess behind the REPL console, and
@@ -48,7 +48,7 @@ tauri-plugin-fs = "2.5.1"
 # Resolves/spawns the bundled my-lisp CLI sidecar for the REPL console
 # (repl_console.rs). The transport remains an external CLI process, but its
 # semantics are not a separate dependency channel: release builds compile
-# this sidecar from the same exact external/my-lisp gitlink as the embedded
+# this sidecar from the same exact external/sens gitlink as the embedded
 # Rust and WASM engines (#49), and build.rs records that revision in the app.
 tauri-plugin-shell = "2"
 

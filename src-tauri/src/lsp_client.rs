@@ -402,7 +402,7 @@ mod tests {
             )
             .unwrap();
         server.notify("initialized", json!({})).unwrap();
-        let uri = "file:///tmp/my-idea-live-test.wsm";
+        let uri = "file:///tmp/my-idea-live-test.lisp";
         server
             .notify(
                 "textDocument/didOpen",

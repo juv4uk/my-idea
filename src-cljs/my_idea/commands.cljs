@@ -169,7 +169,7 @@
 ;;
 ;; The console never reimplements :мова/:surface, presentation, or the
 ;; banner — it starts the actual `my-lisp` binary (built from the
-;; external/my-lisp submodule) as a child process and streams its own
+;; external/sens submodule) as a child process and streams its own
 ;; stdout/stderr verbatim. Typed lines go straight to its stdin, unparsed.
 
 (defonce repl-console-listening?* (atom false))

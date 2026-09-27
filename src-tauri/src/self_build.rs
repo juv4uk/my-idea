@@ -141,7 +141,7 @@ impl BuildStage {
             name: "frontend",
             role: "wasm-clojurescript-frontend",
             command: BuildCommand::new("bun", &["run", "build"]),
-            inputs: vec!["external/my-lisp", "src-cljs", "public"],
+            inputs: vec!["external/sens", "src-cljs", "public"],
             outputs: vec!["dist"],
             bootstrap_platform: false,
         }

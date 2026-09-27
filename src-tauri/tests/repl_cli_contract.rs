@@ -15,13 +15,13 @@ fn console_launch_without_path_opens_default_workspace() {
 
 #[test]
 fn console_launch_accepts_one_startup_path() {
-    let target = parse_startup_target(["examples/hello.my".to_owned()]).unwrap();
-    assert_eq!(target, StartupTarget::Path(PathBuf::from("examples/hello.my")));
+    let target = parse_startup_target(["examples/hello.lisp".to_owned()]).unwrap();
+    assert_eq!(target, StartupTarget::Path(PathBuf::from("examples/hello.lisp")));
 }
 
 #[test]
 fn console_launch_rejects_ambiguous_extra_paths() {
-    let error = parse_startup_target(["one.my".to_owned(), "two.my".to_owned()]).unwrap_err();
+    let error = parse_startup_target(["one.lisp".to_owned(), "two.lisp".to_owned()]).unwrap_err();
     assert!(error.contains("at most one"));
 }
 

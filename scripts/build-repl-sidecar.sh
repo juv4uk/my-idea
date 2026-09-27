@@ -6,9 +6,9 @@
 # Tauri's `externalBin` (tauri.conf.json) requires the sidecar binary to
 # already exist at `src-tauri/binaries/my-lisp-<host-triple>` before
 # `cargo build`/`cargo tauri dev` will even compile — this is a one-time
-# (or "whenever external/my-lisp moves") local setup step, not something
+# (or "whenever external/sens moves") local setup step, not something
 # that happens automatically. Release builds use the same
-# external/my-lisp gitlink revision in .github/workflows/publish-release.yml;
+# external/sens gitlink revision in .github/workflows/publish-release.yml;
 # this helper simply stages the host-target binary from that same pinned tree
 # for local development.
 #
@@ -16,8 +16,8 @@
 
 set -euo pipefail
 
-if [[ ! -d external/my-lisp || ! -f external/my-lisp/Cargo.toml ]]; then
-  echo "external/my-lisp submodule not checked out — run \`git submodule update --init\` first." >&2
+if [[ ! -d external/sens || ! -f external/sens/Cargo.toml ]]; then
+  echo "external/sens submodule not checked out — run \`git submodule update --init\` first." >&2
   exit 1
 fi
 
@@ -27,7 +27,7 @@ if [[ -z "$HOST_TRIPLE" ]]; then
   exit 1
 fi
 
-cargo build --release --manifest-path external/my-lisp/Cargo.toml -p my-lisp-cli --bin my-lisp
+cargo build --release --manifest-path external/sens/Cargo.toml -p sens-cli --bin my-lisp
 
 mkdir -p src-tauri/binaries
 BINARY_NAME="my-lisp"
@@ -38,5 +38,5 @@ DEST="src-tauri/binaries/my-lisp-${HOST_TRIPLE}"
 if [[ "$HOST_TRIPLE" == *windows* ]]; then
   DEST="${DEST}.exe"
 fi
-cp "external/my-lisp/target/release/${BINARY_NAME}" "$DEST"
+cp "external/sens/target/release/${BINARY_NAME}" "$DEST"
 echo "Sidecar ready at $DEST"

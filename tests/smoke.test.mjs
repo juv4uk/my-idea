@@ -142,8 +142,8 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
   const commands = readFileSync('src-cljs/my_idea/commands.cljs', 'utf8');
   // Single-channel pin (SUBMODULE-DEPENDENCY-MODEL-2026-09-16): the
-  // external/my-lisp submodule, not a floating git branch dependency.
-  assert.match(cargo, /my-lisp\s*=\s*\{\s*path\s*=\s*"\.\.\/external\/my-lisp\/crates\/my-lisp"/);
+  // external/sens submodule, not a floating git branch dependency.
+  assert.match(cargo, /sens\s*=\s*\{\s*path\s*=\s*"\.\.\/external\/sens\/crates\/sens"/);
   assert.match(rust, /fn evaluate_my_lisp/);
   assert.match(commands, /invoke! "evaluate_my_lisp"/);
   // ClojureScript prototype is removed — WASM is the only web engine
@@ -153,21 +153,21 @@ test('frontend wiring exposes the independent Rust my-lisp command', () => {
 });
 
 test('WASM crate and ClojureScript bindings are present and correctly wired', () => {
-  // my-lisp-wasm lives in the external/my-lisp git submodule (github.com/juv4uk/my-lisp),
+  // sens-wasm lives in the external/sens git submodule (github.com/juv4uk/sens),
   // not a local crates/ directory — wasm-pack needs a real checkout, which a Cargo git
   // dependency alone can't provide (see scripts/build.mjs).
-  const wasmCargo = readFileSync('external/my-lisp/crates/my-lisp-wasm/Cargo.toml', 'utf8');
-  const wasmLib = readFileSync('external/my-lisp/crates/my-lisp-wasm/src/lib.rs', 'utf8');
+  const wasmCargo = readFileSync('external/sens/crates/sens-wasm/Cargo.toml', 'utf8');
+  const wasmLib = readFileSync('external/sens/crates/sens-wasm/src/lib.rs', 'utf8');
   const wasmCljs = readFileSync('src-cljs/my_idea/wasm.cljs', 'utf8');
   const core = readFileSync('src-cljs/my_idea/core.cljs', 'utf8');
-  // Crate is a cdylib that depends on my-lisp and wasm-bindgen
+  // Crate is a cdylib that depends on sens and wasm-bindgen
   assert.match(wasmCargo, /cdylib/);
   assert.match(wasmCargo, /wasm-bindgen/);
-  assert.match(wasmCargo, /my-lisp\s*=/);
+  assert.match(wasmCargo, /sens\s*=/);
   // The evaluate function mirrors Tauri contract
   assert.match(wasmLib, /#\[wasm_bindgen\]/);
   assert.match(wasmLib, /pub fn evaluate/);
-  assert.match(wasmLib, /my-lisp · WASM/);
+  assert.match(wasmLib, /sens · WASM/);
   // CLJS bindings load the module and expose ready? / evaluate
   assert.match(wasmCljs, /ready\?/);
   assert.match(wasmCljs, /load!/);
@@ -226,16 +226,16 @@ test('active document programming language switches from the bottom status bar',
   assert.match(editor, /@codemirror\/lang-rust/);
   assert.match(editor, /language-extensions/);
   const workspace = readFileSync('src-cljs/my_idea/workspace.cljs', 'utf8');
-  assert.match(workspace, /ends-with\? lower "\.my"/);
+  assert.match(workspace, /ends-with\? lower "\.lisp"/);
   const sourceFiles = readFileSync('docs/source-files.md', 'utf8');
-  assert.match(sourceFiles, /canonical file extension[\s\S]*`\.my`/);
-  assert.match(sourceFiles, /Канонічне розширення[\s\S]*`\.my`/);
-  assert.match(sourceFiles, /kanonische Dateiendung[\s\S]*`\.my`/);
+  assert.match(sourceFiles, /canonical file extension[\s\S]*`\.lisp`/);
+  assert.match(sourceFiles, /Канонічне розширення[\s\S]*`\.lisp`/);
+  assert.match(sourceFiles, /kanonische Dateiendung[\s\S]*`\.lisp`/);
 });
 
 test('Rust benchmarks the my-lisp programs', () => {
   const runner = readFileSync('scripts/benchmark.mjs', 'utf8');
-  const rust = readFileSync('external/my-lisp/crates/my-lisp/examples/benchmark.rs', 'utf8');
+  const rust = readFileSync('external/sens/crates/sens/examples/benchmark.rs', 'utf8');
   for (const name of ['arithmetic', 'lists', 'recursion', 'closures', 'parser']) {
     assert.match(readFileSync(`benchmarks/${name}.lisp`, 'utf8'), /·/);
   }

@@ -122,7 +122,7 @@
          (str "<span class='kg-role'>" (esc (or (:role node) "no role declared")) "</span>"
               (when (seq (:capabilities node))
                 (str "<div class='kg-caps'>" (str/join " · " (map esc (:capabilities node))) "</div>")))
-         "<span class='kg-role kg-missing'>no repo.my</span>")
+         "<span class='kg-role kg-missing'>no repo.lisp</span>")
        "</div>"))
 
 (defn repo-edge-html [edge]
@@ -135,7 +135,7 @@
     "<div class='kg'><p>No sibling repos found on disk.</p></div>"
     (str "<div class='kg'>"
          "<button id='kg-run-check' class='eco-run-check'>Rebuild Knowledge Graph</button>"
-         "<p class='kg-note'>Repo-level view (phase 1) — nodes are each sibling's own <code>repo.my</code> "
+         "<p class='kg-note'>Repo-level view (phase 1) — nodes are each sibling's own <code>repo.lisp</code> "
          "self-declaration; edges are capability overlaps between declared <code>exports</code>/<code>imports</code>. "
          "Claim-level view (phase 2, see docs/knowledge-graph-design.md) not yet built.</p>"
          "<div class='kg-nodes'>" (apply str (map repo-node-html (:nodes graph))) "</div>"

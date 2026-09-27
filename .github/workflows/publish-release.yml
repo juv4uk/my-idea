@@ -80,7 +80,7 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev patchelf pkg-config
       - run: bun install --frozen-lockfile
       - name: Build my-lisp CLI sidecar from pinned integration revision · Зібрати сайдкар з pinned revision
-        # The release checkout already materializes external/my-lisp at this
+        # The release checkout already materializes external/sens at this
         # release tag's exact gitlink. Embedded Rust, WASM and the packaged
         # desktop sidecar must consume that same semantic revision.
         shell: bash
@@ -88,25 +88,25 @@ jobs:
           set -euo pipefail
           mkdir -p src-tauri/binaries
           build_one() {
-            cargo build --release --manifest-path "external/my-lisp/Cargo.toml" -p my-lisp-cli --bin my-lisp --target "$1"
+            cargo build --release --manifest-path "external/sens/Cargo.toml" -p sens-cli --bin my-lisp --target "$1"
           }
           case "${{ matrix.platform }}" in
             macos-latest)
               build_one x86_64-apple-darwin
               build_one aarch64-apple-darwin
-              cp "external/my-lisp/target/x86_64-apple-darwin/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-apple-darwin
-              cp "external/my-lisp/target/aarch64-apple-darwin/release/my-lisp" src-tauri/binaries/my-lisp-aarch64-apple-darwin
+              cp "external/sens/target/x86_64-apple-darwin/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-apple-darwin
+              cp "external/sens/target/aarch64-apple-darwin/release/my-lisp" src-tauri/binaries/my-lisp-aarch64-apple-darwin
               lipo -create -output src-tauri/binaries/my-lisp-universal-apple-darwin \
-                "external/my-lisp/target/x86_64-apple-darwin/release/my-lisp" \
-                "external/my-lisp/target/aarch64-apple-darwin/release/my-lisp"
+                "external/sens/target/x86_64-apple-darwin/release/my-lisp" \
+                "external/sens/target/aarch64-apple-darwin/release/my-lisp"
               ;;
             windows-latest)
               build_one x86_64-pc-windows-msvc
-              cp "external/my-lisp/target/x86_64-pc-windows-msvc/release/my-lisp.exe" src-tauri/binaries/my-lisp-x86_64-pc-windows-msvc.exe
+              cp "external/sens/target/x86_64-pc-windows-msvc/release/my-lisp.exe" src-tauri/binaries/my-lisp-x86_64-pc-windows-msvc.exe
               ;;
             *)
               build_one x86_64-unknown-linux-gnu
-              cp "external/my-lisp/target/x86_64-unknown-linux-gnu/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-unknown-linux-gnu
+              cp "external/sens/target/x86_64-unknown-linux-gnu/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-unknown-linux-gnu
               ;;
           esac
       - name: Read trilingual release notes
@@ -178,8 +178,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p src-tauri/binaries
-          cargo build --release --manifest-path "external/my-lisp/Cargo.toml" -p my-lisp-cli --bin my-lisp
-          cp "external/my-lisp/target/release/my-lisp" src-tauri/binaries/my-lisp-aarch64-unknown-linux-gnu
+          cargo build --release --manifest-path "external/sens/Cargo.toml" -p sens-cli --bin my-lisp
+          cp "external/sens/target/release/my-lisp" src-tauri/binaries/my-lisp-aarch64-unknown-linux-gnu
       - run: bunx tauri build
       - name: Upload ARM64 packages
         env:
@@ -244,7 +244,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $sidecarSrc = Join-Path $PWD 'external/my-lisp'
+          $sidecarSrc = Join-Path $PWD 'external/sens'
 
           New-Item -ItemType Directory -Force -Path 'src-tauri/binaries' | Out-Null
 
@@ -255,7 +255,7 @@ jobs:
           $env:CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER = $linker.Source
           Write-Host "Cargo ARM64 linker: $env:CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER"
 
-          & cargo build --release --manifest-path (Join-Path $sidecarSrc 'Cargo.toml') -p my-lisp-cli --bin my-lisp --target aarch64-pc-windows-msvc
+          & cargo build --release --manifest-path (Join-Path $sidecarSrc 'Cargo.toml') -p sens-cli --bin my-lisp --target aarch64-pc-windows-msvc
           if ($LASTEXITCODE -ne 0) { throw 'cargo build failed for my-lisp ARM64 sidecar' }
 
           $sidecarExe = Join-Path $sidecarSrc 'target/aarch64-pc-windows-msvc/release/my-lisp.exe'
@@ -319,8 +319,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p src-tauri/binaries
-          cargo build --release --manifest-path "external/my-lisp/Cargo.toml" -p my-lisp-cli --bin my-lisp --target x86_64-unknown-linux-gnu
-          cp "external/my-lisp/target/x86_64-unknown-linux-gnu/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-unknown-linux-gnu
+          cargo build --release --manifest-path "external/sens/Cargo.toml" -p sens-cli --bin my-lisp --target x86_64-unknown-linux-gnu
+          cp "external/sens/target/x86_64-unknown-linux-gnu/release/my-lisp" src-tauri/binaries/my-lisp-x86_64-unknown-linux-gnu
       - run: bunx tauri build
       - name: Build Flatpak bundle
         run: |

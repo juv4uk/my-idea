@@ -1,5 +1,5 @@
 //! RED contract for #31 (IDE-REPL-SURFACE-1): the console must wrap the
-//! *real* `my-lisp` CLI binary (built from the `external/my-lisp` git
+//! *real* `my-lisp` CLI binary (built from the `external/sens` git
 //! submodule) as a live subprocess, not reimplement its REPL/surface logic
 //! in my-idea. This proves both halves: a generic interactive-process
 //! wrapper, and that the actual submodule binary behaves as the real REPL
@@ -42,7 +42,7 @@ fn resolve_my_lisp_binary_fails_closed_when_submodule_is_not_checked_out() {
 #[test]
 fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_documented() {
     let binary = resolve_my_lisp_binary(&my_idea_repo_root())
-        .expect("building my-lisp from the external/my-lisp submodule should succeed");
+        .expect("building my-lisp from the external/sens submodule should succeed");
     assert!(binary.exists());
 
     let (tx, rx) = channel();
@@ -51,7 +51,7 @@ fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_docum
     })
     .expect("spawning the real my-lisp REPL binary should succeed");
 
-    // The real banner (docs/repl-surfaces.md in external/my-lisp) must show
+    // The real banner (docs/repl-surfaces.md in external/sens) must show
     // up verbatim — nothing in my-idea generates this text.
     let banner = rx
         .recv_timeout(Duration::from_secs(10))
@@ -75,7 +75,7 @@ fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_docum
 
 #[test]
 fn my_lisp_pinned_sha_is_recorded_at_build_time_from_the_checked_out_submodule() {
-    // src-tauri/build.rs reads `git -C external/my-lisp rev-parse HEAD` at
+    // src-tauri/build.rs reads `git -C external/sens rev-parse HEAD` at
     // compile time; this dev/CI build always has the submodule checked out
     // (my-idea's own Cargo dependency requires it), so the pin must be a
     // real 40-hex-character commit, never empty.
@@ -100,7 +100,7 @@ fn runtime_provenance_reports_one_exact_revision_for_all_shipped_lisp_paths() {
 fn resolve_or_fetch_uses_the_local_submodule_when_present_no_network_needed() {
     let cache_dir = std::env::temp_dir().join("my-idea-repl-process-contract-unused-cache");
     let binary = resolve_or_fetch_my_lisp_binary(&my_idea_repo_root(), &cache_dir)
-        .expect("a local external/my-lisp checkout should be used directly");
+        .expect("a local external/sens checkout should be used directly");
     assert!(binary.exists());
     // The fallback cache must not have been touched — the local submodule
     // path was available, so no clone should ever have been attempted.
@@ -109,7 +109,7 @@ fn resolve_or_fetch_uses_the_local_submodule_when_present_no_network_needed() {
 
 #[test]
 fn resolve_or_fetch_clones_the_pinned_commit_directly_from_github_when_no_local_submodule() {
-    // Simulates a packaged install: repo_root has no external/my-lisp at
+    // Simulates a packaged install: repo_root has no external/sens at
     // all (a real installed app's directory never does), so the only
     // source of truth left is the pinned SHA baked in at compile time plus
     // my-lisp's actual GitHub URL — a git reference, not a machine-local path.

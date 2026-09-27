@@ -4,12 +4,12 @@ use serde::Serialize;
 use std::fs;
 use std::path::Path;
 
-/// One repository's Swarm Contract v0.1 self-declaration (`repo.my`), per
+/// One repository's Swarm Contract v0.1 self-declaration (`repo.lisp`), per
 /// `my-lisp/docs/swarm-mesh-v2.md`. Not every sibling repo has adopted this
 /// yet (see `MYIDEA-SWARM-CONTRACT-01` — this repo hasn't either) — that's
 /// an absent node, not a parse error, same tolerance as `evidence.rs` for
 /// a missing `evidence/` directory.
-/// Самодекларація одного репо за Swarm Contract v0.1 (`repo.my`). Не кожне
+/// Самодекларація одного репо за Swarm Contract v0.1 (`repo.lisp`). Не кожне
 /// сусіднє репо ще прийняло цю конвенцію — це відсутній вузол, не помилка
 /// парсингу.
 #[derive(Serialize, Clone)]
@@ -55,11 +55,11 @@ pub struct RepoEdge {
     pub via_capability: String,
 }
 
-/// Finds `(key value ...)` among `items` — the flat form `repo.my` actually
+/// Finds `(key value ...)` among `items` — the flat form `repo.lisp` actually
 /// uses (`(exports isa-contract evidence)`, not a dotted alist pair like
 /// contract files' `(key . value)`) — and returns the trailing symbol names.
 /// Шукає `(key value ...)` серед `items` — плаский формат, який реально
-/// використовує `repo.my` — і повертає символи-хвости як рядки.
+/// використовує `repo.lisp` — і повертає символи-хвости як рядки.
 fn field_symbols(items: &[Expr], key: &str) -> Vec<String> {
     items
         .iter()
@@ -80,9 +80,9 @@ fn field_symbol(items: &[Expr], key: &str) -> Option<String> {
     field_symbols(items, key).into_iter().next()
 }
 
-/// Parses one `repo.my` file. Leading `;` comment lines (fpga-lisp's own
+/// Parses one `repo.lisp` file. Leading `;` comment lines (fpga-lisp's own
 /// convention, see that file) are handled by my-lisp's own reader.
-/// Парсить один файл `repo.my`. Провідні `;`-коментарі обробляє власний
+/// Парсить один файл `repo.lisp`. Провідні `;`-коментарі обробляє власний
 /// reader my-lisp.
 fn parse_repo_node(id: &str, raw: &str) -> Option<RepoNode> {
     let forms = parse(raw).ok()?;
@@ -105,17 +105,17 @@ fn parse_repo_node(id: &str, raw: &str) -> Option<RepoNode> {
     })
 }
 
-/// Scans `repo.my` for each of `siblings` (each a `(id, path)` pair) —
+/// Scans `repo.lisp` for each of `siblings` (each a `(id, path)` pair) —
 /// present or not, every sibling gets a node so the graph shows the whole
 /// ecosystem's adoption state, not just the repos that already comply.
-/// Сканує `repo.my` для кожного сусіда — присутній чи ні, кожен сусід
+/// Сканує `repo.lisp` для кожного сусіда — присутній чи ні, кожен сусід
 /// отримує вузол, щоб граф показував стан прийняття конвенції по всій
 /// екосистемі, а не лише репо, що вже відповідають.
 pub fn scan(siblings: &[(&str, &Path)]) -> Vec<RepoNode> {
     siblings
         .iter()
         .map(|(id, path)| {
-            fs::read_to_string(path.join("repo.my"))
+            fs::read_to_string(path.join("repo.lisp"))
                 .ok()
                 .and_then(|raw| parse_repo_node(id, &raw))
                 .unwrap_or_else(|| RepoNode::missing(id))

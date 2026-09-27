@@ -44,12 +44,12 @@ sed -E -i "0,/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/s//version = \"$VERSION\"/" 
 # already active on PATH (the reproducible Guix profile, when run the
 # documented way) -- only the wasm-pack build below needs to override that.
 cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path external/my-lisp/crates/my-lisp/Cargo.toml
-cargo test --manifest-path external/my-lisp/crates/my-lisp-cli/Cargo.toml
-cargo test --manifest-path external/my-lisp/crates/my-lisp-literate/Cargo.toml
+cargo test --manifest-path external/sens/crates/sens/Cargo.toml
+cargo test --manifest-path external/sens/crates/sens-cli/Cargo.toml
+cargo test --manifest-path external/sens/crates/sens-literate/Cargo.toml
 bun install --frozen-lockfile
 
-# `bun run build` compiles external/my-lisp/crates/my-lisp-wasm via
+# `bun run build` compiles external/sens/crates/sens-wasm via
 # wasm-pack, which needs the wasm32-unknown-unknown target -- Guix's own
 # Rust package ships without cross targets and doesn't carry wasm-pack
 # either (AGENTS.md's "Known fix" section). Machine-local rustup/wasm-pack

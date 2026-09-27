@@ -1,14 +1,14 @@
 //! Wraps the *real* `my-lisp` CLI REPL binary as a live child process,
 //! instead of reimplementing any of its logic (surfaces, banner,
 //! presentation) inside my-idea. The binary is built on demand from the
-//! `external/my-lisp` git submodule, so it is always exactly the pinned
+//! `external/sens` git submodule, so it is always exactly the pinned
 //! commit's own REPL — a submodule bump carries every surface fix or
 //! extension automatically, with zero duplicated Rust here.
 //!
 //! Обгортає *справжній* CLI REPL-бінарник `my-lisp` як живий дочірній
 //! процес, замість того щоб переносити його логіку (поверхні, банер,
 //! презентацію) в код my-idea. Бінарник збирається за потреби з git
-//! підмодуля `external/my-lisp`, тож це завжди саме той REPL, що
+//! підмодуля `external/sens`, тож це завжди саме той REPL, що
 //! відповідає закріпленому коміту — оновлення підмодуля автоматично
 //! переносить будь-яке виправлення чи розширення поверхні без жодного
 //! дубльованого Rust-коду тут.
@@ -111,7 +111,7 @@ fn spawn_line_forwarder<R: Read + Send + 'static>(
 }
 
 /// Resolves the path to the real `my-lisp` CLI binary, building it from the
-/// `external/my-lisp` git submodule if it isn't already built (cargo's own
+/// `external/sens` git submodule if it isn't already built (cargo's own
 /// incremental cache makes every call after the first effectively free).
 /// `repo_root` is my-idea's own repository root (the parent of `src-tauri`).
 ///
@@ -123,14 +123,14 @@ pub fn resolve_my_lisp_binary(repo_root: &Path) -> Result<PathBuf, String> {
     let submodule = repo_root.join("external").join("my-lisp");
     if !submodule.join("Cargo.toml").exists() {
         return Err(format!(
-            "external/my-lisp submodule not checked out at {} — run `git submodule update --init`",
+            "external/sens submodule not checked out at {} — run `git submodule update --init`",
             submodule.display()
         ));
     }
     build_my_lisp_cli(&submodule)
 }
 
-/// The exact `my-lisp` commit `external/my-lisp` was checked out at when
+/// The exact `my-lisp` commit `external/sens` was checked out at when
 /// this my-idea binary was compiled (`src-tauri/build.rs`) — a plain string
 /// identifier, never a filesystem path, so it stays meaningful on whatever
 /// machine later runs the compiled binary. Empty if the submodule was
@@ -178,7 +178,7 @@ pub fn my_lisp_runtime_provenance() -> MyLispRuntimeProvenance {
 /// local submodule checkout is available.
 pub const MY_LISP_GIT_URL: &str = "https://github.com/juv4uk/my-lisp.git";
 
-/// Resolves the my-lisp CLI binary via the local `external/my-lisp`
+/// Resolves the my-lisp CLI binary via the local `external/sens`
 /// submodule when a source/dev checkout of my-idea provides one (fast path,
 /// no network) — otherwise falls back to cloning the exact pinned commit
 /// directly from its real GitHub URL into `cache_dir` and building it
@@ -200,7 +200,7 @@ fn fetch_and_build_my_lisp(cache_dir: &Path) -> Result<PathBuf, String> {
     let pinned_sha = my_lisp_pinned_sha();
     if pinned_sha.is_empty() {
         return Err(
-            "my-lisp's pinned commit was not recorded when my-idea was built (external/my-lisp \
+            "my-lisp's pinned commit was not recorded when my-idea was built (external/sens \
              submodule was missing at compile time) — the REPL console cannot resolve which \
              my-lisp to run"
                 .to_string(),

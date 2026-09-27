@@ -3,7 +3,7 @@
 
 SUBMODULE-DEPENDENCY-MODEL-2026-09-16 (ecosystem docs/): для одного
 upstream (my-lisp) у цьому репо має бути рівно один pin-механізм —
-`external/my-lisp` git submodule, споживаний через Cargo `path`-залежність
+`external/sens` git submodule, споживаний через Cargo `path`-залежність
 (`src-tauri/Cargo.toml`). Раніше тут порівнювались два незалежні pins
 (submodule SHA vs. floating `git branch = "main"` у Cargo.lock); тепер
 другого каналу просто не повинно існувати, тож ця перевірка ловить його
@@ -21,18 +21,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CARGO_TOML = ROOT / "src-tauri" / "Cargo.toml"
 LOCKFILE = ROOT / "Cargo.lock"
-PACKAGES = {"my-lisp", "my-lisp-literate"}
-SUBMODULE_PATH = ROOT / "external" / "my-lisp"
+PACKAGES = {"sens", "sens-literate"}
+SUBMODULE_PATH = ROOT / "external" / "sens"
 BUILD_MJS = ROOT / "scripts" / "build.mjs"
 PUBLISH_RELEASE = ROOT / ".github" / "workflows" / "publish-release.yml"
 
 
 def gitlink_sha() -> str:
-    """Повертає staged SHA підмодуля `external/my-lisp` — сам факт, що
+    """Повертає staged SHA підмодуля `external/sens` — сам факт, що
     команда не падає, вже підтверджує, що це зареєстрований gitlink, а не
     осиротілий (порожній `.gitmodules`-запис зловив би це раніше)."""
     result = subprocess.run(
-        ["git", "rev-parse", ":external/my-lisp"],
+        ["git", "rev-parse", ":external/sens"],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -42,7 +42,7 @@ def gitlink_sha() -> str:
 
 
 def checked_out_submodule_sha() -> str:
-    """Повертає фактичний checkout SHA external/my-lisp."""
+    """Повертає фактичний checkout SHA external/sens."""
     result = subprocess.run(
         ["git", "-C", str(SUBMODULE_PATH), "rev-parse", "HEAD"],
         cwd=ROOT,
@@ -55,12 +55,12 @@ def checked_out_submodule_sha() -> str:
 
 def cargo_toml_uses_path_dependency() -> set[str]:
     """Повертає імена пакетів, які Cargo.toml оголошує через
-    `path = "../external/my-lisp/..."` (єдиний дозволений канал)."""
+    `path = "../external/sens/..."` (єдиний дозволений канал)."""
     text = CARGO_TOML.read_text(encoding="utf-8")
     found: set[str] = set()
     for name in PACKAGES:
         pattern = re.compile(
-            rf'^{re.escape(name)}\s*=\s*\{{[^}}]*path\s*=\s*"\.\./external/my-lisp/[^"]*"',
+            rf'^{re.escape(name)}\s*=\s*\{{[^}}]*path\s*=\s*"\.\./external/sens/[^"]*"',
             re.MULTILINE,
         )
         if pattern.search(text):
@@ -83,9 +83,9 @@ def cargo_lock_git_sources() -> dict[str, str]:
 
 
 def wasm_uses_submodule() -> bool:
-    """WASM build must consume the checked-out external/my-lisp tree."""
+    """WASM build must consume the checked-out external/sens tree."""
     text = BUILD_MJS.read_text(encoding="utf-8")
-    return "external/my-lisp/crates/my-lisp-wasm" in text
+    return "external/sens/crates/sens-wasm" in text
 
 
 def release_sidecar_uses_submodule() -> tuple[bool, str]:
@@ -95,15 +95,15 @@ def release_sidecar_uses_submodule() -> tuple[bool, str]:
         return False, "release recipe still creates an independent floating my-lisp checkout"
 
     step_blocks = text.split("\n      - name:")
-    sidecar_steps = [block for block in step_blocks if "my-lisp-cli --bin my-lisp" in block]
+    sidecar_steps = [block for block in step_blocks if "sens-cli --bin my-lisp" in block]
     if not sidecar_steps:
         return False, "release recipe has no identifiable my-lisp sidecar build steps"
 
     offenders: list[str] = []
     for index, block in enumerate(sidecar_steps, start=1):
-        direct_manifest = "external/my-lisp/Cargo.toml" in block
+        direct_manifest = "external/sens/Cargo.toml" in block
         powershell_manifest = (
-            "$sidecarSrc = Join-Path $PWD 'external/my-lisp'" in block
+            "$sidecarSrc = Join-Path $PWD 'external/sens'" in block
             and "Join-Path $sidecarSrc 'Cargo.toml'" in block
         )
         if not (direct_manifest or powershell_manifest):
@@ -111,7 +111,7 @@ def release_sidecar_uses_submodule() -> tuple[bool, str]:
     if offenders:
         return (
             False,
-            "sidecar build step(s) do not use external/my-lisp/Cargo.toml: "
+            "sidecar build step(s) do not use external/sens/Cargo.toml: "
             + ", ".join(offenders),
         )
     return True, f"{len(sidecar_steps)} release sidecar build step(s) use the pinned submodule"
@@ -147,10 +147,10 @@ def runtime_revision_map(sha: str) -> dict[str, str]:
     if missing:
         raise RuntimeError(
             "Cargo.toml має оголошувати ці пакети через "
-            f'path = "../external/my-lisp/...": {", ".join(sorted(missing))}'
+            f'path = "../external/sens/...": {", ".join(sorted(missing))}'
         )
     if not wasm_uses_submodule():
-        raise RuntimeError("WASM build no longer consumes external/my-lisp")
+        raise RuntimeError("WASM build no longer consumes external/sens")
 
     sidecar_ok, sidecar_detail = release_sidecar_uses_submodule()
     if not sidecar_ok:
@@ -169,14 +169,14 @@ def runtime_revision_map(sha: str) -> dict[str, str]:
 def main() -> int:
     if not SUBMODULE_PATH.exists():
         raise RuntimeError(
-            f"external/my-lisp submodule not checked out at {SUBMODULE_PATH} "
+            f"external/sens submodule not checked out at {SUBMODULE_PATH} "
             "— run `git submodule update --init`"
         )
     sha = gitlink_sha()
     checked_out = checked_out_submodule_sha()
     if checked_out != sha:
         raise RuntimeError(
-            "external/my-lisp checkout does not match the recorded gitlink: "
+            "external/sens checkout does not match the recorded gitlink: "
             f"gitlink={sha}, checkout={checked_out}"
         )
 
@@ -190,7 +190,7 @@ def main() -> int:
             f"одна залежність має один канал істини: {details}"
         )
 
-    print(f"my-lisp: single channel confirmed (external/my-lisp @ {sha})")
+    print(f"my-lisp: single channel confirmed (external/sens @ {sha})")
     for path, revision in revisions.items():
         print(f"my-lisp runtime: {path}={revision}")
     return 0

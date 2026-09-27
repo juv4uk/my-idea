@@ -453,10 +453,10 @@ fn ecosystem_status() -> ecosystem::EcosystemStatus {
 
 /// Phase 1 of the Knowledge Graph tab (docs/knowledge-graph-design.md,
 /// MYIDEA-KNOWLEDGE-GRAPH): repo-level nodes/edges derived from each
-/// sibling's `repo.my` Swarm Contract v0.1 self-declaration, where present.
+/// sibling's `repo.lisp` Swarm Contract v0.1 self-declaration, where present.
 ///
 /// Фаза 1 вкладки Knowledge Graph: вузли/ребра рівня репо, виведені з
-/// самодекларації `repo.my` кожного сусіда, де вона є.
+/// самодекларації `repo.lisp` кожного сусіда, де вона є.
 #[tauri::command]
 fn knowledge_graph() -> ecosystem::KnowledgeGraph {
     ecosystem::knowledge_graph()
@@ -566,7 +566,7 @@ mod workspace_creation_tests {
         let workspace = TestDirectory::new("create");
         fs::create_dir(workspace.0.join("src")).expect("source directory should be created");
 
-        let created = create_new_workspace_file(&workspace.0, "src/main.wsm", "(quote ok)")
+        let created = create_new_workspace_file(&workspace.0, "src/main.lisp", "(quote ok)")
             .expect("new file should be created");
 
         assert_eq!(fs::read_to_string(created).unwrap(), "(quote ok)");
@@ -575,12 +575,12 @@ mod workspace_creation_tests {
     #[test]
     fn rejects_traversal_and_existing_files() {
         let workspace = TestDirectory::new("boundaries");
-        assert!(create_new_workspace_file(&workspace.0, "../escape.wsm", "bad").is_err());
+        assert!(create_new_workspace_file(&workspace.0, "../escape.lisp", "bad").is_err());
 
-        fs::write(workspace.0.join("exists.wsm"), "original").unwrap();
-        assert!(create_new_workspace_file(&workspace.0, "exists.wsm", "replacement").is_err());
+        fs::write(workspace.0.join("exists.lisp"), "original").unwrap();
+        assert!(create_new_workspace_file(&workspace.0, "exists.lisp", "replacement").is_err());
         assert_eq!(
-            fs::read_to_string(workspace.0.join("exists.wsm")).unwrap(),
+            fs::read_to_string(workspace.0.join("exists.lisp")).unwrap(),
             "original"
         );
     }
@@ -594,8 +594,8 @@ mod workspace_creation_tests {
         let outside = TestDirectory::new("symlink-outside");
         symlink(&outside.0, workspace.0.join("outside-link")).unwrap();
 
-        assert!(create_new_workspace_file(&workspace.0, "outside-link/escape.wsm", "bad").is_err());
-        assert!(!outside.0.join("escape.wsm").exists());
+        assert!(create_new_workspace_file(&workspace.0, "outside-link/escape.lisp", "bad").is_err());
+        assert!(!outside.0.join("escape.lisp").exists());
     }
 }
 

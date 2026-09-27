@@ -6,14 +6,14 @@
 // Two ways the binary gets there, tried in order:
 //
 // 1. **Sidecar** (packaged releases): `.github/workflows/publish-release.yml`
-//    builds `my-lisp` from the release tag's exact `external/my-lisp`
+//    builds `my-lisp` from the release tag's exact `external/sens`
 //    gitlink revision for every desktop target and bundles it via Tauri's
 //    `externalBin` mechanism — the same semantic revision as embedded/WASM,
 //    so an installed app needs no git, cargo, or network connection to run
 //    the console at all.
 // 2. **Local build** (source/dev checkouts, or an install that predates
 //    sidecar bundling for its platform): `repl_process::
-//    resolve_or_fetch_my_lisp_binary` — the local `external/my-lisp`
+//    resolve_or_fetch_my_lisp_binary` — the local `external/sens`
 //    submodule if present, or a fresh clone of its pinned commit otherwise.
 
 use crate::repl_process::{my_idea_repo_root, resolve_or_fetch_my_lisp_binary, ReplProcess, ReplProcessLine, ReplProcessStream};

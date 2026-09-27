@@ -96,10 +96,10 @@ pub(super) fn parse_alist(source: &str) -> Option<Vec<Expr>> {
     as_list(&top).map(|items| items.to_vec())
 }
 
-/// Reads `language-contract.my`: `((major . 1) (minor . 0) ...)`.
-/// Читає `language-contract.my`: `((major . 1) (minor . 0) ...)`.
+/// Reads `language-contract.lisp`: `((major . 1) (minor . 0) ...)`.
+/// Читає `language-contract.lisp`: `((major . 1) (minor . 0) ...)`.
 pub fn read_language_contract(repo: &Path) -> Option<LanguageContract> {
-    let raw = fs::read_to_string(repo.join("language-contract.my")).ok()?;
+    let raw = fs::read_to_string(repo.join("language-contract.lisp")).ok()?;
     let items = parse_alist(&raw)?;
     Some(LanguageContract {
         version: Version2 {
@@ -109,10 +109,10 @@ pub fn read_language_contract(repo: &Path) -> Option<LanguageContract> {
     })
 }
 
-/// Reads `isa-contract.my`: `(version . (0 2))`.
-/// Читає `isa-contract.my`: `(version . (0 2))`.
+/// Reads `isa-contract.lisp`: `(version . (0 2))`.
+/// Читає `isa-contract.lisp`: `(version . (0 2))`.
 pub fn read_isa_contract(repo: &Path) -> Option<IsaContract> {
-    let raw = fs::read_to_string(repo.join("isa-contract.my")).ok()?;
+    let raw = fs::read_to_string(repo.join("isa-contract.lisp")).ok()?;
     let items = parse_alist(&raw)?;
     Some(IsaContract {
         version: version2(assoc(&items, "version")?)?,
@@ -128,12 +128,12 @@ pub struct CmlStatus {
     pub defmacro_status: String,
 }
 
-/// Reads `ecosystem-status.my`'s `cml` entry from the `repositories` alist:
+/// Reads `ecosystem-status.lisp`'s `cml` entry from the `repositories` alist:
 /// the hand-refreshed snapshot of cml's Tier-1 fixture progress and CI state.
-/// Читає запис `cml` з alist `repositories` у `ecosystem-status.my`: знімок
+/// Читає запис `cml` з alist `repositories` у `ecosystem-status.lisp`: знімок
 /// прогресу Tier-1 фікстур cml і стану CI, що оновлюється вручну.
 pub fn read_cml_status(repo: &Path) -> Option<CmlStatus> {
-    let raw = fs::read_to_string(repo.join("ecosystem-status.my")).ok()?;
+    let raw = fs::read_to_string(repo.join("ecosystem-status.lisp")).ok()?;
     let items = parse_alist(&raw)?;
 
     let repositories = as_list(assoc(&items, "repositories")?)?;
@@ -147,12 +147,12 @@ pub fn read_cml_status(repo: &Path) -> Option<CmlStatus> {
     })
 }
 
-/// Reads `compatibility.my`, the CML boundary contract: compiler version plus the
+/// Reads `compatibility.lisp`, the CML boundary contract: compiler version plus the
 /// language-contract and ISA versions it was last tested against.
-/// Читає `compatibility.my`, контракт межі CML: версію компілятора та версії
+/// Читає `compatibility.lisp`, контракт межі CML: версію компілятора та версії
 /// language-contract і ISA, з якими він востаннє тестувався.
 pub fn read_cml_compatibility(repo: &Path) -> Option<CmlCompatibility> {
-    let raw = fs::read_to_string(repo.join("compatibility.my")).ok()?;
+    let raw = fs::read_to_string(repo.join("compatibility.lisp")).ok()?;
     let items = parse_alist(&raw)?;
 
     let compiler_items = as_list(assoc(&items, "compiler-version")?)?;

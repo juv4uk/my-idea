@@ -54,7 +54,7 @@ fn plugin_can_read_buffer_and_emit_editor_messages() {
     repl.evaluate(plugin_source).expect("plugin evaluation should succeed");
 
     let state = EditorState {
-        buffer: "my-code.my".to_string(),
+        buffer: "my-code.lisp".to_string(),
         selection: String::new(),
     };
 
@@ -62,7 +62,7 @@ fn plugin_can_read_buffer_and_emit_editor_messages() {
         .invoke_command(&mut repl, "greet-buffer", &state)
         .expect("command invocation should succeed");
 
-    assert_eq!(effect.message, Some("Buffer: my-code.my".to_string()));
+    assert_eq!(effect.message, Some("Buffer: my-code.lisp".to_string()));
     assert_eq!(effect.replacement, None);
 }
 

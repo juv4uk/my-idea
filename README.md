@@ -34,7 +34,7 @@ Nur die Sprache, ohne Editor: **[den eigenständigen my-lisp-CLI-REPL herunterla
 
 Details: [`docs/versioning.md`](docs/versioning.md)
 
-my-lisp source files use the canonical `.my` extension; see the [trilingual source-file contract](docs/source-files.md).
+my-lisp source files use the canonical `.lisp` extension; see the [trilingual source-file contract](docs/source-files.md).
 
 ## English
 
@@ -69,7 +69,7 @@ Die Entwicklung eigener Lisp-artiger Sprachen ist unser besonderes eingebautes S
 Requirements: [Bun](https://bun.sh) 1.3.8 (package manager and script runner), Node.js 20+ (a couple of scripts still shell out to it directly), Java 17+ (for Shadow CLJS), and the platform requirements for Tauri. This repository is developed inside a reproducible [GNU Guix](https://guix.gnu.org) environment (`manifest.scm`); building the WASM engine additionally needs rustup + wasm-pack outside Guix — both are documented step by step in [`AGENTS.md`](AGENTS.md).
 
 ```bash
-git submodule update --init external/my-lisp   # needed for bun run build / release.sh
+git submodule update --init external/sens   # needed for bun run build / release.sh
 bun install
 bun run dev
 ```

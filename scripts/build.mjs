@@ -17,7 +17,7 @@ import { spawnSync } from 'node:child_process';
 // eine lokale Cargo.toml, die eine reine Cargo-Git-Abhängigkeit nicht liefert.
 const wasm = spawnSync(
   'wasm-pack',
-  ['build', 'external/my-lisp/crates/my-lisp-wasm', '--target', 'web', '--out-dir', '../../../../public/wasm', '--no-pack'],
+  ['build', 'external/sens/crates/sens-wasm', '--target', 'web', '--out-dir', '../../../../public/wasm', '--no-pack'],
   { stdio: 'inherit' }
 );
 if (wasm.status !== 0) process.exit(wasm.status ?? 1);
