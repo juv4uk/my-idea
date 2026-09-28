@@ -12,11 +12,15 @@ env:
 
 jobs:
   web:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, guix]
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: true
+      - name: Initialize pinned SENS submodule from owner checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config submodule.external/sens.url /home/agents/GitHub/sens
+          git -c protocol.file.allow=always submodule update --init external/sens
       - name: Verify single my-lisp pin channel · Перевірити єдиний канал pin my-lisp · Einzelnen my-lisp-Pin-Kanal prüfen
         run: python3 scripts/check-my-lisp-sync.py
       - uses: oven-sh/setup-bun@v2
@@ -60,11 +64,10 @@ jobs:
           set -euo pipefail
           CML_DIR="${RUNNER_TEMP}/cml-${CML_REVISION}"
           rm -rf "${CML_DIR}"
-          git init -q "${CML_DIR}"
-          git -C "${CML_DIR}" remote add origin https://github.com/juv4uk/cml.git
-          git -C "${CML_DIR}" fetch --depth=1 origin "${CML_REVISION}"
-          git -C "${CML_DIR}" checkout --detach FETCH_HEAD
-          git -C "${CML_DIR}" submodule update --init --recursive --depth=1
+          git clone --quiet --no-checkout /home/agents/GitHub/cml "${CML_DIR}"
+          git -C "${CML_DIR}" checkout --detach "${CML_REVISION}"
+          git -C "${CML_DIR}" config submodule.external/sens.url /home/agents/GitHub/sens
+          git -C "${CML_DIR}" -c protocol.file.allow=always submodule update --init --recursive
           ACTUAL_REVISION="$(git -C "${CML_DIR}" rev-parse HEAD)"
           test "${ACTUAL_REVISION}" = "${CML_REVISION}"
           echo "MY_IDEA_CML_TEST_DIR=${CML_DIR}" >> "${GITHUB_ENV}"
