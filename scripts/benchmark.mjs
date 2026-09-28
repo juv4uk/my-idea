@@ -14,8 +14,8 @@ function run(command, args) {
 }
 
 const outputs = [
-  // my-lisp now lives in the external/my-lisp git submodule (github.com/juv4uk/my-lisp).
-  // my-lisp тепер живе в git submodule external/my-lisp (github.com/juv4uk/my-lisp).
+  // my-lisp now lives in the external/sens git submodule (github.com/juv4uk/sens).
+  // my-lisp тепер живе в git submodule external/sens (github.com/juv4uk/sens).
   run('cargo', ['run', '--quiet', '--release', '--manifest-path', 'external/sens/crates/sens/Cargo.toml', '--example', 'benchmark']),
 ];
 const rows = outputs.flatMap(output => output.split(/\r?\n/))

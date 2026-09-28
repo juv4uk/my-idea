@@ -2,18 +2,18 @@ import { mkdir, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 // Step 1: Compile my-lisp to WebAssembly for the browser/PWA build.
-// my-lisp lives in its own repository (github.com/juv4uk/my-lisp) and is
-// vendored here as the external/my-lisp git submodule; wasm-pack needs a
+// my-lisp lives in its own repository (github.com/juv4uk/sens) and is
+// vendored here as the external/sens git submodule; wasm-pack needs a
 // local Cargo.toml, which a Cargo git dependency alone cannot provide.
 //
 // Крок 1: Компілюємо my-lisp до WebAssembly для браузерної/PWA збірки.
-// my-lisp живе у власному репозиторії (github.com/juv4uk/my-lisp) і тут
-// підключений як git submodule external/my-lisp; wasm-pack потребує
+// my-lisp живе у власному репозиторії (github.com/juv4uk/sens) і тут
+// підключений як git submodule external/sens; wasm-pack потребує
 // локального Cargo.toml, якого сама Cargo git-залежність не дає.
 //
 // Schritt 1: my-lisp für den Browser/PWA-Build zu WebAssembly kompilieren.
-// my-lisp lebt in einem eigenen Repository (github.com/juv4uk/my-lisp) und
-// ist hier als Git-Submodul external/my-lisp eingebunden; wasm-pack braucht
+// my-lisp lebt in einem eigenen Repository (github.com/juv4uk/sens) und
+// ist hier als Git-Submodul external/sens eingebunden; wasm-pack braucht
 // eine lokale Cargo.toml, die eine reine Cargo-Git-Abhängigkeit nicht liefert.
 const wasm = spawnSync(
   'wasm-pack',

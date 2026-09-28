@@ -489,8 +489,8 @@ already require.
 
 ## How to check neighboring repositories
 
-Read `sens/ecosystem-status.my`, `fpga-lisp/ecosystem-status.md`,
-`cml/ecosystem-status.md`/`compatibility.my`, and each neighbor's own
+Read `sens/ecosystem-status.lisp`, `fpga-lisp/ecosystem-status.md`,
+`cml/ecosystem-status.md`/`compatibility.lisp`, and each neighbor's own
 `evidence/` directory directly rather than asking another agent.
 
 ## Coordination channels
@@ -527,11 +527,11 @@ Read `sens/ecosystem-status.my`, `fpga-lisp/ecosystem-status.md`,
 
   ```
   (join (capabilities (rust clojurescript tauri gui)) (roles (voter)))
-  (sync-tasks (file "/mnt/c/GitHub/my-idea/tasks.my"))
+  (sync-tasks (file "/mnt/c/GitHub/my-idea/tasks.lisp"))
   ```
   `(join ...)` once per session. `sync-tasks` needs an **absolute path**
   (same gotcha as the old `:9999` op: relative resolves against the
-  *node's* cwd, not the caller's). `tasks.my`'s field is `description`,
+  *node's* cwd, not the caller's). `tasks.lisp`'s field is `description`,
   not `context` — a wrong field name is silently dropped, not an error.
   `(next-best-action (node my-idea-1))` to see what's actionable.
 - OpenCode agent (different tool, no direct message channel) coordinates
