@@ -20,10 +20,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Once;
 
-use sens::{
-    eval_expr, exact_arity, register_capability, Environment, ErrorKind, Expr, LanguageError,
-    Span, Value,
-};
+use sens::{register_capability, Environment, ErrorKind, LanguageError, Span, Value};
 
 use crate::ReplSession;
 
@@ -121,28 +118,39 @@ fn expect_string(value: &Value, what: &str, span: Span) -> Result<Rc<str>, Langu
     }
 }
 
+fn exact_value_arity(
+    operation: &str,
+    arguments: &[Value],
+    expected: usize,
+    span: Span,
+) -> Result<(), LanguageError> {
+    if arguments.len() == expected {
+        return Ok(());
+    }
+    Err(LanguageError::new(
+        ErrorKind::Arity,
+        format!(
+            "{operation} expects {expected} arguments; received {}",
+            arguments.len()
+        ),
+        span,
+    ))
+}
+
 fn editor_register_command(
-    arguments: &[Expr],
+    arguments: &[Value],
     environment: &Environment,
     span: Span,
 ) -> Result<Value, LanguageError> {
-    exact_arity("editor/register-command", arguments, 3, span)?;
+    exact_value_arity("editor/register-command", arguments, 3, span)?;
     let token = token_from_environment(environment, span)?;
-    let name = expect_string(
-        &eval_expr(&arguments[0], environment)?,
-        "editor/register-command",
-        arguments[0].span,
-    )?;
-    let handler = eval_expr(&arguments[1], environment)?;
+    let name = expect_string(&arguments[0], "editor/register-command", span)?;
+    let handler = arguments[1].clone();
     // Опис (третій аргумент) наразі лише валідується як рядок — контракт
     // тесту вимагає його передавати, але не читає назад.
     // The description (third argument) is validated as a string for now —
     // the test contract requires passing it but never reads it back.
-    expect_string(
-        &eval_expr(&arguments[2], environment)?,
-        "editor/register-command",
-        arguments[2].span,
-    )?;
+    expect_string(&arguments[2], "editor/register-command", span)?;
 
     let state = state_for(token);
     let mut state = state.borrow_mut();
@@ -155,11 +163,11 @@ fn editor_register_command(
 }
 
 fn editor_selection(
-    arguments: &[Expr],
+    arguments: &[Value],
     environment: &Environment,
     span: Span,
 ) -> Result<Value, LanguageError> {
-    exact_arity("editor/selection", arguments, 0, span)?;
+    exact_value_arity("editor/selection", arguments, 0, span)?;
     let token = token_from_environment(environment, span)?;
     let selection = state_for(token)
         .borrow()
@@ -171,11 +179,11 @@ fn editor_selection(
 }
 
 fn editor_buffer_text(
-    arguments: &[Expr],
+    arguments: &[Value],
     environment: &Environment,
     span: Span,
 ) -> Result<Value, LanguageError> {
-    exact_arity("editor/buffer-text", arguments, 0, span)?;
+    exact_value_arity("editor/buffer-text", arguments, 0, span)?;
     let token = token_from_environment(environment, span)?;
     let buffer = state_for(token)
         .borrow()
@@ -187,54 +195,38 @@ fn editor_buffer_text(
 }
 
 fn editor_replace_selection(
-    arguments: &[Expr],
+    arguments: &[Value],
     environment: &Environment,
     span: Span,
 ) -> Result<Value, LanguageError> {
-    exact_arity("editor/replace-selection", arguments, 1, span)?;
+    exact_value_arity("editor/replace-selection", arguments, 1, span)?;
     let token = token_from_environment(environment, span)?;
-    let text = expect_string(
-        &eval_expr(&arguments[0], environment)?,
-        "editor/replace-selection",
-        arguments[0].span,
-    )?;
+    let text = expect_string(&arguments[0], "editor/replace-selection", span)?;
     state_for(token).borrow_mut().effect.replacement = Some(text.to_string());
     Ok(Value::String(text))
 }
 
 fn editor_message(
-    arguments: &[Expr],
+    arguments: &[Value],
     environment: &Environment,
     span: Span,
 ) -> Result<Value, LanguageError> {
-    exact_arity("editor/message", arguments, 1, span)?;
+    exact_value_arity("editor/message", arguments, 1, span)?;
     let token = token_from_environment(environment, span)?;
-    let text = expect_string(
-        &eval_expr(&arguments[0], environment)?,
-        "editor/message",
-        arguments[0].span,
-    )?;
+    let text = expect_string(&arguments[0], "editor/message", span)?;
     state_for(token).borrow_mut().effect.message = Some(text.to_string());
     Ok(Value::String(text))
 }
 
 fn editor_keymap(
-    arguments: &[Expr],
+    arguments: &[Value],
     environment: &Environment,
     span: Span,
 ) -> Result<Value, LanguageError> {
-    exact_arity("editor/keymap", arguments, 2, span)?;
+    exact_value_arity("editor/keymap", arguments, 2, span)?;
     let token = token_from_environment(environment, span)?;
-    let key = expect_string(
-        &eval_expr(&arguments[0], environment)?,
-        "editor/keymap",
-        arguments[0].span,
-    )?;
-    let command = expect_string(
-        &eval_expr(&arguments[1], environment)?,
-        "editor/keymap",
-        arguments[1].span,
-    )?;
+    let key = expect_string(&arguments[0], "editor/keymap", span)?;
+    let command = expect_string(&arguments[1], "editor/keymap", span)?;
 
     let state = state_for(token);
     let mut state = state.borrow_mut();
@@ -247,23 +239,15 @@ fn editor_keymap(
 }
 
 fn editor_on(
-    arguments: &[Expr],
+    arguments: &[Value],
     environment: &Environment,
     span: Span,
 ) -> Result<Value, LanguageError> {
-    exact_arity("editor/on", arguments, 3, span)?;
+    exact_value_arity("editor/on", arguments, 3, span)?;
     let token = token_from_environment(environment, span)?;
-    let event = expect_string(
-        &eval_expr(&arguments[0], environment)?,
-        "editor/on",
-        arguments[0].span,
-    )?;
-    let handler_id = expect_string(
-        &eval_expr(&arguments[1], environment)?,
-        "editor/on",
-        arguments[1].span,
-    )?;
-    let callback = eval_expr(&arguments[2], environment)?;
+    let event = expect_string(&arguments[0], "editor/on", span)?;
+    let handler_id = expect_string(&arguments[1], "editor/on", span)?;
+    let callback = arguments[2].clone();
 
     let state = state_for(token);
     let mut state = state.borrow_mut();
@@ -474,14 +458,13 @@ impl EditorCommandRegistry {
             .collect()
     }
 
-    /// Викликає збережене замикання (команда чи обробник події) через
-    /// тимчасову дочірню область — жодного приватного `apply`-API
-    /// `my-lisp` не потребує, лише публічні
-    /// `parse`/`eval_expr`/`Environment::define`.
+    /// Викликає збережене замикання через тимчасову дочірню сесію.
+    /// Виклик проходить звичайну `eval_program` межу, тому parser output
+    /// ніколи не виконується напряму через raw evaluator.
     ///
-    /// Invokes a stored closure (command or event handler) through a
-    /// throwaway child scope -- this needs none of `my-lisp`'s private
-    /// `apply` API, only the public `parse`/`eval_expr`/`Environment::define`.
+    /// Invokes a stored closure through a throwaway child session.
+    /// The synthetic call crosses the ordinary `eval_program` boundary, so
+    /// parser output never executes through the raw evaluator.
     fn call_with_state(
         &self,
         repl: &mut ReplSession,
@@ -497,12 +480,11 @@ impl EditorCommandRegistry {
 
         let call_environment = repl.environment().child();
         call_environment.define(INVOKE_TARGET_KEY, callback);
-        let call_expr = sens::parse(&format!("({INVOKE_TARGET_KEY})"))
-            .map_err(|error| error.to_string())?
-            .into_iter()
-            .next()
-            .ok_or_else(|| "editor callback invocation produced no expression".to_string())?;
-        eval_expr(&call_expr, &call_environment).map_err(|error| error.to_string())?;
+        let mut call_session = sens::Session {
+            environment: call_environment,
+        };
+        sens::eval_program(&format!("({INVOKE_TARGET_KEY})"), &mut call_session)
+            .map_err(|error| error.to_string())?;
 
         let effect = state_for(self.token).borrow().effect.clone();
         Ok(effect)
