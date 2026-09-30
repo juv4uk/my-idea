@@ -21,8 +21,8 @@ use std::rc::Rc;
 use std::sync::Once;
 
 use sens::{
-    eval_expr, exact_arity, register_capability, Environment, ErrorKind, Expr, LanguageError,
-    Span, Value,
+    eval_expr, eval_program, exact_arity, register_capability, Environment, ErrorKind, Expr,
+    LanguageError, Session, Span, Value,
 };
 
 use crate::ReplSession;
@@ -480,8 +480,9 @@ impl EditorCommandRegistry {
     /// `parse`/`eval_expr`/`Environment::define`.
     ///
     /// Invokes a stored closure (command or event handler) through a
-    /// throwaway child scope -- this needs none of `my-lisp`'s private
-    /// `apply` API, only the public `parse`/`eval_expr`/`Environment::define`.
+    /// throwaway child scope. The public `eval_program` boundary performs
+    /// lowering before evaluation; the callback itself remains a lexical
+    /// callable value bound only inside that child environment.
     fn call_with_state(
         &self,
         repl: &mut ReplSession,
@@ -497,12 +498,11 @@ impl EditorCommandRegistry {
 
         let call_environment = repl.environment().child();
         call_environment.define(INVOKE_TARGET_KEY, callback);
-        let call_expr = sens::parse(&format!("({INVOKE_TARGET_KEY})"))
-            .map_err(|error| error.to_string())?
-            .into_iter()
-            .next()
-            .ok_or_else(|| "editor callback invocation produced no expression".to_string())?;
-        eval_expr(&call_expr, &call_environment).map_err(|error| error.to_string())?;
+        let mut call_session = Session {
+            environment: call_environment,
+        };
+        eval_program(&format!("({INVOKE_TARGET_KEY})"), &mut call_session)
+            .map_err(|error| error.to_string())?;
 
         let effect = state_for(self.token).borrow().effect.clone();
         Ok(effect)
