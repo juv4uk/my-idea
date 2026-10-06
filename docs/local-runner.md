@@ -7,24 +7,20 @@ runner is allocated.
 
 ## Required runner labels
 
-Register the repository runner with the custom label:
-
-```text
-my-idea
-```
-
-GitHub adds the standard `self-hosted`, `linux`, and `x64` labels automatically
-on a normal x86-64 WSL/Linux runner. The workflow therefore selects exactly:
+Reuse the ecosystem Guix runner class. The workflow selects:
 
 ```yaml
-runs-on: [self-hosted, linux, x64, my-idea]
+runs-on: [self-hosted, guix]
 ```
+
+This matches the live SENS/CML control-plane runner convention and avoids
+creating a repository-specific scheduling class when the same WSL/Guix host
+already serves those repositories.
 
 ## Registration
 
 In GitHub open **Settings → Actions → Runners → New self-hosted runner**, choose
-Linux/x64, then run the generated commands inside WSL. Add `--labels my-idea`
-to the generated `config.sh` command.
+Linux/x64, then run the generated commands inside WSL. Use the ecosystem `guix` label when registering this repository's runner instance.
 
 A typical layout is:
 
@@ -33,7 +29,7 @@ mkdir -p /home/agents/actions-runner/my-idea
 cd /home/agents/actions-runner/my-idea
 # download/extract the GitHub Actions runner using GitHub's generated commands
 ./config.sh --url https://github.com/juv4uk/my-idea --token <one-time-token> \
-  --name my-idea-wsl --labels my-idea
+  --name wsm-i5-6400 --labels guix
 ./run.sh
 ```
 
@@ -63,7 +59,7 @@ service unit, repository file, or runner command line.
 
 ## What runs locally
 
-Every push and pull request queues `Local my-idea CI` on the labelled runner.
+Every push and pull request queues `Local my-idea CI` on the `[self-hosted, guix]` runner class.
 It verifies the exact SENS gitlink, the single-pin invariant, builds the frontend
 and SENS/WASM integration, checks/tests the frontend, builds the pinned REPL
 sidecar, checks out the exact CML SHA, builds `cml-compile`, and runs Rust
