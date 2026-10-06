@@ -7,20 +7,18 @@ runner is allocated.
 
 ## Required runner labels
 
-Reuse the ecosystem Guix runner class. The workflow selects:
+Use GitHub's standard self-hosted Linux/x64 runner labels for scheduling. The workflow selects:
 
 ```yaml
-runs-on: [self-hosted, guix]
+runs-on: [self-hosted, linux, x64]
 ```
 
-This matches the live SENS/CML control-plane runner convention and avoids
-creating a repository-specific scheduling class when the same WSL/Guix host
-already serves those repositories.
+Guix is verified as the first runtime contract step inside the job rather than encoded as a scheduler label. This lets a correctly registered my-idea WSL runner take the job even when it was not configured with the custom `guix` label.
 
 ## Registration
 
 In GitHub open **Settings → Actions → Runners → New self-hosted runner**, choose
-Linux/x64, then run the generated commands inside WSL. Use the ecosystem `guix` label when registering this repository's runner instance.
+Linux/x64, then run the generated commands inside WSL. Keep GitHub's default Linux/x64 labels when registering the runner. A custom `guix` label is optional and is not required by this repository.
 
 A typical layout is:
 
@@ -29,7 +27,7 @@ mkdir -p /home/agents/actions-runner/my-idea
 cd /home/agents/actions-runner/my-idea
 # download/extract the GitHub Actions runner using GitHub's generated commands
 ./config.sh --url https://github.com/juv4uk/my-idea --token <one-time-token> \
-  --name wsm-i5-6400 --labels guix
+  --name my-idea-wsl
 ./run.sh
 ```
 
@@ -59,7 +57,7 @@ service unit, repository file, or runner command line.
 
 ## What runs locally
 
-Every push and pull request queues `Local my-idea CI` on the `[self-hosted, guix]` runner class.
+Every pull request queues exactly one `Local my-idea CI · WSL/Guix` job on `[self-hosted, linux, x64]`. Pushes do not create a duplicate automatic run.
 It verifies the exact SENS gitlink, the single-pin invariant, builds the frontend
 and SENS/WASM integration, checks/tests the frontend, builds the pinned REPL
 sidecar, checks out the exact CML SHA, builds `cml-compile`, and runs Rust
