@@ -104,7 +104,7 @@ fn resolve_or_fetch_uses_the_local_submodule_when_present_no_network_needed() {
     assert!(binary.exists());
     // The fallback cache must not have been touched — the local submodule
     // path was available, so no clone should ever have been attempted.
-    assert!(!cache_dir.join("my-lisp").exists());
+    assert!(!cache_dir.join("sens").exists());
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn resolve_or_fetch_clones_the_pinned_commit_directly_from_github_when_no_local_
     // Simulates a packaged install: repo_root has no external/sens at
     // all (a real installed app's directory never does), so the only
     // source of truth left is the pinned SHA baked in at compile time plus
-    // my-lisp's actual GitHub URL — a git reference, not a machine-local path.
+    // SENS's actual GitHub URL — a git reference, not a machine-local path.
     let bogus_root = std::env::temp_dir().join("my-idea-repl-process-contract-no-submodule-here");
     let cache_dir = std::env::temp_dir().join(format!(
         "my-idea-repl-process-contract-fetch-cache-{}",
@@ -121,7 +121,7 @@ fn resolve_or_fetch_clones_the_pinned_commit_directly_from_github_when_no_local_
     let _ = std::fs::remove_dir_all(&cache_dir);
 
     let binary = resolve_or_fetch_my_lisp_binary(&bogus_root, &cache_dir)
-        .expect("cloning the pinned commit from github.com/juv4uk/my-lisp should succeed");
+        .expect("cloning the pinned commit from github.com/juv4uk/sens should succeed");
     assert!(binary.exists());
 
     let (tx, rx) = channel();
