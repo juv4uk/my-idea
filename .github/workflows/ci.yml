@@ -86,7 +86,7 @@ jobs:
 
   local-web:
     name: Local my-idea CI
-    runs-on: [self-hosted, linux, x64, my-idea]
+    runs-on: [self-hosted, guix]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
