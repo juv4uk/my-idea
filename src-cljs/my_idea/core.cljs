@@ -164,6 +164,7 @@
         mode (or (:language-mode doc) "text")
         preview? (or (= mode "markdown") (= mode "mermaid"))
         runnable? (or (= mode "my-lisp") (= mode "markdown"))
+        native-runnable? (and runnable? (workspace/native?))
         compilable? (and (= mode "my-lisp") (workspace/native?))
         repl-panel (render-repl-console-panel)
         build-panel (render-build-output-panel)]
@@ -175,8 +176,9 @@
              (str "<button id='editor-commands' title='" (t :editor-commands) "'>⌘ " (t :editor-commands) "</button>"
                   "<button id='reload-plugins' title='" (t :reload-plugins) "'>⟲</button>"))
            (when runnable?
-             (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"
-                  "<button class='run' id='run'>▶ " (t :run) "</button>"))
+             (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"))
+           (when native-runnable?
+             (str "<button class='run' id='run'>▶ " (t :run) "</button>"))
            (when compilable?
              (str "<button class='compile' id='compile' title='" (t :compile-cml) "'>🔧 " (t :compile-cml) "</button>"))
            "</div></header>"
