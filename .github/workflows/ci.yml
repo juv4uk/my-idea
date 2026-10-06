@@ -256,10 +256,9 @@ jobs:
             exit 1
           }
 
-          materialize_tracked_repo "${CML_SOURCE}" "${CML_REVISION}" .ci-cml ':(exclude)external/sens'
-          materialize_tracked_repo "${SENS_SOURCE}" "${CML_SENS_PIN}" .ci-cml/external/sens
-
-          CML_DIR="${GITHUB_WORKSPACE}/.ci-cml"
+          CML_DIR="${RUNNER_TEMP}/my-idea-cml-witness"
+          materialize_tracked_repo "${CML_SOURCE}" "${CML_REVISION}" "${CML_DIR}" ':(exclude)external/sens'
+          materialize_tracked_repo "${SENS_SOURCE}" "${CML_SENS_PIN}" "${CML_DIR}/external/sens"
           cargo build --locked --release --manifest-path "${CML_DIR}/Cargo.toml" --bin cml-compile
           echo "MY_IDEA_CML_TEST_DIR=${CML_DIR}" >> "${GITHUB_ENV}"
           echo "MY_IDEA_CML_TEST_BIN=${CML_DIR}/target/release/cml-compile" >> "${GITHUB_ENV}"
