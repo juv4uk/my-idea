@@ -307,7 +307,7 @@ test('Standalone web artifact does not stack overflow on 100k list', async () =>
         (def build 
           (lambda (n acc)
             (cond ((eq? n 0) acc)
-                  (1 (build (- n 1) (cons n acc))))))
+                  ((eq? 0 0) (build (- n 1) (cons n acc))))))
         (build 100000 (quote ()))
       `);
     });
