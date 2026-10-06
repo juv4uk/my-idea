@@ -127,7 +127,7 @@
     (priority . 9.6)
     (depends-on . (IDEA-LSP-CLIENT-TRANSPORT))
     (description . "Route .wsm/.my/.lisp documents to the authoritative `my-lisp lsp` stdio server. Wire diagnostics, completion, hover, symbols and definition capabilities supported by WsmLS into CodeMirror without duplicating its parser or builtin registry.")
-    (done . ())
+    (done . t)
   ))
   ("IDEA-RUST-ANALYZER-ADAPTER" . (
     (priority . 9.55)
