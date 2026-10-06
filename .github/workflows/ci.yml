@@ -93,7 +93,7 @@ jobs:
         with:
           submodules: false
           fetch-depth: 0
-      - name: Materialize exact SENS pin from local sibling checkout
+      - name: Materialize exact SENS pin from live local workspace
         shell: bash
         run: |
           set -euo pipefail
@@ -106,18 +106,30 @@ jobs:
             /home/agents/actions-runner/cml/_work/cml/cml/external/sens \
             /home/agents/GitHub/sens \
             /mnt/c/GitHub/sens; do
-            if git -C "${candidate}" cat-file -e "${SENS_PIN}^{commit}" 2>/dev/null; then
+            if test "$(git -C "${candidate}" rev-parse HEAD 2>/dev/null || true)" = "${SENS_PIN}"; then
               SENS_SOURCE="${candidate}"
               break
             fi
           done
           test -n "${SENS_SOURCE}" || {
-            echo "exact SENS pin ${SENS_PIN} is absent from local sibling checkouts" >&2
+            echo "no local SENS workspace is checked out exactly at ${SENS_PIN}" >&2
             exit 1
           }
+
           rm -rf external/sens
-          git clone --quiet --no-checkout --no-hardlinks "${SENS_SOURCE}" external/sens
-          git -C external/sens checkout --quiet --detach "${SENS_PIN}"
+          mkdir -p external/sens
+          git -C "${SENS_SOURCE}" ls-files -z \
+            | tar -C "${SENS_SOURCE}" --null -T - -cf - \
+            | tar -C external/sens -xf -
+
+          git init -q external/sens
+          COMMIT_HASH="$(
+            git -C "${SENS_SOURCE}" cat-file commit "${SENS_PIN}" \
+              | git -C external/sens hash-object -t commit -w --stdin
+          )"
+          test "${COMMIT_HASH}" = "${SENS_PIN}"
+          git -C external/sens update-ref refs/heads/pinned "${SENS_PIN}"
+          git -C external/sens symbolic-ref HEAD refs/heads/pinned
           test "$(git -C external/sens rev-parse HEAD)" = "${SENS_PIN}"
           python3 scripts/check-my-lisp-sync.py
       - uses: oven-sh/setup-bun@v2
@@ -152,52 +164,70 @@ jobs:
           bun run check
       - name: Build exact pinned sidecar
         run: bash scripts/build-repl-sidecar.sh
-      - name: Materialize exact CML witness source from local sibling checkout
+      - name: Materialize exact CML witness from live local workspace
         shell: bash
         run: |
           set -euo pipefail
+
+          materialize_tracked_repo() {
+            SOURCE="$1"
+            PIN="$2"
+            DEST="$3"
+            shift 3
+
+            rm -rf "${DEST}"
+            mkdir -p "${DEST}"
+            git -C "${SOURCE}" ls-files -z -- . "$@" \
+              | tar -C "${SOURCE}" --null -T - -cf - \
+              | tar -C "${DEST}" -xf -
+
+            git init -q "${DEST}"
+            MATERIALIZED_HASH="$(
+              git -C "${SOURCE}" cat-file commit "${PIN}" \
+                | git -C "${DEST}" hash-object -t commit -w --stdin
+            )"
+            test "${MATERIALIZED_HASH}" = "${PIN}"
+            git -C "${DEST}" update-ref refs/heads/pinned "${PIN}"
+            git -C "${DEST}" symbolic-ref HEAD refs/heads/pinned
+            test "$(git -C "${DEST}" rev-parse HEAD)" = "${PIN}"
+          }
+
           CML_SOURCE=""
           for candidate in \
             /home/agents/actions-runner/cml/_work/cml/cml \
             /home/agents/core-runners/cml/_work/cml/cml \
             /home/agents/GitHub/cml \
             /mnt/c/GitHub/cml; do
-            if git -C "${candidate}" cat-file -e "${CML_REVISION}^{commit}" 2>/dev/null; then
+            if test "$(git -C "${candidate}" rev-parse HEAD 2>/dev/null || true)" = "${CML_REVISION}"; then
               CML_SOURCE="${candidate}"
               break
             fi
           done
           test -n "${CML_SOURCE}" || {
-            echo "exact CML pin ${CML_REVISION} is absent from local sibling checkouts" >&2
+            echo "no local CML workspace is checked out exactly at ${CML_REVISION}" >&2
             exit 1
           }
 
-          rm -rf .ci-cml
-          git clone --quiet --no-checkout --no-hardlinks "${CML_SOURCE}" .ci-cml
-          git -C .ci-cml checkout --quiet --detach "${CML_REVISION}"
-          test "$(git -C .ci-cml rev-parse HEAD)" = "${CML_REVISION}"
-
-          CML_SENS_PIN="$(git -C .ci-cml rev-parse :external/sens)"
+          CML_SENS_PIN="$(git -C "${CML_SOURCE}" rev-parse :external/sens)"
           SENS_SOURCE=""
           for candidate in \
-            /home/agents/actions-runner/cml/_work/cml/cml/external/sens \
+            "${CML_SOURCE}/external/sens" \
             /home/agents/core-runners/sens/_work/sens/sens \
             /home/agents/actions-runner/sens/_work/sens/sens \
             /home/agents/GitHub/sens \
             /mnt/c/GitHub/sens; do
-            if git -C "${candidate}" cat-file -e "${CML_SENS_PIN}^{commit}" 2>/dev/null; then
+            if test "$(git -C "${candidate}" rev-parse HEAD 2>/dev/null || true)" = "${CML_SENS_PIN}"; then
               SENS_SOURCE="${candidate}"
               break
             fi
           done
           test -n "${SENS_SOURCE}" || {
-            echo "CML's exact SENS pin ${CML_SENS_PIN} is absent locally" >&2
+            echo "no local SENS workspace matches CML pin ${CML_SENS_PIN}" >&2
             exit 1
           }
-          rm -rf .ci-cml/external/sens
-          git clone --quiet --no-checkout --no-hardlinks "${SENS_SOURCE}" .ci-cml/external/sens
-          git -C .ci-cml/external/sens checkout --quiet --detach "${CML_SENS_PIN}"
-          test "$(git -C .ci-cml/external/sens rev-parse HEAD)" = "${CML_SENS_PIN}"
+
+          materialize_tracked_repo "${CML_SOURCE}" "${CML_REVISION}" .ci-cml ':(exclude)external/sens'
+          materialize_tracked_repo "${SENS_SOURCE}" "${CML_SENS_PIN}" .ci-cml/external/sens
 
           CML_DIR="${GITHUB_WORKSPACE}/.ci-cml"
           cargo build --locked --release --manifest-path "${CML_DIR}/Cargo.toml" --bin cml-compile
