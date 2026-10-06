@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: my-idea-ci-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 env:
   # Exact merged CML revision that provides the host-integration `cml-compile`
   # process boundary. Keep this immutable: provenance assertions below depend
