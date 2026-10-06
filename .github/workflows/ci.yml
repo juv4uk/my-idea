@@ -3,12 +3,13 @@ name: CI · Перевірка · Prüfung
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 env:
   # Exact merged CML revision that provides the host-integration `cml-compile`
   # process boundary. Keep this immutable: provenance assertions below depend
   # on the binary being built from precisely this checkout.
-  CML_REVISION: de207354b0257722b0a20408657c0a79ce1808f9
+  CML_REVISION: fde90ea3512dacee4272f0c8f8be531831adf277
 
 jobs:
   web:
@@ -90,3 +91,35 @@ jobs:
             -- --exact --nocapture 2>&1 | tee "${LOG}"
           grep -F "real-cml provenance: compiler=cml-compile compiler_revision=${MY_IDEA_CML_TEST_REVISION}" "${LOG}"
           grep -E 'input_revision=[0-9a-f]{40} artifact=.+' "${LOG}"
+
+
+  local-runner-smoke:
+    name: Local my-idea runner smoke
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: [self-hosted, linux, x64, my-idea]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Verify runner identity and exact SENS pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner=${RUNNER_NAME} os=${RUNNER_OS} arch=${RUNNER_ARCH}"
+          test "$(git rev-parse :external/sens)" = "$(git -C external/sens rev-parse HEAD)"
+          python3 scripts/check-my-lisp-sync.py
+      - name: Verify local toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v guix
+          command -v bun
+          command -v cargo
+          command -v java
+      - name: Run lightweight local gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun run test
