@@ -1,12 +1,11 @@
 name: CI · Перевірка · Prüfung
 
 on:
-  push:
   pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: my-idea-ci-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: my-idea-ci-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -89,10 +88,25 @@ jobs:
           grep -E 'input_revision=[0-9a-f]{40} artifact=.+' "${LOG}"
 
   local-web:
-    name: Local my-idea CI
-    runs-on: [self-hosted, guix]
+    name: Local my-idea CI · WSL/Guix
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 60
     steps:
+      - name: Runner contract · What this machine must provide
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner=${RUNNER_NAME} os=${RUNNER_OS} arch=${RUNNER_ARCH}"
+          echo "workspace=${GITHUB_WORKSPACE}"
+          command -v bash
+          command -v git
+          command -v python3
+          if ! command -v guix >/dev/null 2>&1; then
+            echo "::error::This my-idea job requires Guix in PATH. Register/start a Linux x64 WSL runner with the shared Guix profile available."
+            exit 1
+          fi
+          guix --version
       - uses: actions/checkout@v5
         with:
           submodules: false
