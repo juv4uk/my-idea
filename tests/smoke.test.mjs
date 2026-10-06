@@ -171,6 +171,10 @@ test('WASM crate and ClojureScript bindings are present and correctly wired', ()
   // CLJS bindings load the module and expose ready? / evaluate
   assert.match(wasmCljs, /ready\?/);
   assert.match(wasmCljs, /load!/);
+  // wasm-bindgen exports are external JS property names: Closure Advanced must never rename them.
+  for (const exportName of ['evaluate', 'diagnose', 'set_surface', 'current_surface']) {
+    assert.match(wasmCljs, new RegExp('aget @!module "' + exportName + '"'));
+  }
   // The loader uses a plain-JS shim (wasm-loader.js) to bypass Closure Compiler;
   // js/import cannot be used directly in release builds.
   // Завантажувач використовує plain-JS шим (wasm-loader.js) для обходу Closure Compiler;
