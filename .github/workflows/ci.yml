@@ -160,6 +160,7 @@ jobs:
           bun install --frozen-lockfile
           bun run build
           node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+          bunx playwright install chromium
           bun run test
           bun run check
       - name: Build exact pinned sidecar
