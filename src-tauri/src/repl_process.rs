@@ -120,7 +120,7 @@ fn spawn_line_forwarder<R: Read + Send + 'static>(
 /// `resolve_or_fetch_my_lisp_binary`, which this repo's console command
 /// actually calls).
 pub fn resolve_my_lisp_binary(repo_root: &Path) -> Result<PathBuf, String> {
-    let submodule = repo_root.join("external").join("my-lisp");
+    let submodule = repo_root.join("external").join("sens");
     if !submodule.join("Cargo.toml").exists() {
         return Err(format!(
             "external/sens submodule not checked out at {} — run `git submodule update --init`",
@@ -176,7 +176,7 @@ pub fn my_lisp_runtime_provenance() -> MyLispRuntimeProvenance {
 
 /// The real upstream URL `resolve_or_fetch_my_lisp_binary` clones when no
 /// local submodule checkout is available.
-pub const MY_LISP_GIT_URL: &str = "https://github.com/juv4uk/my-lisp.git";
+pub const MY_LISP_GIT_URL: &str = "https://github.com/juv4uk/sens.git";
 
 /// Resolves the my-lisp CLI binary via the local `external/sens`
 /// submodule when a source/dev checkout of my-idea provides one (fast path,
@@ -189,7 +189,7 @@ pub const MY_LISP_GIT_URL: &str = "https://github.com/juv4uk/my-lisp.git";
 /// reference (URL + pinned SHA), never a filesystem path baked in when the
 /// binary was compiled somewhere else entirely.
 pub fn resolve_or_fetch_my_lisp_binary(repo_root: &Path, cache_dir: &Path) -> Result<PathBuf, String> {
-    let local_submodule = repo_root.join("external").join("my-lisp");
+    let local_submodule = repo_root.join("external").join("sens");
     if local_submodule.join("Cargo.toml").exists() {
         return build_my_lisp_cli(&local_submodule);
     }
@@ -209,7 +209,7 @@ fn fetch_and_build_my_lisp(cache_dir: &Path) -> Result<PathBuf, String> {
 
     std::fs::create_dir_all(cache_dir)
         .map_err(|error| format!("failed to create {}: {error}", cache_dir.display()))?;
-    let checkout = cache_dir.join("my-lisp");
+    let checkout = cache_dir.join("sens");
 
     if !checkout.join(".git").exists() {
         run_git(None, &["clone", MY_LISP_GIT_URL, &checkout.to_string_lossy()])?;
@@ -252,15 +252,15 @@ fn build_my_lisp_cli(my_lisp_checkout: &Path) -> Result<PathBuf, String> {
     let manifest = my_lisp_checkout.join("Cargo.toml");
     let target_dir = my_lisp_checkout.join("target");
     let status = Command::new("cargo")
-        .args(["build", "--release", "-p", "my-lisp-cli", "--bin", "my-lisp"])
+        .args(["build", "--release", "-p", "sens-cli", "--bin", "my-lisp"])
         .arg("--manifest-path")
         .arg(&manifest)
         .arg("--target-dir")
         .arg(&target_dir)
         .status()
-        .map_err(|error| format!("failed to run cargo build for the my-lisp CLI: {error}"))?;
+        .map_err(|error| format!("failed to run cargo build for the pinned SENS CLI compatibility binary: {error}"))?;
     if !status.success() {
-        return Err("cargo build for the my-lisp CLI failed".to_string());
+        return Err("cargo build for the pinned SENS CLI compatibility binary failed".to_string());
     }
 
     let binary_name = if cfg!(windows) { "my-lisp.exe" } else { "my-lisp" };
