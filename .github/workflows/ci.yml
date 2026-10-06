@@ -100,7 +100,12 @@ jobs:
           echo "runner=${RUNNER_NAME} os=${RUNNER_OS} arch=${RUNNER_ARCH}"
           SENS_PIN="$(git rev-parse :external/sens)"
           SENS_SOURCE=""
-          for candidate in /mnt/c/GitHub/sens /home/agents/GitHub/sens; do
+          for candidate in \
+            /home/agents/core-runners/sens/_work/sens/sens \
+            /home/agents/actions-runner/sens/_work/sens/sens \
+            /home/agents/actions-runner/cml/_work/cml/cml/external/sens \
+            /home/agents/GitHub/sens \
+            /mnt/c/GitHub/sens; do
             if git -C "${candidate}" cat-file -e "${SENS_PIN}^{commit}" 2>/dev/null; then
               SENS_SOURCE="${candidate}"
               break
@@ -152,7 +157,11 @@ jobs:
         run: |
           set -euo pipefail
           CML_SOURCE=""
-          for candidate in /mnt/c/GitHub/cml /home/agents/GitHub/cml; do
+          for candidate in \
+            /home/agents/actions-runner/cml/_work/cml/cml \
+            /home/agents/core-runners/cml/_work/cml/cml \
+            /home/agents/GitHub/cml \
+            /mnt/c/GitHub/cml; do
             if git -C "${candidate}" cat-file -e "${CML_REVISION}^{commit}" 2>/dev/null; then
               CML_SOURCE="${candidate}"
               break
@@ -170,7 +179,12 @@ jobs:
 
           CML_SENS_PIN="$(git -C .ci-cml rev-parse :external/sens)"
           SENS_SOURCE=""
-          for candidate in /mnt/c/GitHub/sens /home/agents/GitHub/sens; do
+          for candidate in \
+            /home/agents/actions-runner/cml/_work/cml/cml/external/sens \
+            /home/agents/core-runners/sens/_work/sens/sens \
+            /home/agents/actions-runner/sens/_work/sens/sens \
+            /home/agents/GitHub/sens \
+            /mnt/c/GitHub/sens; do
             if git -C "${candidate}" cat-file -e "${CML_SENS_PIN}^{commit}" 2>/dev/null; then
               SENS_SOURCE="${candidate}"
               break
