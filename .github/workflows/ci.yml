@@ -171,13 +171,24 @@ jobs:
           if ! command -v wasm-pack >/dev/null 2>&1; then
             curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           fi
-      - name: Frontend and SENS integration gates
+      - name: Build portable web artifact
         shell: bash
         run: |
           set -euo pipefail
           bun install --frozen-lockfile
           bun run build
           node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+      - name: Upload portable web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-idea-web-current
+          path: my-idea-web.html
+          if-no-files-found: error
+          retention-days: 7
+      - name: Frontend and SENS integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
           bunx playwright install chromium
           bun run test
           bun run check
