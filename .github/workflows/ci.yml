@@ -91,15 +91,29 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          token: ${{ secrets.SUBMODULE_READ_TOKEN || secrets.SENS_READ_TOKEN || github.token }}
-          submodules: recursive
+          submodules: false
           fetch-depth: 0
-      - name: Verify runner identity and exact SENS pin
+      - name: Materialize exact SENS pin from local sibling checkout
         shell: bash
         run: |
           set -euo pipefail
           echo "runner=${RUNNER_NAME} os=${RUNNER_OS} arch=${RUNNER_ARCH}"
-          test "$(git rev-parse :external/sens)" = "$(git -C external/sens rev-parse HEAD)"
+          SENS_PIN="$(git rev-parse :external/sens)"
+          SENS_SOURCE=""
+          for candidate in /mnt/c/GitHub/sens /home/agents/GitHub/sens; do
+            if git -C "${candidate}" cat-file -e "${SENS_PIN}^{commit}" 2>/dev/null; then
+              SENS_SOURCE="${candidate}"
+              break
+            fi
+          done
+          test -n "${SENS_SOURCE}" || {
+            echo "exact SENS pin ${SENS_PIN} is absent from local sibling checkouts" >&2
+            exit 1
+          }
+          rm -rf external/sens
+          git clone --quiet --no-checkout --no-hardlinks "${SENS_SOURCE}" external/sens
+          git -C external/sens checkout --quiet --detach "${SENS_PIN}"
+          test "$(git -C external/sens rev-parse HEAD)" = "${SENS_PIN}"
           python3 scripts/check-my-lisp-sync.py
       - uses: oven-sh/setup-bun@v2
         with:
@@ -133,21 +147,45 @@ jobs:
           bun run check
       - name: Build exact pinned sidecar
         run: bash scripts/build-repl-sidecar.sh
-      - name: Checkout exact CML witness source
-        uses: actions/checkout@v5
-        with:
-          repository: juv4uk/cml
-          ref: ${{ env.CML_REVISION }}
-          token: ${{ secrets.SUBMODULE_READ_TOKEN || secrets.SENS_READ_TOKEN }}
-          submodules: recursive
-          path: .ci-cml
-          fetch-depth: 1
-      - name: Build exact CML pin
+      - name: Materialize exact CML witness source from local sibling checkout
         shell: bash
         run: |
           set -euo pipefail
+          CML_SOURCE=""
+          for candidate in /mnt/c/GitHub/cml /home/agents/GitHub/cml; do
+            if git -C "${candidate}" cat-file -e "${CML_REVISION}^{commit}" 2>/dev/null; then
+              CML_SOURCE="${candidate}"
+              break
+            fi
+          done
+          test -n "${CML_SOURCE}" || {
+            echo "exact CML pin ${CML_REVISION} is absent from local sibling checkouts" >&2
+            exit 1
+          }
+
+          rm -rf .ci-cml
+          git clone --quiet --no-checkout --no-hardlinks "${CML_SOURCE}" .ci-cml
+          git -C .ci-cml checkout --quiet --detach "${CML_REVISION}"
+          test "$(git -C .ci-cml rev-parse HEAD)" = "${CML_REVISION}"
+
+          CML_SENS_PIN="$(git -C .ci-cml rev-parse :external/sens)"
+          SENS_SOURCE=""
+          for candidate in /mnt/c/GitHub/sens /home/agents/GitHub/sens; do
+            if git -C "${candidate}" cat-file -e "${CML_SENS_PIN}^{commit}" 2>/dev/null; then
+              SENS_SOURCE="${candidate}"
+              break
+            fi
+          done
+          test -n "${SENS_SOURCE}" || {
+            echo "CML's exact SENS pin ${CML_SENS_PIN} is absent locally" >&2
+            exit 1
+          }
+          rm -rf .ci-cml/external/sens
+          git clone --quiet --no-checkout --no-hardlinks "${SENS_SOURCE}" .ci-cml/external/sens
+          git -C .ci-cml/external/sens checkout --quiet --detach "${CML_SENS_PIN}"
+          test "$(git -C .ci-cml/external/sens rev-parse HEAD)" = "${CML_SENS_PIN}"
+
           CML_DIR="${GITHUB_WORKSPACE}/.ci-cml"
-          test "$(git -C "${CML_DIR}" rev-parse HEAD)" = "${CML_REVISION}"
           cargo build --locked --release --manifest-path "${CML_DIR}/Cargo.toml" --bin cml-compile
           echo "MY_IDEA_CML_TEST_DIR=${CML_DIR}" >> "${GITHUB_ENV}"
           echo "MY_IDEA_CML_TEST_BIN=${CML_DIR}/target/release/cml-compile" >> "${GITHUB_ENV}"
