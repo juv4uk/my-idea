@@ -191,8 +191,8 @@
                   (let [{:keys [stream line]} (js->clj (.-payload event) :keywordize-keys true)]
                     (repl-log! [{:kind (if (= stream "stderr") :error :stdout) :text line}])))))
       (-> (workspace/invoke! "start_repl_console" {})
-          (.catch #(repl-log! [{:kind :error :text (str "Не вдалося запустити my-lisp REPL: " %)}]))))
-    (repl-log! [{:kind :system :text "my-lisp WASM · поверхня: ядро (core) · :мова ук|en|sa|core · :допомога"}])))
+          (.catch #(repl-log! [{:kind :error :text (str "Не вдалося запустити SENS REPL: " %)}]))))
+    (repl-log! [{:kind :system :text "SENS WASM · поверхня: ядро (core) · :мова ук|en|sa|core · :допомога"}])))
 
 ;; ---- web console fallback: no subprocess, drive the WASM module directly ----
 
@@ -202,7 +202,7 @@
       (":мова" ":surface")
       (cond
         (not (wasm/ready?))
-        (repl-log! [{:kind :error :text "my-lisp WASM engine is loading… · зачекайте"}])
+        (repl-log! [{:kind :error :text "SENS WASM engine is loading… · зачекайте"}])
         (str/blank? arg)
         (repl-log! [{:kind :system :text (str "Поточна поверхня: " (wasm/current-surface))}
                     {:kind :system :text "Поверхні: :мова ук | en | sa | core"}])
@@ -222,7 +222,7 @@
     (wasm/failed?)
     (repl-log! [{:kind :error :text "WebAssembly unavailable (or blocked) · code execution unavailable"}])
     :else
-    (repl-log! [{:kind :system :text "my-lisp WASM engine is loading… · зачекайте"}])))
+    (repl-log! [{:kind :system :text "SENS WASM engine is loading… · зачекайте"}])))
 
 (defn repl-submit!
   "Handles one submitted console line: echoes it as a prompt entry, then
@@ -373,7 +373,7 @@
                  :error? true)
           :else
           (swap! state assoc
-                 :output ["my-lisp WASM engine is loading… · очікуйте завершення завантаження · WASM wird geladen…"]
+                 :output ["SENS WASM engine is loading… · очікуйте завершення завантаження · WASM wird geladen…"]
                  :error? false)))
       (swap! state assoc
              :output [(str (get i18n/programming-language-labels mode)
