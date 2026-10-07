@@ -164,8 +164,6 @@
         mode (or (:language-mode doc) "text")
         preview? (or (= mode "markdown") (= mode "mermaid"))
         runnable? (or (= mode "my-lisp") (= mode "markdown"))
-        native-runnable? (and runnable? (workspace/native?))
-        compilable? (and (= mode "my-lisp") (workspace/native?))
         repl-panel (render-repl-console-panel)
         build-panel (render-build-output-panel)]
     (apply-theme! theme)
@@ -177,10 +175,6 @@
                   "<button id='reload-plugins' title='" (t :reload-plugins) "'>⟲</button>"))
            (when runnable?
              (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"))
-           (when native-runnable?
-             (str "<button class='run' id='run'>▶ " (t :run) "</button>"))
-           (when compilable?
-             (str "<button class='compile' id='compile' title='" (t :compile-cml) "'>🔧 " (t :compile-cml) "</button>"))
            "</div></header>"
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<div class='splitter vsplit-l' id='vsplit-l'></div>"
