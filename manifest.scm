@@ -33,6 +33,7 @@
 
 (specifications->manifest
  '("bash"              ; CI enters this profile with: guix shell --pure ... -- bash -lc
+   "gcc-toolchain"      ; Rust build scripts/linker need cc inside the pure Guix profile
    "rust"
    "rust:cargo"
    "nss-certs"        ; TLS root certs — cargo/npm need these to hit crates.io/registry.npmjs.org
