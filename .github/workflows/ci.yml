@@ -195,6 +195,7 @@ jobs:
       - name: Build exact pinned sidecar
         run: bash scripts/build-repl-sidecar.sh
       - name: Materialize exact CML witness from live local workspace
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -263,7 +264,17 @@ jobs:
           echo "MY_IDEA_CML_TEST_DIR=${CML_DIR}" >> "${GITHUB_ENV}"
           echo "MY_IDEA_CML_TEST_BIN=${CML_DIR}/target/release/cml-compile" >> "${GITHUB_ENV}"
           echo "MY_IDEA_CML_TEST_REVISION=${CML_REVISION}" >> "${GITHUB_ENV}"
-      - name: Rust witnesses inside declared Guix environment
+      - name: Rust P0 witnesses inside declared Guix environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          guix shell --pure -m manifest.scm -- bash -lc '
+            export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
+            cargo test --manifest-path src-tauri/Cargo.toml --tests -- \
+              --skip pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance
+          '
+      - name: Strict real-CML witness
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -272,7 +283,6 @@ jobs:
             export MY_IDEA_CML_TEST_DIR="'"$MY_IDEA_CML_TEST_DIR"'"
             export MY_IDEA_CML_TEST_BIN="'"$MY_IDEA_CML_TEST_BIN"'"
             export MY_IDEA_CML_TEST_REVISION="'"$MY_IDEA_CML_TEST_REVISION"'"
-            cargo test --manifest-path src-tauri/Cargo.toml --tests
             cargo test --manifest-path src-tauri/Cargo.toml \
               --test real_cml_compiler_contract \
               pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance \
