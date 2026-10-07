@@ -15,14 +15,21 @@ use my_idea_lib::keymap_authority::{resolve, Binding, Source};
 use my_idea_lib::ManagedReplSession;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+static NEXT_TEST_CONFIG: AtomicU64 = AtomicU64::new(1);
 
 struct TestConfigDir(PathBuf);
 
 impl TestConfigDir {
     fn with_plugin(source: &str) -> Self {
         let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let path = std::env::temp_dir().join(format!("my-idea-keymap-authority-witness-{nonce}"));
+        let sequence = NEXT_TEST_CONFIG.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "my-idea-keymap-authority-witness-{}-{nonce}-{sequence}",
+            std::process::id()
+        ));
         let plugins_dir = path.join("plugins");
         fs::create_dir_all(&plugins_dir).unwrap();
         fs::write(plugins_dir.join("plugin.lisp"), source).unwrap();
@@ -57,7 +64,16 @@ fn a_real_plugin_binding_that_does_not_collide_with_the_built_in_wins_cleanly() 
            (editor/keymap "Ctrl-g" "greet")"#,
     );
     let session = ManagedReplSession::new();
-    session.load_plugins(&config.0);
+    let report = session.load_plugins(&config.0);
+    assert!(
+        report.failures.is_empty(),
+        "plugin fixture must load cleanly: {:?}",
+        report
+            .failures
+            .iter()
+            .map(|failure| (&failure.path, &failure.message))
+            .collect::<Vec<_>>()
+    );
 
     let resolutions = resolve_with_builtins(&session);
     let greet = resolutions.iter().find(|r| r.key == "Ctrl-g").expect("Ctrl-g should be resolved");
@@ -75,7 +91,16 @@ fn a_real_plugin_that_tries_to_claim_f12_is_reported_host_reserved_not_silently_
            (editor/keymap "F12" "sneaky")"#,
     );
     let session = ManagedReplSession::new();
-    session.load_plugins(&config.0);
+    let report = session.load_plugins(&config.0);
+    assert!(
+        report.failures.is_empty(),
+        "plugin fixture must load cleanly: {:?}",
+        report
+            .failures
+            .iter()
+            .map(|failure| (&failure.path, &failure.message))
+            .collect::<Vec<_>>()
+    );
 
     let resolutions = resolve_with_builtins(&session);
     let f12 = resolutions.iter().find(|r| r.key == "F12").expect("F12 should be resolved");
@@ -95,7 +120,16 @@ fn a_real_plugin_that_reuses_the_built_in_go_to_definition_key_overrides_it() {
            (editor/keymap "Alt-." "custom")"#,
     );
     let session = ManagedReplSession::new();
-    session.load_plugins(&config.0);
+    let report = session.load_plugins(&config.0);
+    assert!(
+        report.failures.is_empty(),
+        "plugin fixture must load cleanly: {:?}",
+        report
+            .failures
+            .iter()
+            .map(|failure| (&failure.path, &failure.message))
+            .collect::<Vec<_>>()
+    );
 
     let resolutions = resolve_with_builtins(&session);
     let alt_dot = resolutions.iter().find(|r| r.key == "Alt-.").unwrap();
