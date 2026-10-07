@@ -270,6 +270,10 @@ jobs:
           set -euo pipefail
           guix shell --pure -m manifest.scm -- bash -lc '
             export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
+            export CC="$(command -v gcc)"
+            export CXX="$(command -v g++)"
+            export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$CC"
+            "$CC" --version
             cargo test --manifest-path src-tauri/Cargo.toml --tests -- \
               --skip pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance
           '
