@@ -49,14 +49,14 @@ fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_docum
     let process = ReplProcess::spawn(&binary, &[], move |line| {
         let _ = tx.send(line);
     })
-    .expect("spawning the real my-lisp REPL binary should succeed");
+    .expect("spawning the real sens REPL binary should succeed");
 
     // The real banner (docs/repl-surfaces.md in external/sens) must show
     // up verbatim — nothing in my-idea generates this text.
     let banner = rx
         .recv_timeout(Duration::from_secs(10))
         .expect("the real REPL should print its startup banner");
-    assert!(banner.line.contains("my-lisp REPL"));
+    assert!(banner.line.contains("sens REPL"));
 
     process.write_line(":мова ук").expect("write_line should succeed");
     process.write_line("(атом? (quote мама))").expect("write_line should succeed");
@@ -128,11 +128,11 @@ fn resolve_or_fetch_clones_the_pinned_commit_directly_from_github_when_no_local_
     let _process = ReplProcess::spawn(&binary, &[], move |line| {
         let _ = tx.send(line);
     })
-    .expect("spawning the freshly cloned+built my-lisp REPL binary should succeed");
+    .expect("spawning the freshly cloned+built sens REPL binary should succeed");
     let banner = rx
         .recv_timeout(Duration::from_secs(10))
         .expect("the real REPL should print its startup banner");
-    assert!(banner.line.contains("my-lisp REPL"));
+    assert!(banner.line.contains("sens REPL"));
 
     let _ = std::fs::remove_dir_all(&cache_dir);
 }
