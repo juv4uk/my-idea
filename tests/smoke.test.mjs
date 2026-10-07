@@ -137,6 +137,13 @@ test('native WsmLS adapter owns WSM diagnostics and completion', () => {
   assert.match(editor, /forceLinting/);
 });
 
+test('Rust REPL uses the canonical sens-literate crate identity', () => {
+  const replRust = readFileSync('src-tauri/src/repl.rs', 'utf8');
+  assert.match(replRust, /sens_literate::eval_literate/);
+  assert.doesNotMatch(replRust, /my_lisp_literate::eval_literate/);
+  assert.match(replRust, /engine: "SENS · Rust"/);
+});
+
 test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');

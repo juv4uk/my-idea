@@ -79,7 +79,7 @@ impl ReplSession {
             value: result.value.to_string(),
             output: result.output,
             ast: format!("{forms:#?}"),
-            engine: "my-lisp · Rust",
+            engine: "SENS · Rust",
         })
     }
 }
