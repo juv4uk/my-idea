@@ -70,7 +70,7 @@ fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_docum
     }
     let joined = lines.join("\n");
     assert!(joined.contains("українська"), "surface switch reply missing, got: {joined:?}");
-    assert!(joined.contains("істина"), "localized ukrainian output missing, got: {joined:?}");
+    assert!(joined.contains("так"), "localized ukrainian output missing, got: {joined:?}");
 }
 
 #[test]
