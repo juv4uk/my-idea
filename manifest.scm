@@ -32,7 +32,8 @@
 ;; editing this manifest today.
 
 (specifications->manifest
- '("rust"
+ '("bash"              ; CI enters this profile with: guix shell --pure ... -- bash -lc
+   "rust"
    "rust:cargo"
    "nss-certs"        ; TLS root certs — cargo/npm need these to hit crates.io/registry.npmjs.org
    "node"
