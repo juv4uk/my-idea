@@ -1,6 +1,6 @@
 {
   "name": "my-idea",
-  "version": "0.13.8",
+  "version": "0.13.9",
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
