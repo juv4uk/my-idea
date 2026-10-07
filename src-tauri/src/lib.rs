@@ -516,7 +516,7 @@ mod language_adapter_tests {
         )
         .expect("native evaluation should succeed");
         assert_eq!(result.value, "(antenna 1/3)");
-        assert_eq!(result.engine, "my-lisp · Rust");
+        assert_eq!(result.engine, "SENS · Rust");
     }
 
     #[test]

@@ -12,13 +12,13 @@
             [my-idea.workspace :as workspace]))
 
 (def demo-source
-  "; my-lisp · Rust/CLJS shared contract · спільний контракт · gemeinsamer Vertrag\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second (quote (radio antenna))) (quote ())))")
+  "; SENS · Rust/WASM shared contract · спільний контракт · gemeinsamer Vertrag\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second (quote (radio antenna))) (quote ())))")
 
 (def markdown-demo
-  "# my-lisp literate document\n\nThis is a standard markdown document that mixes prose and code.\n\n```my-lisp\n;; This code block is extracted and evaluated by the engine!\n(def text \"Hello from Literate my-lisp!\")\ntext\n```\n")
+  "# SENS literate document\n\nThis is a standard markdown document that mixes prose and code.\n\n```sens\n;; This code block is extracted and evaluated by the engine!\n(def text \"Hello from Literate SENS!\")\ntext\n```\n")
 
 (def mermaid-demo
-  "graph TD\n    A[Welcome] -->|Evaluate| B(my-lisp)\n    B --> C{Platform}\n    C -->|Desktop| D[Tauri]\n    C -->|Web| E[WASM]\n")
+  "graph TD\n    A[Welcome] -->|Evaluate| B(SENS)\n    B --> C{Platform}\n    C -->|Desktop| D[Tauri]\n    C -->|Web| E[WASM]\n")
 
 (defn- t [key] (i18n/t (:language @state) key))
 (defn- esc [x] (util/esc x))
