@@ -91,7 +91,7 @@ def wasm_uses_submodule() -> bool:
 def release_sidecar_uses_submodule() -> tuple[bool, str]:
     """Every release sidecar must build from the same checked-out gitlink tree."""
     text = PUBLISH_RELEASE.read_text(encoding="utf-8")
-    if "git clone --depth 1 https://github.com/juv4uk/my-lisp.git" in text:
+    if "git clone --depth 1 https://github.com/juv4uk/sens.git" in text:
         return False, "release recipe still creates an independent floating my-lisp checkout"
 
     step_blocks = text.split("\n      - name:")

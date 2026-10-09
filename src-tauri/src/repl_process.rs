@@ -176,7 +176,7 @@ pub fn my_lisp_runtime_provenance() -> MyLispRuntimeProvenance {
 
 /// The real upstream URL `resolve_or_fetch_my_lisp_binary` clones when no
 /// local submodule checkout is available.
-pub const MY_LISP_GIT_URL: &str = "https://github.com/juv4uk/my-lisp.git";
+pub const MY_LISP_GIT_URL: &str = "https://github.com/juv4uk/sens.git";
 
 /// Resolves the my-lisp CLI binary via the local `external/sens`
 /// submodule when a source/dev checkout of my-idea provides one (fast path,

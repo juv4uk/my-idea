@@ -121,7 +121,7 @@ fn resolve_or_fetch_clones_the_pinned_commit_directly_from_github_when_no_local_
     let _ = std::fs::remove_dir_all(&cache_dir);
 
     let binary = resolve_or_fetch_my_lisp_binary(&bogus_root, &cache_dir)
-        .expect("cloning the pinned commit from github.com/juv4uk/my-lisp should succeed");
+        .expect("cloning the pinned commit from github.com/juv4uk/sens should succeed");
     assert!(binary.exists());
 
     let (tx, rx) = channel();
