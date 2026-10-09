@@ -16,9 +16,10 @@ env:
 
 jobs:
   hosted-web:
-    name: Hosted compatibility lane
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
+    # No owner-PC runner: all mandatory P0 checks run on GitHub's Ubuntu.
+    # The exact CML integration remains an opt-in separate manual witness.
+    name: Required P0 hosted SENS IDE tests
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
@@ -48,6 +49,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+      - name: Publish portable web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-idea-web-current
+          path: my-idea-web.html
+          if-no-files-found: error
+          retention-days: 7
       - name: Install Playwright Browsers · Встановити браузери Playwright · Playwright-Browser installieren
         run: bunx playwright install chromium --with-deps
       - run: bun run test
@@ -55,6 +63,7 @@ jobs:
       - name: Build my-lisp CLI sidecar for tests · Зібрати sidecar my-lisp для тестів
         run: bash scripts/build-repl-sidecar.sh
       - name: Checkout exact CML witness source
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: actions/checkout@v5
         with:
           repository: juv4uk/cml
@@ -64,6 +73,7 @@ jobs:
           path: .ci-cml
           fetch-depth: 1
       - name: Build pinned CML host compiler · Зібрати зафіксований CML host compiler
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -74,8 +84,9 @@ jobs:
           echo "MY_IDEA_CML_TEST_BIN=${CML_DIR}/target/release/cml-compile" >> "${GITHUB_ENV}"
           echo "MY_IDEA_CML_TEST_REVISION=${CML_REVISION}" >> "${GITHUB_ENV}"
       - name: Execute Rust witness tests · Виконати Rust тести-свідки · Rust-Zeugentests ausführen
-        run: cargo test --manifest-path src-tauri/Cargo.toml --tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --tests -- --skip pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance
       - name: Expose real-CML provenance evidence · Показати provenance реального CML
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -87,208 +98,3 @@ jobs:
           grep -F "real-cml provenance: compiler=cml-compile compiler_revision=${MY_IDEA_CML_TEST_REVISION}" "${LOG}"
           grep -E 'input_revision=[0-9a-f]{40} artifact=.+' "${LOG}"
 
-  local-web:
-    name: Local my-idea CI · WSL/Guix
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
-    runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 60
-    steps:
-      - name: Runner contract · What this machine must provide
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "runner=${RUNNER_NAME} os=${RUNNER_OS} arch=${RUNNER_ARCH}"
-          echo "workspace=${GITHUB_WORKSPACE}"
-          command -v bash
-          command -v git
-          command -v python3
-          if ! command -v guix >/dev/null 2>&1; then
-            echo "::error::This my-idea job requires Guix in PATH. Register/start a Linux x64 WSL runner with the shared Guix profile available."
-            exit 1
-          fi
-          guix --version
-      - uses: actions/checkout@v5
-        with:
-          submodules: false
-          fetch-depth: 0
-      - name: Materialize exact SENS pin from live local workspace
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "runner=${RUNNER_NAME} os=${RUNNER_OS} arch=${RUNNER_ARCH}"
-          SENS_PIN="$(git rev-parse :external/sens)"
-          SENS_SOURCE=""
-          for candidate in \
-            /home/agents/core-runners/sens/_work/sens/sens \
-            /home/agents/actions-runner/sens/_work/sens/sens \
-            /home/agents/actions-runner/cml/_work/cml/cml/external/sens \
-            /home/agents/GitHub/sens \
-            /mnt/c/GitHub/sens; do
-            if test "$(git -C "${candidate}" rev-parse HEAD 2>/dev/null || true)" = "${SENS_PIN}"; then
-              SENS_SOURCE="${candidate}"
-              break
-            fi
-          done
-          test -n "${SENS_SOURCE}" || {
-            echo "no local SENS workspace is checked out exactly at ${SENS_PIN}" >&2
-            exit 1
-          }
-
-          rm -rf external/sens
-          mkdir -p external/sens
-          git -C "${SENS_SOURCE}" ls-files -z \
-            | tar -C "${SENS_SOURCE}" --null -T - -cf - \
-            | tar -C external/sens -xf -
-
-          git init -q external/sens
-          COMMIT_HASH="$(
-            git -C "${SENS_SOURCE}" cat-file commit "${SENS_PIN}" \
-              | git -C external/sens hash-object -t commit -w --stdin
-          )"
-          test "${COMMIT_HASH}" = "${SENS_PIN}"
-          git -C external/sens update-ref refs/heads/pinned "${SENS_PIN}"
-          git -C external/sens symbolic-ref HEAD refs/heads/pinned
-          test "$(git -C external/sens rev-parse HEAD)" = "${SENS_PIN}"
-          python3 scripts/check-my-lisp-sync.py
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.8
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - name: Verify Guix and install wasm-pack when needed
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v guix
-          if ! command -v wasm-pack >/dev/null 2>&1; then
-            curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          fi
-      - name: Build portable web artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          bun install --frozen-lockfile
-          bun run build
-          node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
-      - name: Upload portable web artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: my-idea-web-current
-          path: my-idea-web.html
-          if-no-files-found: error
-          retention-days: 7
-      - name: Frontend and SENS integration tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          bunx playwright install chromium
-          bun run test
-          bun run check
-      - name: Build exact pinned sidecar
-        run: bash scripts/build-repl-sidecar.sh
-      - name: Materialize exact CML witness from live local workspace
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          materialize_tracked_repo() {
-            SOURCE="$1"
-            PIN="$2"
-            DEST="$3"
-            shift 3
-
-            rm -rf "${DEST}"
-            mkdir -p "${DEST}"
-            git -C "${SOURCE}" ls-files -z -- . "$@" \
-              | tar -C "${SOURCE}" --null -T - -cf - \
-              | tar -C "${DEST}" -xf -
-
-            git init -q "${DEST}"
-            MATERIALIZED_HASH="$(
-              git -C "${SOURCE}" cat-file commit "${PIN}" \
-                | git -C "${DEST}" hash-object -t commit -w --stdin
-            )"
-            test "${MATERIALIZED_HASH}" = "${PIN}"
-            git -C "${DEST}" update-ref refs/heads/pinned "${PIN}"
-            git -C "${DEST}" symbolic-ref HEAD refs/heads/pinned
-            test "$(git -C "${DEST}" rev-parse HEAD)" = "${PIN}"
-          }
-
-          CML_SOURCE=""
-          for candidate in \
-            /home/agents/actions-runner/cml/_work/cml/cml \
-            /home/agents/core-runners/cml/_work/cml/cml \
-            /home/agents/GitHub/cml \
-            /mnt/c/GitHub/cml; do
-            if test "$(git -C "${candidate}" rev-parse HEAD 2>/dev/null || true)" = "${CML_REVISION}"; then
-              CML_SOURCE="${candidate}"
-              break
-            fi
-          done
-          test -n "${CML_SOURCE}" || {
-            echo "no local CML workspace is checked out exactly at ${CML_REVISION}" >&2
-            exit 1
-          }
-
-          CML_SENS_PIN="$(git -C "${CML_SOURCE}" rev-parse :external/sens)"
-          SENS_SOURCE=""
-          for candidate in \
-            "${CML_SOURCE}/external/sens" \
-            /home/agents/core-runners/sens/_work/sens/sens \
-            /home/agents/actions-runner/sens/_work/sens/sens \
-            /home/agents/GitHub/sens \
-            /mnt/c/GitHub/sens; do
-            if test "$(git -C "${candidate}" rev-parse HEAD 2>/dev/null || true)" = "${CML_SENS_PIN}"; then
-              SENS_SOURCE="${candidate}"
-              break
-            fi
-          done
-          test -n "${SENS_SOURCE}" || {
-            echo "no local SENS workspace matches CML pin ${CML_SENS_PIN}" >&2
-            exit 1
-          }
-
-          CML_DIR="${RUNNER_TEMP}/my-idea-cml-witness"
-          materialize_tracked_repo "${CML_SOURCE}" "${CML_REVISION}" "${CML_DIR}" ':(exclude)external/sens'
-          materialize_tracked_repo "${SENS_SOURCE}" "${CML_SENS_PIN}" "${CML_DIR}/external/sens"
-          cargo build --locked --release --manifest-path "${CML_DIR}/Cargo.toml" --bin cml-compile
-          echo "MY_IDEA_CML_TEST_DIR=${CML_DIR}" >> "${GITHUB_ENV}"
-          echo "MY_IDEA_CML_TEST_BIN=${CML_DIR}/target/release/cml-compile" >> "${GITHUB_ENV}"
-          echo "MY_IDEA_CML_TEST_REVISION=${CML_REVISION}" >> "${GITHUB_ENV}"
-      - name: Rust P0 witnesses inside declared Guix environment
-        shell: bash
-        run: |
-          set -euo pipefail
-          guix shell --pure -m manifest.scm -- bash -lc '
-            export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
-            export CC="$(command -v gcc)"
-            export CXX="$(command -v g++)"
-            export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$CC"
-            "$CC" --version
-            cargo test --manifest-path src-tauri/Cargo.toml --tests -- \
-              --skip pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance
-          '
-      - name: Strict real-CML witness
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          guix shell --pure -m manifest.scm -- bash -lc '
-            export SSL_CERT_DIR="$GUIX_ENVIRONMENT/etc/ssl/certs"
-            export MY_IDEA_CML_TEST_DIR="'"$MY_IDEA_CML_TEST_DIR"'"
-            export MY_IDEA_CML_TEST_BIN="'"$MY_IDEA_CML_TEST_BIN"'"
-            export MY_IDEA_CML_TEST_REVISION="'"$MY_IDEA_CML_TEST_REVISION"'"
-            cargo test --manifest-path src-tauri/Cargo.toml \
-              --test real_cml_compiler_contract \
-              pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance \
-              -- --exact --nocapture
-          '
