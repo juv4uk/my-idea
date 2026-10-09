@@ -1,3 +1,5 @@
+#[path = "../build_support.rs"]
+pub mod build_support;
 pub mod compiler_bridge;
 pub mod compiler_build_adapter;
 pub mod editor_api;
@@ -265,16 +267,7 @@ fn find_cml(workspace: &Path) -> PathBuf {
 }
 
 fn resolve_cml_binary(workspace: &Path, explicit_override: Option<PathBuf>) -> PathBuf {
-    if let Some(path) = explicit_override {
-        return path;
-    }
-    let sibling = workspace
-        .parent()
-        .map(|parent| parent.join("cml/target/release/cml-compile"));
-    if let Some(path) = sibling.filter(|path| path.is_file()) {
-        return path;
-    }
-    "cml-compile".into()
+    compiler_bridge::resolve_cml_candidate(workspace, explicit_override)
 }
 
 #[cfg(test)]
