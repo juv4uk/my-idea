@@ -72,14 +72,14 @@ impl ReplSession {
     }
 
     pub fn evaluate_mode(&mut self, source: &str, mode: SourceMode) -> Result<LispEvaluation, String> {
-        let (result, forms) = my_lisp_literate::eval_literate(source, mode, &mut self.session)
+        let (result, forms) = sens_literate::eval_literate(source, mode, &mut self.session)
             .map_err(|error| error.to_string())?;
 
         Ok(LispEvaluation {
             value: result.value.to_string(),
             output: result.output,
             ast: format!("{forms:#?}"),
-            engine: "my-lisp · Rust",
+            engine: "SENS · Rust",
         })
     }
 }

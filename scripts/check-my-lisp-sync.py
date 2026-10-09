@@ -91,8 +91,15 @@ def wasm_uses_submodule() -> bool:
 def release_sidecar_uses_submodule() -> tuple[bool, str]:
     """Every release sidecar must build from the same checked-out gitlink tree."""
     text = PUBLISH_RELEASE.read_text(encoding="utf-8")
-    if "git clone --depth 1 https://github.com/juv4uk/my-lisp.git" in text:
-        return False, "release recipe still creates an independent floating my-lisp checkout"
+    for forbidden_url in (
+        "https://github.com/juv4uk/my-lisp.git",
+        "https://github.com/juv4uk/sens.git",
+    ):
+        if f"git clone --depth 1 {forbidden_url}" in text:
+            return False, (
+                "release recipe creates an independent floating language checkout "
+                f"instead of the pinned external/sens gitlink: {forbidden_url}"
+            )
 
     step_blocks = text.split("\n      - name:")
     sidecar_steps = [block for block in step_blocks if "sens-cli --bin my-lisp" in block]
@@ -190,9 +197,9 @@ def main() -> int:
             f"одна залежність має один канал істини: {details}"
         )
 
-    print(f"my-lisp: single channel confirmed (external/sens @ {sha})")
+    print(f"SENS: single channel confirmed (external/sens @ {sha})")
     for path, revision in revisions.items():
-        print(f"my-lisp runtime: {path}={revision}")
+        print(f"SENS runtime: {path}={revision}")
     return 0
 
 

@@ -22,6 +22,6 @@
 (def languages ["uk" "de" "en"])
 (def themes ["auto" "light" "dark" "sepia" "signal" "amber" "forest"])
 (def programming-languages ["my-lisp" "clojurescript" "rust" "markdown" "mermaid" "text"])
-(def programming-language-labels {"my-lisp" "my-lisp" "clojurescript" "ClojureScript" "rust" "Rust" "markdown" "Markdown" "mermaid" "Mermaid" "text" "Text"})
+(def programming-language-labels {"my-lisp" "SENS" "clojurescript" "ClojureScript" "rust" "Rust" "markdown" "Markdown" "mermaid" "Mermaid" "text" "Text"})
 (def language-labels {"uk" "UA" "de" "DE" "en" "EN"})
 (def theme-icons {"auto" "◐" "light" "☀" "dark" "☾" "sepia" "◉" "signal" "⌁" "amber" "◆" "forest" "♣"})

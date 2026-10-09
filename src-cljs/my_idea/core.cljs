@@ -12,13 +12,13 @@
             [my-idea.workspace :as workspace]))
 
 (def demo-source
-  "; my-lisp · Rust/CLJS shared contract · спільний контракт · gemeinsamer Vertrag\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second (quote (radio antenna))) (quote ())))")
+  "; SENS · Rust/WASM shared contract · спільний контракт · gemeinsamer Vertrag\n(def greeting \"Hello · Привіт · Hallo\")\n(def second (lambda (values) (car (cdr values))))\n(cons greeting (cons (second (quote (radio antenna))) (quote ())))")
 
 (def markdown-demo
-  "# my-lisp literate document\n\nThis is a standard markdown document that mixes prose and code.\n\n```my-lisp\n;; This code block is extracted and evaluated by the engine!\n(def text \"Hello from Literate my-lisp!\")\ntext\n```\n")
+  "# SENS literate document\n\nThis is a standard markdown document that mixes prose and code.\n\n```sens\n;; This code block is extracted and evaluated by the engine!\n(def text \"Hello from Literate SENS!\")\ntext\n```\n")
 
 (def mermaid-demo
-  "graph TD\n    A[Welcome] -->|Evaluate| B(my-lisp)\n    B --> C{Platform}\n    C -->|Desktop| D[Tauri]\n    C -->|Web| E[WASM]\n")
+  "graph TD\n    A[Welcome] -->|Evaluate| B(SENS)\n    B --> C{Platform}\n    C -->|Desktop| D[Tauri]\n    C -->|Web| E[WASM]\n")
 
 (defn- t [key] (i18n/t (:language @state) key))
 (defn- esc [x] (util/esc x))
@@ -164,7 +164,6 @@
         mode (or (:language-mode doc) "text")
         preview? (or (= mode "markdown") (= mode "mermaid"))
         runnable? (or (= mode "my-lisp") (= mode "markdown"))
-        compilable? (and (= mode "my-lisp") (workspace/native?))
         repl-panel (render-repl-console-panel)
         build-panel (render-build-output-panel)]
     (apply-theme! theme)
@@ -175,10 +174,7 @@
              (str "<button id='editor-commands' title='" (t :editor-commands) "'>⌘ " (t :editor-commands) "</button>"
                   "<button id='reload-plugins' title='" (t :reload-plugins) "'>⟲</button>"))
            (when runnable?
-             (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"
-                  "<button class='run' id='run'>▶ " (t :run) "</button>"))
-           (when compilable?
-             (str "<button class='compile' id='compile' title='" (t :compile-cml) "'>🔧 " (t :compile-cml) "</button>"))
+             (str "<button class='eval' id='eval'>⚡ " (t :evaluate) "</button>"))
            "</div></header>"
            "<main class='workspace" (when-not sidebar? " sidebar-closed") "'><aside class='sidebar'><div class='sidebar-toolbar'><button id='new-file' title='" (t :new-file) "'>&#xFF0B;</button><button id='open-sidebar' title='" (t :open) "'>&#128193;</button></div>" (when root (str "<div class='root'>" (esc root) "</div>")) "<nav>" (workspace/tree-html tree) "</nav></aside>"
            "<div class='splitter vsplit-l' id='vsplit-l'></div>"

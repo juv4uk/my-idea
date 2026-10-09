@@ -6,17 +6,17 @@
 
 `my-idea` is a new programming IDE forked from [`my-ide`](https://github.com/juv4uk/my-ide). The editor is built around **CodeMirror 6**, the interface is written in **ClojureScript**, and **Tauri v2 + Rust** provide a small cross-platform desktop and mobile shell.
 
-The main goal is a small, honest development loop for WSM and Tauri projects: open, edit, build or run, stop, and read the output. System Observatory and swarm control belong to `tauricode`.
+The current stabilization target is deliberately small: **open a workspace, edit SENS, save, execute through the pinned SENS engine, and read useful diagnostics/output**. Unfinished native Run/Compile surfaces stay hidden until their backend contracts are reliable. System Observatory and swarm control belong to `tauricode`.
 
-**my-lisp** is the small independent language developed with the IDE: *a small language that grows itself · маленька мова, що вирощує себе · eine kleine Sprache, die sich selbst wachsen lässt*. Rust supplies the minimal safe semantic machinery; higher-level forms and libraries grow inside my-lisp itself.
+**SENS** is the language currently integrated with the IDE. The internal compatibility key `my-lisp` still exists in parts of the codebase during migration, but it is not a second semantic authority.
 
 ## Quick try · Швидко спробувати · Schnell ausprobieren
 
-No installation and no account: **[download the standalone Web IDE](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** and open the downloaded `.html` file in your browser. The editor, themes, programming-language switcher, and my-lisp Language Lab are contained in that one portable file and run locally.
+No installation and no account: **[download the standalone Web IDE](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** and open the downloaded `.html` file in your browser. The editor, themes, programming-language switcher, and SENS Language Lab are contained in that one portable file and run locally.
 
-Без встановлення та облікового запису: **[завантажте автономну Web IDE](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** і відкрийте отриманий файл `.html` у браузері. Редактор, теми, перемикач мов програмування та my-lisp Language Lab містяться в одному portable-файлі й працюють локально.
+Без встановлення та облікового запису: **[завантажте автономну Web IDE](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** і відкрийте отриманий файл `.html` у браузері. Редактор, теми, перемикач мов програмування та SENS Language Lab містяться в одному portable-файлі й працюють локально.
 
-Ohne Installation und Benutzerkonto: **[die eigenständige Web-IDE herunterladen](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** und die geladene `.html`-Datei im Browser öffnen. Editor, Themes, Programmiersprachenumschalter und my-lisp Language Lab befinden sich in dieser einen portablen Datei und laufen lokal.
+Ohne Installation und Benutzerkonto: **[die eigenständige Web-IDE herunterladen](https://github.com/juv4uk/my-idea/releases/latest/download/my-idea-web.html)** und die geladene `.html`-Datei im Browser öffnen. Editor, Themes, Programmiersprachenumschalter und SENS Language Lab befinden sich in dieser einen portablen Datei und laufen lokal.
 
 Just the language, no editor: **[download the standalone my-lisp CLI REPL](https://github.com/juv4uk/my-lisp/releases/latest/download/my-lisp-cli-web.html)** — a single portable `.html` file with a terminal-style REPL for the my-lisp core, running entirely in your browser. See [`docs/quote-tutorial.md`](docs/quote-tutorial.md) for a first walkthrough.
 
@@ -34,7 +34,9 @@ Nur die Sprache, ohne Editor: **[den eigenständigen my-lisp-CLI-REPL herunterla
 
 Details: [`docs/versioning.md`](docs/versioning.md)
 
-my-lisp source files use the canonical `.lisp` extension; see the [trilingual source-file contract](docs/source-files.md).
+SENS source files use the canonical `.lisp` extension; see the [trilingual source-file contract](docs/source-files.md).
+
+For the current daily-use acceptance path, use [`docs/daily-use-smoke.md`](docs/daily-use-smoke.md).
 
 ## English
 
@@ -50,7 +52,7 @@ my-lisp source files use the canonical `.lisp` extension; see the [trilingual so
 
 ### Direction
 
-The accepted direction is the smallest working IDE loop: project tree, editor, Build/Run/Stop and build output. WSM uses the authoritative `my-lisp` CLI/LSP; Tauri projects use fixed Bun/Cargo/Tauri build profiles. The long-term proof is that `my-idea` can build its own checkout.
+The accepted P0 direction is the smallest reliable SENS IDE loop: project tree, editor, Save, pinned SENS execution, diagnostics and output. Native subprocess Run/Stop and CML Compile are restored only after their backend-owned contracts are green; see #79 and the current stabilization issue #77.
 
 ## Українська
 

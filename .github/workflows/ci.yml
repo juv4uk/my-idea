@@ -1,30 +1,35 @@
 name: CI · Перевірка · Prüfung
 
 on:
-  push:
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: my-idea-ci-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
 
 env:
   # Exact merged CML revision that provides the host-integration `cml-compile`
   # process boundary. Keep this immutable: provenance assertions below depend
   # on the binary being built from precisely this checkout.
-  CML_REVISION: de207354b0257722b0a20408657c0a79ce1808f9
+  CML_REVISION: fde90ea3512dacee4272f0c8f8be531831adf277
 
 jobs:
-  web:
-    runs-on: ubuntu-latest
+  hosted-web:
+    # No owner-PC runner: all mandatory P0 checks run on GitHub's Ubuntu.
+    # The exact CML integration remains an opt-in separate manual witness.
+    name: Required P0 hosted SENS IDE tests
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: true
+          token: ${{ secrets.SUBMODULE_READ_TOKEN || secrets.SENS_READ_TOKEN || github.token }}
+          submodules: recursive
       - name: Verify single my-lisp pin channel · Перевірити єдиний канал pin my-lisp · Einzelnen my-lisp-Pin-Kanal prüfen
         run: python3 scripts/check-my-lisp-sync.py
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.8
-      # package.json's build/test scripts still shell out to `node` directly
-      # (see AGENTS.md's Bun migration note) — Bun is the package manager and
-      # script runner, not a Node replacement for those two scripts yet.
       - uses: actions/setup-node@v6
         with:
           node-version: 20
@@ -44,42 +49,44 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
+      - name: Publish portable web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-idea-web-current
+          path: my-idea-web.html
+          if-no-files-found: error
+          retention-days: 7
       - name: Install Playwright Browsers · Встановити браузери Playwright · Playwright-Browser installieren
         run: bunx playwright install chromium --with-deps
       - run: bun run test
       - run: bun run check
       - name: Build my-lisp CLI sidecar for tests · Зібрати sidecar my-lisp для тестів
-        # tauri.conf.json's externalBin makes tauri-build validate this file
-        # exists even for `cargo test` — from the local submodule here (fast,
-        # matches AGENTS.md's dev setup), not a fresh main clone: that policy
-        # is specific to actual releases (publish-release.yml).
         run: bash scripts/build-repl-sidecar.sh
-      - name: Fetch exact CML host compiler outside the my-idea workspace · Отримати точний CML поза workspace
+      - name: Checkout exact CML witness source
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@v5
+        with:
+          repository: juv4uk/cml
+          ref: ${{ env.CML_REVISION }}
+          token: ${{ secrets.SUBMODULE_READ_TOKEN || secrets.SENS_READ_TOKEN }}
+          submodules: recursive
+          path: .ci-cml
+          fetch-depth: 1
+      - name: Build pinned CML host compiler · Зібрати зафіксований CML host compiler
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -euo pipefail
-          CML_DIR="${RUNNER_TEMP}/cml-${CML_REVISION}"
-          rm -rf "${CML_DIR}"
-          git init -q "${CML_DIR}"
-          git -C "${CML_DIR}" remote add origin https://github.com/juv4uk/cml.git
-          git -C "${CML_DIR}" fetch --depth=1 origin "${CML_REVISION}"
-          git -C "${CML_DIR}" checkout --detach FETCH_HEAD
-          git -C "${CML_DIR}" submodule update --init --recursive --depth=1
-          ACTUAL_REVISION="$(git -C "${CML_DIR}" rev-parse HEAD)"
-          test "${ACTUAL_REVISION}" = "${CML_REVISION}"
+          CML_DIR="${GITHUB_WORKSPACE}/.ci-cml"
+          test "$(git -C "${CML_DIR}" rev-parse HEAD)" = "${CML_REVISION}"
+          cargo build --locked --release --manifest-path "${CML_DIR}/Cargo.toml" --bin cml-compile
           echo "MY_IDEA_CML_TEST_DIR=${CML_DIR}" >> "${GITHUB_ENV}"
           echo "MY_IDEA_CML_TEST_BIN=${CML_DIR}/target/release/cml-compile" >> "${GITHUB_ENV}"
           echo "MY_IDEA_CML_TEST_REVISION=${CML_REVISION}" >> "${GITHUB_ENV}"
-      - name: Build pinned CML host compiler · Зібрати зафіксований CML host compiler
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo build --locked --release --manifest-path "${MY_IDEA_CML_TEST_DIR}/Cargo.toml" --bin cml-compile
-          test -x "${MY_IDEA_CML_TEST_BIN}"
-          test "$(git -C "${MY_IDEA_CML_TEST_DIR}" rev-parse HEAD)" = "${MY_IDEA_CML_TEST_REVISION}"
       - name: Execute Rust witness tests · Виконати Rust тести-свідки · Rust-Zeugentests ausführen
-        run: cargo test --manifest-path src-tauri/Cargo.toml --tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --tests -- --skip pinned_real_cml_flows_through_production_build_and_run_with_exact_provenance
       - name: Expose real-CML provenance evidence · Показати provenance реального CML
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -90,3 +97,4 @@ jobs:
             -- --exact --nocapture 2>&1 | tee "${LOG}"
           grep -F "real-cml provenance: compiler=cml-compile compiler_revision=${MY_IDEA_CML_TEST_REVISION}" "${LOG}"
           grep -E 'input_revision=[0-9a-f]{40} artifact=.+' "${LOG}"
+

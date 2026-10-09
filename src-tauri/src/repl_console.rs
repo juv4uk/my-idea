@@ -97,12 +97,12 @@ pub fn start_repl_console(app: AppHandle, console: State<'_, ManagedReplConsole>
     // No bundled sidecar for this platform/build — fall back to a local
     // submodule checkout (dev) or fetching the pinned commit from GitHub.
     let repo_root = my_idea_repo_root();
-    if !repo_root.join("external").join("my-lisp").join("Cargo.toml").exists() {
+    if !repo_root.join("external").join("sens").join("Cargo.toml").exists() {
         let _ = app.emit(
             REPL_CONSOLE_EVENT,
             ReplConsoleLineEvent {
                 stream: "system",
-                line: "No bundled my-lisp sidecar found; building from source (first run only, needs network + git + cargo)…"
+                line: "No bundled SENS sidecar found; building the exact pinned SENS compatibility CLI (first run only, needs network + git + cargo)…"
                     .to_string(),
             },
         );

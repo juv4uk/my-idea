@@ -72,7 +72,7 @@
    Darf nur aufgerufen werden, wenn (ready?) true ist."
   [source mode]
   (try
-    (js/Promise.resolve (.evaluate @!module source mode))
+    (js/Promise.resolve ((aget @!module "evaluate") source mode))
     (catch :default e (js/Promise.reject e))))
 
 (defn set-surface
@@ -80,12 +80,12 @@
    (uk/en/sa/core), mirroring the native CLI's :мова/:surface meta-command.
    Returns the resulting surface code. Must only be called when (ready?)."
   [name]
-  (.set_surface @!module name))
+  ((aget @!module "set_surface") name))
 
 (defn current-surface
   "Returns the WASM engine's currently active surface code."
   []
-  (.current_surface @!module))
+  ((aget @!module "current_surface")))
 
 (defn diagnose
   "Calls the WASM diagnose(source, mode) function to get syntax errors.
@@ -93,6 +93,6 @@
   [source mode]
   (if (and (ready?) (not (failed?)))
     (try
-      (.diagnose @!module source mode)
+      ((aget @!module "diagnose") source mode)
       (catch js/Error _ #js []))
     #js []))

@@ -137,6 +137,13 @@ test('native WsmLS adapter owns WSM diagnostics and completion', () => {
   assert.match(editor, /forceLinting/);
 });
 
+test('Rust REPL uses the canonical sens-literate crate identity', () => {
+  const replRust = readFileSync('src-tauri/src/repl.rs', 'utf8');
+  assert.match(replRust, /sens_literate::eval_literate/);
+  assert.doesNotMatch(replRust, /my_lisp_literate::eval_literate/);
+  assert.match(replRust, /engine: "SENS · Rust"/);
+});
+
 test('frontend wiring exposes the independent Rust my-lisp command', () => {
   const cargo = readFileSync('src-tauri/Cargo.toml', 'utf8');
   const rust = readFileSync('src-tauri/src/lib.rs', 'utf8');
@@ -171,6 +178,10 @@ test('WASM crate and ClojureScript bindings are present and correctly wired', ()
   // CLJS bindings load the module and expose ready? / evaluate
   assert.match(wasmCljs, /ready\?/);
   assert.match(wasmCljs, /load!/);
+  // wasm-bindgen exports are external JS property names: Closure Advanced must never rename them.
+  for (const exportName of ['evaluate', 'diagnose', 'set_surface', 'current_surface']) {
+    assert.match(wasmCljs, new RegExp('aget @!module "' + exportName + '"'));
+  }
   // The loader uses a plain-JS shim (wasm-loader.js) to bypass Closure Compiler;
   // js/import cannot be used directly in release builds.
   // Завантажувач використовує plain-JS шим (wasm-loader.js) для обходу Closure Compiler;
@@ -306,8 +317,8 @@ test('Standalone web artifact does not stack overflow on 100k list', async () =>
       return wasm.evaluate(`
         (def build 
           (lambda (n acc)
-            (cond ((eq n 0) acc)
-                  (t (build (- n 1) (cons n acc))))))
+            (cond ((eq? n 0) acc)
+                  ((eq? 0 0) (build (- n 1) (cons n acc))))))
         (build 100000 (quote ()))
       `);
     });
