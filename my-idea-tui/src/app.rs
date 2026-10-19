@@ -315,6 +315,21 @@ impl App {
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(file) => {
                 drop(file);
+                // Новий файл — окрема вкладка: зберігаємо старий буфер, Undo
+                // і курсор, щоб Ctrl+Tab не втрачав стан попереднього файла.
+                self.store_active_tab();
+                self.active_tab = self.tabs.len();
+                self.tabs.push(OpenDocument {
+                    path: path.clone(),
+                    text: String::new(),
+                    original: String::new(),
+                    cursor: 0,
+                    undo: Vec::new(),
+                    redo: Vec::new(),
+                });
+                self.ast_cached_source.clear();
+                self.ast_lines.clear();
+                self.ast_scroll = 0;
                 self.editor_path = Some(path.clone());
                 self.editor_original.clear();
                 self.editor_buf.clear();
