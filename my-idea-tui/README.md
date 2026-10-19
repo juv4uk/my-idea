@@ -41,18 +41,17 @@ crossterm = "0.29"
 ## Збірка й запуск
 
 ```sh
-# 1) додати крейт у воркспейс (кореневий Cargo.toml):
-#    members = [ "src-tauri", "my-idea-tui" ]
-# 2) зібрати pinned SENS CLI з підмодуля:
+# 1) ініціалізувати саме закріплений підмодуль:
+git submodule update --init external/sens
+# 2) зібрати CLI з поточного exact gitlink:
 cargo build --release --manifest-path external/sens/Cargo.toml -p sens-cli --bin my-lisp
-# 3) зібрати TUI:
-cargo build --release -p my-idea-tui
-# 4) запустити (за потреби вказати бінарник рушія явно):
-MY_LISP_BIN=external/sens/target/release/my-lisp ./target/release/my-idea-tui
+# 3) окремо зібрати TUI (не чіпає кореневий lockfile):
+cargo build --release --manifest-path my-idea-tui/Cargo.toml
+# 4) запустити з будь-якого поточного каталогу:
+./my-idea-tui/target/release/my-idea-tui
 ```
 
-Якщо рушія не знайдено — консоль показує інформативну помилку (без мовчазного
-`PATH`-fallback на чужу ревізію).
+Якщо CLI не зібрано в `external/sens/target/{release,debug}`, консоль показує інформативну помилку. `PATH` та `MY_LISP_BIN` не підміняють pinned джерело.
 
 ## Клавіші
 
@@ -63,7 +62,9 @@ MY_LISP_BIN=external/sens/target/release/my-lisp ./target/release/my-idea-tui
 | `↑` / `↓` | Explorer: вибір; Console: історія |
 | `F5` | Run (поточний файл через pinned SENS) |
 | `F9` | Stop |
-| `Ctrl-C` / `Esc` | вихід (термінал відновлюється гарантовано) |
+| `Ctrl-S` | зберегти поточний файл |
+| `Ctrl-C` / `Ctrl-Q` | вихід (при незбережених змінах потрібно повторити) |
+| `Esc` | повернутися до Explorer |
 
 Мета-команди консолі: `:мова ук|de|en`, `:run`, `:stop`, `:save`.
 

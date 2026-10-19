@@ -25,7 +25,9 @@ pub struct App {
     pub file_sel: usize,
     pub editor_path: Option<PathBuf>,
     pub editor_buf: String,
+    pub editor_cursor: usize, // UTF-8 byte offset, завжди на межі символу
     pub dirty: bool,
+    pub quit_armed: bool,
     pub console: Vec<Line>,
     pub input: String,
     pub history: Vec<String>,
@@ -47,7 +49,9 @@ impl App {
             file_sel: 0,
             editor_path: None,
             editor_buf: String::new(),
+            editor_cursor: 0,
             dirty: false,
+            quit_armed: false,
             console: Vec::new(),
             input: String::new(),
             history: Vec::new(),
@@ -98,10 +102,15 @@ impl App {
     }
 
     fn open_selected(&mut self) {
+        if self.dirty {
+            self.sys("Незбережені зміни: Ctrl+S перед відкриттям іншого файлу");
+            return;
+        }
         if let Some(p) = self.files.get(self.file_sel).cloned() {
             match std::fs::read_to_string(&p) {
                 Ok(text) => {
                     self.editor_buf = text;
+                    self.editor_cursor = self.editor_buf.len();
                     self.editor_path = Some(p.clone());
                     self.dirty = false;
                     self.pane = Pane::Editor;
@@ -158,17 +167,20 @@ impl App {
         self.sys(&format!("run {}", path.display()));
         let body = self.editor_buf.clone();
         if let Some(eng) = self.engine.as_mut() {
-            // Кожну форму — окремим рядком у stdin рушія; це механічний транспорт,
-            // а не вигадана семантика. Точний вивід приходить у консоль.
-            for line in body.lines() {
-                let _ = eng.send_line(line);
+            // Передаємо весь буфер із точними LF, без обрізання/ігнорування IO-помилок.
+            // REPL залишається власником інтерпретації введених форм.
+            match eng.send_source(&body) {
+                Ok(()) => self.engine_running = true,
+                Err(error) => {
+                    self.engine_running = false;
+                    self.console.push(Line { origin: Origin::Stderr, text: format!("stdin SENS: {error}") });
+                }
             }
-            self.engine_running = true;
         }
     }
 
     fn stop(&mut self) {
-        if let Some(eng) = self.engine.as_mut() {
+        if let Some(mut eng) = self.engine.take() {
             eng.stop();
         }
         self.engine_running = false;
@@ -204,7 +216,9 @@ impl App {
             self.start_engine();
         }
         if let Some(eng) = self.engine.as_mut() {
-            let _ = eng.send_line(&line);
+            if let Err(error) = eng.send_line(&line) {
+                self.console.push(Line { origin: Origin::Stderr, text: format!("stdin SENS: {error}") });
+            }
         }
     }
 
@@ -212,8 +226,8 @@ impl App {
         let mut it = rest.split_whitespace();
         match it.next() {
             Some("мова") | Some("language") => match it.next() {
-                Some(l) if i18n::LANGUAGES.contains(&l) => {
-                    self.language = l.to_string();
+                Some(l) if i18n::LANGUAGES.contains(&l) || l == "ук" => {
+                    self.language = if l == "ук" { "uk" } else { l }.to_string();
                     self.sys(&format!("мова інтерфейсу: {l}"));
                 }
                 Some(l) => self.sys(&format!("невідома мова: {l}")),
@@ -229,10 +243,20 @@ impl App {
     /// true — вийти з TUI.
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        if !(ctrl && matches!(key.code, KeyCode::Char('q' | 'c'))) {
+            self.quit_armed = false;
+        }
         match key.code {
-            KeyCode::Char('c') if ctrl => return true,
-            KeyCode::Char('q') if ctrl => return true,
-            KeyCode::Esc => return true,
+            KeyCode::Char('s') if ctrl => self.save(),
+            KeyCode::Char('c' | 'q') if ctrl => {
+                if self.dirty && !self.quit_armed {
+                    self.quit_armed = true;
+                    self.sys("Незбережені зміни: Ctrl+S — зберегти; Ctrl+Q повторно — вийти без збереження");
+                } else {
+                    return true;
+                }
+            },
+            KeyCode::Esc => self.pane = Pane::Explorer,
             KeyCode::F(5) => self.run_current(),
             KeyCode::F(9) => self.stop(),
             KeyCode::Tab => self.cycle_pane(),
@@ -244,7 +268,8 @@ impl App {
                 } else if self.pane == Pane::Explorer {
                     self.open_selected();
                 } else {
-                    self.editor_buf.push('\n');
+                    self.editor_buf.insert(self.editor_cursor, '\n');
+                    self.editor_cursor += 1;
                     self.dirty = true;
                 }
             }
@@ -252,20 +277,25 @@ impl App {
             KeyCode::Up => self.up(),
             KeyCode::Down => self.down(),
             KeyCode::Left => {
-                if self.pane == Pane::Editor {
-                    self.move_editor_cursor(false);
-                }
+                if self.pane == Pane::Editor { self.move_editor_cursor(false); }
             }
             KeyCode::Right => {
                 if self.pane == Pane::Editor {
                     self.move_editor_cursor(true);
                 }
             }
+            KeyCode::Home if self.pane == Pane::Editor => {
+                self.editor_cursor = self.editor_buf[..self.editor_cursor].rfind('\n').map_or(0, |p| p + 1);
+            }
+            KeyCode::End if self.pane == Pane::Editor => {
+                self.editor_cursor = self.editor_buf[self.editor_cursor..].find('\n').map_or(self.editor_buf.len(), |p| self.editor_cursor + p);
+            }
             KeyCode::Char(c) => {
                 if self.pane == Pane::Console {
                     self.input.push(c);
                 } else if self.pane == Pane::Editor {
-                    self.editor_buf.push(c);
+                    self.editor_buf.insert(self.editor_cursor, c);
+                    self.editor_cursor += c.len_utf8();
                     self.dirty = true;
                 }
             }
@@ -279,10 +309,14 @@ impl App {
             Pane::Console => {
                 self.input.pop();
             }
-            Pane::Editor => {
-                self.editor_buf.pop();
-                self.dirty = true;
+            Pane::Editor if self.editor_cursor > 0 => {
+                if let Some((previous, _)) = self.editor_buf[..self.editor_cursor].char_indices().last() {
+                    self.editor_buf.drain(previous..self.editor_cursor);
+                    self.editor_cursor = previous;
+                    self.dirty = true;
+                }
             }
+            Pane::Editor => {}
             Pane::Explorer => {}
         }
     }
@@ -296,7 +330,7 @@ impl App {
                     self.input = self.history.get(self.hist_idx).cloned().unwrap_or_default();
                 }
             }
-            Pane::Editor => self.move_editor_cursor(false),
+            Pane::Editor => self.move_editor_line(false),
         }
     }
 
@@ -316,13 +350,39 @@ impl App {
                     self.input.clear();
                 }
             }
-            Pane::Editor => self.move_editor_cursor(true),
+            Pane::Editor => self.move_editor_line(true),
         }
     }
 
-    // Найпростіший рух «курсора» — вставка/видалення в кінці рядка.
-    // Повноцінний редактор-віджет — наступний крок вертикалі, не зараз.
-    fn move_editor_cursor(&mut self, _forward: bool) {}
+    /// Рух по Unicode-символах, без порушення UTF-8 меж.
+    fn move_editor_cursor(&mut self, forward: bool) {
+        if forward {
+            if let Some(ch) = self.editor_buf[self.editor_cursor..].chars().next() {
+                self.editor_cursor += ch.len_utf8();
+            }
+        } else if let Some((i, _)) = self.editor_buf[..self.editor_cursor].char_indices().last() {
+            self.editor_cursor = i;
+        }
+    }
+
+    fn move_editor_line(&mut self, forward: bool) {
+        let start = self.editor_buf[..self.editor_cursor].rfind('\n').map_or(0, |p| p + 1);
+        let column = self.editor_buf[start..self.editor_cursor].chars().count();
+        let (line_start, line_end) = if forward {
+            let Some(offset) = self.editor_buf[self.editor_cursor..].find('\n') else { return; };
+            let next_start = self.editor_cursor + offset + 1;
+            let next_end = self.editor_buf[next_start..].find('\n').map_or(self.editor_buf.len(), |i| next_start + i);
+            (next_start, next_end)
+        } else {
+            if start == 0 { return; }
+            let prev_end = start - 1;
+            let prev_start = self.editor_buf[..prev_end].rfind('\n').map_or(0, |p| p + 1);
+            (prev_start, prev_end)
+        };
+        let line = &self.editor_buf[line_start..line_end];
+        let byte_column = line.char_indices().nth(column).map_or(line.len(), |(i, _)| i);
+        self.editor_cursor = line_start + byte_column;
+    }
 
     fn cycle_pane(&mut self) {
         self.pane = match self.pane {

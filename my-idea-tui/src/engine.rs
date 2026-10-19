@@ -69,39 +69,31 @@ impl Engine {
         self.stdin.flush()
     }
 
-    /// Зупинити реальне виконання (Stop у вертикалі).
+    /// Передати весь вихідний буфер, зберігаючи LF та всі символи.
+    pub fn send_source(&mut self, source: &str) -> std::io::Result<()> {
+        self.stdin.write_all(source.as_bytes())?;
+        if !source.ends_with('\n') { self.stdin.write_all(b"\n")?; }
+        self.stdin.flush()
+    }
+
+    /// Зупинити процес і дочекатися звільнення його ресурсів.
     pub fn stop(&mut self) {
         let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 
-/// Знайти бінарник рушія: `MY_LISP_BIN` → `external/sens/target/{debug,release}/my-lisp` → `PATH`.
+impl Drop for Engine {
+    fn drop(&mut self) { self.stop(); }
+}
+
+/// Лише бінарник із закріпленого external/sens; ніякого випадкового PATH.
 pub fn resolve_bin() -> Option<String> {
-    if let Ok(p) = std::env::var("MY_LISP_BIN") {
-        if !p.is_empty() {
-            return Some(p);
-        }
-    }
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent()?;
+    let binary = if cfg!(windows) { "my-lisp.exe" } else { "my-lisp" };
     for profile in ["release", "debug"] {
-        let p = format!("external/sens/target/{profile}/my-lisp");
-        if std::path::Path::new(&p).exists() {
-            return Some(p);
-        }
-    }
-    // Останній шанс — PATH; явно, не мовчки.
-    if which("my-lisp").is_some() {
-        return Some("my-lisp".to_string());
-    }
-    None
-}
-
-fn which(name: &str) -> Option<String> {
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
-        let cand = dir.join(name);
-        if cand.is_file() {
-            return Some(cand.to_string_lossy().into_owned());
-        }
+        let path = root.join("external").join("sens").join("target").join(profile).join(binary);
+        if path.is_file() { return Some(path.to_string_lossy().into_owned()); }
     }
     None
 }

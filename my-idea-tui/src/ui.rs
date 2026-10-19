@@ -70,9 +70,16 @@ fn draw_editor(f: &mut Frame, app: &App, area: Rect) {
         }
         None => app.t("editor").to_string(),
     };
-    let para = Paragraph::new(app.editor_buf.clone())
+    let mut shown = app.editor_buf.clone();
+    if shown.is_char_boundary(app.editor_cursor) {
+        shown.insert(app.editor_cursor, '▏');
+    }
+    let cursor_line = app.editor_buf[..app.editor_cursor].bytes().filter(|ch| *ch == b'\n').count();
+    let scroll = cursor_line.saturating_sub(area.height.saturating_sub(3) as usize).min(u16::MAX as usize) as u16;
+    let para = Paragraph::new(shown)
         .block(pane_block(&title, app.pane == Pane::Editor))
-        .wrap(Wrap { trim: false });
+        .wrap(Wrap { trim: false })
+        .scroll((scroll, 0));
     f.render_widget(para, area);
 }
 
