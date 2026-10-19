@@ -26,10 +26,11 @@ concurrency:
 
 jobs:
   build:
-    name: Build my-idea-tui (local Linux runner)
-    # Repo-scoped runner: використовуємо гарантовані стандартні Linux/X64 labels.
-    # Додаткова core-local не підтверджена і залишала job в queued.
-    runs-on: [self-hosted, Linux, X64]
+    name: Build my-idea-tui (local Guix runner / hosted PR)
+    # Реально доведена для my-idea мітка у #74 — [self-hosted, guix],
+    # wsm-i5-6400; core-local і Linux/X64 не підтверджені для цієї реєстрації.
+    # PR із чужим кодом НЕ виконувати на комп'ютері власника.
+    runs-on: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-24.04"]' || '["self-hosted","guix"]') }}
     timeout-minutes: 45
     env:
       CARGO_BUILD_JOBS: '2'
