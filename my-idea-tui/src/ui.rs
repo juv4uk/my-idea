@@ -26,13 +26,25 @@ fn draw_body(f: &mut Frame, app: &App, area: Rect) {
     // Вузький термінал: не стискати редактор до кількох символів.
     // Всі три складники тієї самої IDE лишаються видимими.
     if area.width < 76 {
-        let rows = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(5), Constraint::Percentage(55), Constraint::Min(4)])
-            .split(area);
-        draw_explorer(f, app, rows[0]);
-        draw_editor(f, app, rows[1]);
-        draw_console(f, app, rows[2]);
+        if app.ast_visible {
+            let rows = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(5), Constraint::Percentage(45),
+                    Constraint::Percentage(25), Constraint::Min(4)])
+                .split(area);
+            draw_explorer(f, app, rows[0]);
+            draw_editor(f, app, rows[1]);
+            draw_ast(f, app, rows[2]);
+            draw_console(f, app, rows[3]);
+        } else {
+            let rows = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(5), Constraint::Percentage(55), Constraint::Min(4)])
+                .split(area);
+            draw_explorer(f, app, rows[0]);
+            draw_editor(f, app, rows[1]);
+            draw_console(f, app, rows[2]);
+        }
         return;
     }
 
@@ -46,7 +58,15 @@ fn draw_body(f: &mut Frame, app: &App, area: Rect) {
         .split(cols[1]);
 
     draw_explorer(f, app, cols[0]);
-    draw_editor(f, app, right[0]);
+    if app.ast_visible {
+        let editor_ast = Layout::default().direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
+            .split(right[0]);
+        draw_editor(f, app, editor_ast[0]);
+        draw_ast(f, app, editor_ast[1]);
+    } else {
+        draw_editor(f, app, right[0]);
+    }
     draw_console(f, app, right[1]);
 }
 
@@ -140,6 +160,18 @@ fn console_visual_rows(text: &str, width: usize) -> Vec<String> {
     rows
 }
 
+fn draw_ast(f: &mut Frame, app: &App, area: Rect) {
+    let visible = area.height.saturating_sub(2) as usize;
+    let start = app.ast_scroll.min(app.ast_lines.len().saturating_sub(visible));
+    let lines = app.ast_lines.iter().skip(start).take(visible)
+        .cloned().collect::<Vec<_>>().join("\n");
+    f.render_widget(
+        Paragraph::new(lines)
+            .block(pane_block(app.t("ast"), false)),
+        area,
+    );
+}
+
 fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     let inner_width = area.width.saturating_sub(2) as usize;
     let mut lines: Vec<Line> = Vec::new();
@@ -178,11 +210,11 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
         String::new()
     };
     let text = if area.width < 76 {
-        format!(" {} | {} | {}{} | Ctrl+S  F5  F9",
+        format!(" {} | {} | {}{} | Ctrl+S  F5  F6 AST  F9",
             app.pane_label(), app.language, run, position)
     } else {
         format!(
-            " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F9 {} ",
+            " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F6 AST  F9 {} ",
             app.pane_label(), app.language, run, position, app.t("save"), app.t("run"), app.t("stop")
         )
     };

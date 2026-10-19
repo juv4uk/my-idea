@@ -10,6 +10,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::engine::{self, Engine, Line, Origin};
 use crate::i18n;
+use crate::ast;
 
 #[path = "../../src-tauri/src/workspace_save.rs"]
 mod workspace_save;
@@ -74,6 +75,10 @@ pub struct App {
     pub engine_running: bool,
     pub quit: bool,
     pub status: String,
+    pub ast_visible: bool,
+    pub ast_scroll: usize,
+    pub ast_lines: Vec<String>,
+    ast_cached_source: String,
 }
 
 impl App {
@@ -112,6 +117,10 @@ impl App {
             engine_running: false,
             quit: false,
             status: String::new(),
+            ast_visible: false,
+            ast_scroll: 0,
+            ast_lines: Vec::new(),
+            ast_cached_source: String::new(),
         };
         app.sys(i18n::t(&app.language, "banner"));
         app.reload_files();
@@ -635,6 +644,21 @@ impl App {
         }
     }
 
+    /// AST створює тільки reader pinned SENS, коли панель відкрита.
+    /// Прихована панель не парсить Lisp на кожне натискання клавіші.
+    pub fn refresh_ast(&mut self) {
+        if !self.ast_visible { return; }
+        if self.editor_path.is_none() {
+            self.ast_lines.clear();
+            self.ast_cached_source.clear();
+            self.ast_scroll = 0;
+        } else if self.ast_lines.is_empty() || self.ast_cached_source != self.editor_buf {
+            self.ast_lines = ast::render(&self.editor_buf);
+            self.ast_cached_source.clone_from(&self.editor_buf);
+            self.ast_scroll = 0;
+        }
+    }
+
     /// true — вийти з TUI.
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
@@ -668,7 +692,18 @@ impl App {
             },
             KeyCode::Esc => self.pane = Pane::Explorer,
             KeyCode::F(5) => self.run_current(),
+            KeyCode::F(6) => {
+                self.ast_visible = !self.ast_visible;
+                self.refresh_ast();
+            },
             KeyCode::F(9) => self.stop(),
+            KeyCode::PageUp if self.ast_visible && key.modifiers.contains(KeyModifiers::ALT) => {
+                self.ast_scroll = self.ast_scroll.saturating_sub(6);
+            },
+            KeyCode::PageDown if self.ast_visible && key.modifiers.contains(KeyModifiers::ALT) => {
+                self.ast_scroll = self.ast_scroll.saturating_add(6)
+                    .min(self.ast_lines.len().saturating_sub(1));
+            },
             KeyCode::Tab if ctrl => self.cycle_tab(key.modifiers.contains(KeyModifiers::SHIFT)),
             KeyCode::BackTab if ctrl => self.cycle_tab(true),
             KeyCode::Tab => self.cycle_pane(),
@@ -1445,6 +1480,40 @@ mod create_document_tests {
         assert_eq!(app.editor_path.as_ref(), Some(&first));
         assert!(app.dirty);
         assert_eq!(std::fs::read_to_string(first).unwrap(), "");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+
+#[cfg(test)]
+mod ast_visibility_tests {
+    use super::*;
+
+    #[test]
+    fn hidden_ast_never_parses_and_visible_ast_uses_pinned_sens() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("my-idea-ast-{}-{nonce}",std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let file = root.join("програма.lisp");
+        std::fs::write(&file, "(атом? 'мама)").unwrap();
+        let mut app = App::new_in(root.clone());
+        app.open_selected();
+        app.refresh_ast();
+        assert!(app.ast_lines.is_empty(), "прихований AST не повинен парсити");
+
+        let _ = app.handle_key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
+        assert!(app.ast_visible);
+        assert!(app.ast_lines.iter().any(|l| l.contains("мама")), "{:?}", app.ast_lines);
+        let cached = app.ast_cached_source.clone();
+
+        let _ = app.handle_key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
+        app.paste("(цитата батько)");
+        app.refresh_ast();
+        assert_eq!(app.ast_cached_source, cached, "прихований AST не перепарсить джерело");
+
+        let _ = app.handle_key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
+        assert!(app.ast_lines.iter().any(|l| l.contains("батько")), "{:?}", app.ast_lines);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

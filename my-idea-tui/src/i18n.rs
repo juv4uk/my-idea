@@ -9,6 +9,7 @@ pub const LANGUAGES: [&str; 3] = ["uk", "de", "en"];
 pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
     match (lang, key) {
         ("uk", "files") => "Файли",
+        ("uk", "ast") => "AST / SENS",
         ("uk", "editor") => "Редактор",
         ("uk", "console") => "Консоль",
         ("uk", "open") => "Відкрити папку",
@@ -56,6 +57,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("uk", "quit-dirty") => "Незбережені зміни: Ctrl+S — зберегти; Ctrl+Q повторно — вийти без збереження",
 
         ("de", "files") => "Explorer",
+        ("de", "ast") => "AST / SENS",
         ("de", "editor") => "Editor",
         ("de", "console") => "Konsole",
         ("de", "open") => "Ordner öffnen",
@@ -103,6 +105,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("de", "quit-dirty") => "Ungespeicherte Änderungen: Ctrl+S — speichern; Ctrl+Q erneut — ohne Speichern beenden",
 
         ("en", "files") => "Explorer",
+        ("en", "ast") => "AST / SENS",
         ("en", "editor") => "Editor",
         ("en", "console") => "Console",
         ("en", "open") => "Open folder",
