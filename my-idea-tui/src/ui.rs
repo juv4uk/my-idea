@@ -144,7 +144,19 @@ fn console_visual_rows(text: &str, width: usize) -> Vec<String> {
     let mut rows = Vec::new();
     let mut row = String::new();
     let mut used = 0usize;
-    for ch in text.chars() {
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        // Діагностика з внутрішнім LF/CRLF/CR — це кілька фізичних
+        // рядків, а не один широкий рядок із невидимими control chars.
+        // Обробляємо тільки presentation; оригінальний stdout не змінюємо.
+        if ch == '\r' || ch == '\n' {
+            if ch == '\r' && chars.peek() == Some(&'\n') {
+                chars.next();
+            }
+            rows.push(std::mem::take(&mut row));
+            used = 0;
+            continue;
+        }
         let char_width = Line::from(ch.to_string()).width();
         // Надвузький термінал (1 комірка): не віддавати Ratatui символ
         // ширший за панель. Заміна стосується лише показу, не SENS-виводу.
@@ -256,6 +268,10 @@ mod console_visual_tests {
         assert_eq!(console_visual_rows("їжак", 3), vec!["їжа", "к"]);
         assert_eq!(console_visual_rows("абвгд", 3), vec!["абв", "гд"]);
         assert_eq!(console_visual_rows("", 3), vec![""]);
+        assert_eq!(console_visual_rows("мама\nїжак", 3), vec!["мам", "а", "їжа", "к"]);
+        assert_eq!(console_visual_rows("а\r\nб\rв", 3), vec!["а", "б", "в"]);
+        assert_eq!(console_visual_rows("а\n", 3), vec!["а", ""]);
+        assert_eq!(console_visual_rows("а\n\nв", 3), vec!["а", "", "в"]);
         let rows = console_visual_rows(&"п".repeat(120), 10);
         assert_eq!(rows.len(), 12);
         assert_eq!(console_scroll_start(rows.len() + 1, 4, 0), 9);
