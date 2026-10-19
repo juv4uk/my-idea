@@ -727,8 +727,10 @@ impl App {
             }
             KeyCode::Home if self.pane == Pane::Console => self.input_cursor = 0,
             KeyCode::End if self.pane == Pane::Console => {
-                if ctrl { self.console_scroll_back = 0; }
-                else { self.input_cursor = self.input.len(); }
+                // End завжди повертає до останнього реального stdout/stderr,
+                // а також до кінця чернетки REPL (не втрачаючи UTF-8 ввід).
+                self.console_scroll_back = 0;
+                self.input_cursor = self.input.len();
             },
             KeyCode::PageUp if self.pane == Pane::Editor => {
                 for _ in 0..10 { self.move_editor_line(false); }
