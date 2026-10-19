@@ -550,7 +550,13 @@ impl App {
             // Локалізація TUI не змінює мову програми.
             Some("інтерфейс") | Some("ui") | Some("language") => match it.next() {
                 Some(l) if i18n::LANGUAGES.contains(&l) && it.next().is_none() => {
-                    self.language = l.to_string();
+                    if self.language != l {
+                        self.language = l.to_string();
+                        // Переклад змінює лише UI; кеш AST містить локалізовані рядки.
+                        self.ast_lines.clear();
+                        self.ast_cached_source.clear();
+                        self.ast_scroll = 0;
+                    }
                     self.sys(&format!("{} {l}", self.t("ui-lang-set")));
                 }
                 Some(l) => self.sys(&format!("{} {l}; {}", self.t("ui-lang-bad"), self.t("ui-lang-avail"))),
@@ -652,7 +658,7 @@ impl App {
             self.ast_cached_source.clear();
             self.ast_scroll = 0;
         } else if self.ast_lines.is_empty() || self.ast_cached_source != self.editor_buf {
-            self.ast_lines = ast::render(&self.editor_buf);
+            self.ast_lines = ast::render(&self.editor_buf, &self.language);
             self.ast_cached_source.clone_from(&self.editor_buf);
             self.ast_scroll = 0;
         }
@@ -1515,6 +1521,33 @@ mod create_document_tests {
 #[cfg(test)]
 mod ast_visibility_tests {
     use super::*;
+
+    #[test]
+    fn ui_language_switch_rebuilds_ast_and_keeps_ukrainian_file_untouched() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("my-idea-ast-ui-{}-{nonce}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let file = root.join("джерело.lisp");
+        let source = "(умова (атом? їжак) (цитата мама))";
+        std::fs::write(&file, source).unwrap();
+        let mut app = App::new_in(root.clone());
+        app.open_selected();
+        app.ast_visible = true;
+        app.refresh_ast();
+        assert!(app.ast_lines.iter().any(|s| s.contains("Список (3) · умова")));
+        app.submit(":інтерфейс de");
+        app.refresh_ast();
+        assert!(app.ast_lines.iter().any(|s| s.contains("Liste (3) · умова")), "{:?}", app.ast_lines);
+        app.submit(":інтерфейс en");
+        app.refresh_ast();
+        assert!(app.ast_lines.iter().any(|s| s.contains("List (3) · умова")), "{:?}", app.ast_lines);
+        assert_eq!(app.editor_buf, source);
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), source);
+        assert!(app.repl_engine.is_none(), "UI-only switch cannot invoke SENS");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
 
     #[test]
     fn hidden_ast_never_parses_and_visible_ast_uses_pinned_sens() {
