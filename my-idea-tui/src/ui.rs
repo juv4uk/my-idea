@@ -23,6 +23,19 @@ pub fn draw(f: &mut Frame, app: &App) {
 }
 
 fn draw_body(f: &mut Frame, app: &App, area: Rect) {
+    // Вузький термінал: не стискати редактор до кількох символів.
+    // Всі три складники тієї самої IDE лишаються видимими.
+    if area.width < 76 {
+        let rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(5), Constraint::Percentage(55), Constraint::Min(4)])
+            .split(area);
+        draw_explorer(f, app, rows[0]);
+        draw_editor(f, app, rows[1]);
+        draw_console(f, app, rows[2]);
+        return;
+    }
+
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(28), Constraint::Min(1)])
@@ -116,10 +129,15 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
     } else {
         String::new()
     };
-    let text = format!(
-        " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S Save  F5 Run  F9 Stop ",
-        app.pane_label(), app.language, run, position
-    );
+    let text = if area.width < 76 {
+        format!(" {} | {} | {}{} | Ctrl+S  F5  F9",
+            app.pane_label(), app.language, run, position)
+    } else {
+        format!(
+            " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S Save  F5 Run  F9 Stop ",
+            app.pane_label(), app.language, run, position
+        )
+    };
     let para = Paragraph::new(text).style(Style::default().add_modifier(Modifier::REVERSED));
     f.render_widget(para, area);
 }
@@ -142,5 +160,28 @@ mod console_scrolling_tests {
         assert_eq!(console_scroll_start(30, 8, 5), 17);
         assert_eq!(console_scroll_start(30, 8, 999), 0);
         assert_eq!(console_scroll_start(4, 8, 0), 0);
+    }
+}
+
+
+#[cfg(test)]
+mod adaptive_layout_tests {
+    use super::draw;
+    use crate::app::App;
+    use ratatui::{backend::TestBackend, Terminal};
+    use std::path::PathBuf;
+
+    #[test]
+    fn narrow_and_wide_terminals_render_all_three_panels() {
+        let app = App::new_in(PathBuf::from("."));
+        for (width, height) in [(40, 24), (100, 30)] {
+            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+            terminal.draw(|frame| draw(frame, &app)).unwrap();
+            let output = terminal.backend().buffer().content().iter()
+                .map(|cell| cell.symbol()).collect::<Vec<_>>().join("");
+            assert!(output.contains("Файли"), "Explorer {width}x{height}");
+            assert!(output.contains("Редактор"), "Editor {width}x{height}");
+            assert!(output.contains("Консоль"), "Console {width}x{height}");
+        }
     }
 }
