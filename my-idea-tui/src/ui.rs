@@ -88,13 +88,32 @@ fn draw_editor(f: &mut Frame, app: &App, area: Rect) {
     if shown.is_char_boundary(app.editor_cursor) {
         shown.insert(app.editor_cursor, '▏');
     }
-    let cursor_line = app.editor_buf[..app.editor_cursor].bytes().filter(|ch| *ch == b'\n').count();
-    let scroll = cursor_line.saturating_sub(area.height.saturating_sub(3) as usize).min(u16::MAX as usize) as u16;
+    // Без word-wrap курсор і прокрутка мають однозначні екранні координати.
+    // Раніше довгі рядки (особливо з кирилицею) переносилися поза видимим
+    // курсором: вертикальний scroll рахував лише '\n', а не переноси.
+    let (vertical, horizontal) = editor_scroll_start(
+        &app.editor_buf, app.editor_cursor, area.height, area.width,
+    );
     let para = Paragraph::new(shown)
         .block(pane_block(&title, app.pane == Pane::Editor))
-        .wrap(Wrap { trim: false })
-        .scroll((scroll, 0));
+        .scroll((vertical, horizontal));
     f.render_widget(para, area);
+}
+
+/// Вікно редактора для довгих рядків, зокрема UTF-8 людської проєкції.
+/// Термінальна ширина — в комірках, а не в байтах чи кількості Unicode scalar.
+fn editor_scroll_start(text: &str, cursor: usize, height: u16, width: u16) -> (u16, u16) {
+    let before = &text[..cursor];
+    let line = before.bytes().filter(|byte| *byte == b'\n').count();
+    let column = Line::from(before.rsplit('\n').next().unwrap_or("")).width();
+    let inner_height = height.saturating_sub(2) as usize;
+    let inner_width = width.saturating_sub(2) as usize;
+    let vertical = line.saturating_sub(inner_height.saturating_sub(1));
+    let horizontal = column.saturating_sub(inner_width.saturating_sub(1));
+    (
+        vertical.min(u16::MAX as usize) as u16,
+        horizontal.min(u16::MAX as usize) as u16,
+    )
 }
 
 fn draw_console(f: &mut Frame, app: &App, area: Rect) {
@@ -163,6 +182,25 @@ mod console_scrolling_tests {
     }
 }
 
+
+#[cfg(test)]
+mod editor_scrolling_tests {
+    use super::editor_scroll_start;
+
+    #[test]
+    fn keeps_unicode_cursor_visible_without_byte_based_scrolling() {
+        let text = "привіт"; // шість термінальних комірок, дванадцять байтів
+        assert_eq!(editor_scroll_start(text, text.len(), 6, 6), (0, 3));
+        assert_eq!(editor_scroll_start(text, "при".len(), 6, 6), (0, 0));
+    }
+
+    #[test]
+    fn follows_cursor_through_lines_and_tiny_windows() {
+        let text = "а\nб\nв\nг".replace("\n", "\n");
+        assert_eq!(editor_scroll_start(&text, text.len(), 4, 8), (2, 0));
+        assert_eq!(editor_scroll_start(&text, text.len(), 1, 1), (3, 1));
+    }
+}
 
 #[cfg(test)]
 mod adaptive_layout_tests {
