@@ -674,8 +674,9 @@ impl App {
                 }
             }
             KeyCode::PageUp if self.pane == Pane::Console => {
-                self.console_scroll_back = self.console_scroll_back.saturating_add(5)
-                    .min(self.console.len());
+                // Прокручуємо фізичні рядки, а не число повідомлень:
+                // одне довге stderr може займати десятки рядків.
+                self.console_scroll_back = self.console_scroll_back.saturating_add(5);
             }
             KeyCode::PageDown if self.pane == Pane::Console => {
                 self.console_scroll_back = self.console_scroll_back.saturating_sub(5);
@@ -1073,6 +1074,28 @@ mod edit_history_tests {
     }
 }
 
+
+#[cfg(test)]
+mod console_paging_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn page_up_is_not_limited_by_number_of_logical_messages() {
+        let mut app = App::new_in(std::env::temp_dir());
+        app.pane = Pane::Console;
+        app.console.clear();
+        app.console.push(Line { origin: Origin::Stderr, text: "помилка ".repeat(100) });
+        app.handle_key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+        assert_eq!(app.console_scroll_back, 5);
+        app.handle_key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+        assert_eq!(app.console_scroll_back, 10);
+        app.handle_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+        assert_eq!(app.console_scroll_back, 5);
+        app.handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
+        assert_eq!(app.console_scroll_back, 0);
+    }
+}
 
 #[cfg(test)]
 mod document_navigation_tests {

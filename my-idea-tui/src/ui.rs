@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
 
@@ -114,30 +114,57 @@ fn editor_scroll_start(text: &str, cursor: usize, height: u16, width: u16) -> (u
     )
 }
 
-fn draw_console(f: &mut Frame, app: &App, area: Rect) {
-    let mut lines: Vec<Line> = Vec::new();
-    for l in &app.console {
-        let styled = match l.origin {
-            Origin::Stdout => Line::from(l.text.clone()),
-            Origin::Stderr => Line::from(l.text.clone()).style(Style::default().fg(Color::Red)),
-            Origin::System => Line::from(l.text.clone()).style(Style::default().fg(Color::DarkGray)),
-        };
-        lines.push(styled);
+/// У консолі scroll вимірюється фізичними рядками термінала, а не
+/// повідомленнями stdout/stderr. Явне перенесення також не губить промпт,
+/// коли одне повідомлення займає багато екранних рядків.
+fn console_visual_rows(text: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![String::new()];
     }
-    let mut input = app.input.clone();
-    if input.is_char_boundary(app.input_cursor) {
-        input.insert(app.input_cursor, '▏');
+    let mut rows = Vec::new();
+    let mut row = String::new();
+    let mut used = 0usize;
+    for ch in text.chars() {
+        let char_width = Line::from(ch.to_string()).width();
+        // Надвузький термінал (1 комірка): не віддавати Ratatui символ
+        // ширший за панель. Заміна стосується лише показу, не SENS-виводу.
+        let (shown, cells) = if char_width > width { ('�', 1) } else { (ch, char_width) };
+        if used > 0 && used + cells > width {
+            rows.push(std::mem::take(&mut row));
+            used = 0;
+        }
+        row.push(shown);
+        used += cells;
     }
-    let prompt = format!("SENS> {input}");
-    lines.push(Line::from(prompt).style(Style::default().fg(Color::Yellow)));
+    rows.push(row);
+    rows
+}
 
-    // Ratatui за замовчуванням показує перші рядки Paragraph; для REPL
-    // найважливіші останні stdout/stderr і поточний промпт.
-    let visible = area.height.saturating_sub(2) as usize; // рамка панелі
+fn draw_console(f: &mut Frame, app: &App, area: Rect) {
+    let inner_width = area.width.saturating_sub(2) as usize;
+    let mut lines: Vec<Line> = Vec::new();
+    for log in &app.console {
+        let style = match log.origin {
+            Origin::Stdout => Style::default(),
+            Origin::Stderr => Style::default().fg(Color::Red),
+            Origin::System => Style::default().fg(Color::DarkGray),
+        };
+        for visual in console_visual_rows(&log.text, inner_width) {
+            lines.push(Line::styled(visual, style));
+        }
+    }
+    let prompt = format!("SENS> {}", app.input);
+    for visual in console_visual_rows(&prompt, inner_width) {
+        lines.push(Line::styled(visual, Style::default().fg(Color::Yellow)));
+    }
+
+    // Після явного перенесення кожен елемент lines — один екранний рядок.
+    // Останній результат і промпт видимі за back=0; PageUp переглядає всю
+    // історію навіть за одного довгого stderr-повідомлення.
+    let visible = area.height.saturating_sub(2) as usize;
     let scroll = console_scroll_start(lines.len(), visible, app.console_scroll_back);
     let para = Paragraph::new(lines)
         .block(pane_block(app.t("console"), app.pane == Pane::Console))
-        .wrap(Wrap { trim: false })
         .scroll((scroll, 0));
     f.render_widget(para, area);
 }
@@ -169,6 +196,38 @@ fn console_scroll_start(lines: usize, visible: usize, back: usize) -> u16 {
     lines.saturating_sub(visible)
         .saturating_sub(back)
         .min(u16::MAX as usize) as u16
+}
+
+#[cfg(test)]
+mod console_visual_tests {
+    use super::{console_scroll_start, console_visual_rows, draw};
+    use crate::app::App;
+    use crate::engine::{Line as EngineLine, Origin};
+    use ratatui::{backend::TestBackend, Terminal};
+    use std::path::PathBuf;
+
+    #[test]
+    fn wraps_long_ukrainian_diagnostics_without_splitting_utf8() {
+        assert_eq!(console_visual_rows("їжак", 3), vec!["їжа", "к"]);
+        assert_eq!(console_visual_rows("абвгд", 3), vec!["абв", "гд"]);
+        assert_eq!(console_visual_rows("", 3), vec![""]);
+        let rows = console_visual_rows(&"п".repeat(120), 10);
+        assert_eq!(rows.len(), 12);
+        assert_eq!(console_scroll_start(rows.len() + 1, 4, 0), 9);
+        assert_eq!(console_scroll_start(rows.len() + 1, 4, 5), 4);
+    }
+
+    #[test]
+    fn prompt_remains_visible_below_multirow_stderr_in_narrow_terminal() {
+        let mut app = App::new_in(PathBuf::from("."));
+        app.console.clear();
+        app.console.push(EngineLine { origin: Origin::Stderr, text: "помилка ".repeat(50) });
+        let mut terminal = Terminal::new(TestBackend::new(40, 24)).unwrap();
+        terminal.draw(|frame| draw(frame, &app)).unwrap();
+        let screen = terminal.backend().buffer().content().iter()
+            .map(|cell| cell.symbol()).collect::<Vec<_>>().join("");
+        assert!(screen.contains("SENS>"), "видимий промпт після довгого stderr");
+    }
 }
 
 #[cfg(test)]
