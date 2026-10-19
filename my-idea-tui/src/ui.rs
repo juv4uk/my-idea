@@ -172,6 +172,19 @@ fn draw_ast(f: &mut Frame, app: &App, area: Rect) {
     );
 }
 
+/// Курсор консольної команди — лише представлення; `App.input` без
+/// додаткового символу й надсилається у справжній pinned SENS без змін.
+/// UTF-8 offset відповідає App::move_input_cursor / bracketed paste.
+fn repl_prompt(input: &str, cursor: usize, focused: bool) -> String {
+    let mut shown = String::with_capacity(input.len() + 12);
+    shown.push_str("SENS> ");
+    shown.push_str(input);
+    if focused && input.is_char_boundary(cursor) {
+        shown.insert("SENS> ".len() + cursor, '▏');
+    }
+    shown
+}
+
 fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     let inner_width = area.width.saturating_sub(2) as usize;
     let mut lines: Vec<Line> = Vec::new();
@@ -185,7 +198,7 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
             lines.push(Line::styled(visual, style));
         }
     }
-    let prompt = format!("SENS> {}", app.input);
+    let prompt = repl_prompt(&app.input, app.input_cursor, app.pane == Pane::Console);
     for visual in console_visual_rows(&prompt, inner_width) {
         lines.push(Line::styled(visual, Style::default().fg(Color::Yellow)));
     }
@@ -232,7 +245,7 @@ fn console_scroll_start(lines: usize, visible: usize, back: usize) -> u16 {
 
 #[cfg(test)]
 mod console_visual_tests {
-    use super::{console_scroll_start, console_visual_rows, draw};
+    use super::{console_scroll_start, console_visual_rows, draw, repl_prompt};
     use crate::app::App;
     use crate::engine::{Line as EngineLine, Origin};
     use ratatui::{backend::TestBackend, Terminal};
@@ -247,6 +260,34 @@ mod console_visual_tests {
         assert_eq!(rows.len(), 12);
         assert_eq!(console_scroll_start(rows.len() + 1, 4, 0), 9);
         assert_eq!(console_scroll_start(rows.len() + 1, 4, 5), 4);
+    }
+
+    #[test]
+    fn repl_cursor_renders_at_unicode_boundary_without_mutating_input() {
+        let input = "атом? 'їжак";
+        let mid = "атом? 'ї".len();
+        assert_eq!(repl_prompt(input, mid, true), "SENS> атом? 'ї▏жак");
+        assert_eq!(repl_prompt(input, 0, true), "SENS> ▏атом? 'їжак");
+        assert_eq!(repl_prompt(input, input.len(), true), "SENS> атом? 'їжак▏");
+        assert_eq!(repl_prompt(input, mid, false), "SENS> атом? 'їжак");
+        // Невалідний byte offset від зовнішнього виклику не рве UTF-8.
+        assert_eq!(repl_prompt(input, 1, true), "SENS> атом? 'їжак");
+        assert_eq!(input, "атом? 'їжак");
+    }
+
+    #[test]
+    fn console_displays_real_repl_cursor_in_the_middle_of_ukrainian_input() {
+        let mut app = App::new_in(PathBuf::from("."));
+        app.pane = crate::app::Pane::Console;
+        app.console.clear();
+        app.input = "атом? 'їжак".to_owned();
+        app.input_cursor = "атом? 'ї".len();
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        terminal.draw(|frame| draw(frame, &app)).unwrap();
+        let visible = terminal.backend().buffer().content().iter()
+            .map(|cell| cell.symbol()).collect::<Vec<_>>().join("");
+        assert!(visible.contains("SENS> атом? 'ї▏жак"), "UTF-8 REPL caret: {visible}");
+        assert_eq!(app.input, "атом? 'їжак", "рендер не редагує SENS-команду");
     }
 
     #[test]
