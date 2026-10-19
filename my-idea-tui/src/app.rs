@@ -140,21 +140,8 @@ impl App {
     fn save(&mut self) {
         let Some(path) = self.editor_path.clone() else { return; };
         if !self.dirty { return; }
-        // Спільний механізм GUI/TUI забезпечує атомарну заміну, але TUI
-        // додатково не має права мовчки втрачати зміни іншого процесу.
-        let result = std::fs::read_to_string(&path)
-            .map_err(|error| format!("неможливо перевірити поточний файл: {error}"))
-            .and_then(|disk| {
-                if disk != self.editor_original {
-                    Err("файл змінено ззовні після Open/Save; нові дані не перезаписано".to_string())
-                } else {
-                    path.strip_prefix(&self.cwd)
-                        .map_err(|error| format!("файл поза workspace: {error}"))
-                        .and_then(|relative| {
-                            workspace_save::save_existing_workspace_file(&self.cwd, relative, &self.editor_buf)
-                        })
-                }
-            });
+        // Захист від паралельного редагування + спільний GUI/TUI атомарний запис.
+        let result = save_loaded_file(&self.cwd, &path, &self.editor_original, &self.editor_buf);
         match result {
             Ok(()) => {
                 self.editor_original = self.editor_buf.clone();
@@ -527,5 +514,47 @@ mod directory_tests {
         assert!(entries[0].is_dir());
         assert!(entries[1].is_file());
         std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+ 
+/// Захищає джерело іншого процесу від перезапису, а потім атомарно зберігає.
+/// Чисто файловий контракт; жодних імітаторів SENS-семантики.
+fn save_loaded_file(root: &Path, path: &Path, original: &str, updated: &str) -> Result<(), String> {
+    let disk = std::fs::read_to_string(path)
+        .map_err(|error| format!("неможливо перевірити поточний файл: {error}"))?;
+    if disk != original {
+        return Err("файл змінено ззовні після Open/Save; нові дані не перезаписано".into());
+    }
+    let relative = path.strip_prefix(root)
+        .map_err(|error| format!("файл поза workspace: {error}"))?;
+    workspace_save::save_existing_workspace_file(root, relative, updated)
+}
+
+#[cfg(test)]
+mod save_conflict_tests {
+    use super::save_loaded_file;
+    use std::fs;
+
+    #[test]
+    fn preserves_external_source_and_saves_when_unchanged() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let workspace = std::env::temp_dir().join(format!(
+            "my-idea-tui-conflict-{}-{unique}", std::process::id()
+        ));
+        fs::create_dir(&workspace).unwrap();
+        let source = workspace.join("програма.lisp");
+        fs::write(&source, "(атом а)\n").unwrap();
+
+        // Перший Ctrl+S зберігає реальне Unicode-джерело.
+        save_loaded_file(&workspace, &source, "(атом а)\n", "(атом б)\n").unwrap();
+        assert_eq!(fs::read_to_string(&source).unwrap(), "(атом б)\n");
+
+        // Інший редактор змінив файл: TUI не знищує його правки.
+        fs::write(&source, "(атом в)\n").unwrap();
+        assert!(save_loaded_file(&workspace, &source, "(атом б)\n", "(атом г)\n").is_err());
+        assert_eq!(fs::read_to_string(&source).unwrap(), "(атом в)\n");
+        fs::remove_dir_all(workspace).unwrap();
     }
 }
