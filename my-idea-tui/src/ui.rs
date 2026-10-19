@@ -110,11 +110,15 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
 
 fn draw_status(f: &mut Frame, app: &App, area: Rect) {
     let run = if app.engine_running { "RUN" } else { "idle" };
+    let position = if app.editor_path.is_some() {
+        let (line, column) = app.editor_position();
+        format!(" | {}:{}", line, column)
+    } else {
+        String::new()
+    };
     let text = format!(
-        " {} | {} | {} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  F5 Run  F9 Stop ",
-        app.pane_label(),
-        app.language,
-        run
+        " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S Save  F5 Run  F9 Stop ",
+        app.pane_label(), app.language, run, position
     );
     let para = Paragraph::new(text).style(Style::default().add_modifier(Modifier::REVERSED));
     f.render_widget(para, area);

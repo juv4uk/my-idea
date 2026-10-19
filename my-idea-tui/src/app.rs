@@ -109,6 +109,14 @@ impl App {
         }
     }
 
+    /// Логічна позиція курсора в символах, а не в байтах UTF-8.
+    pub fn editor_position(&self) -> (usize, usize) {
+        let before = &self.editor_buf[..self.editor_cursor];
+        let line = before.bytes().filter(|&byte| byte == b'\n').count() + 1;
+        let start = before.rfind('\n').map_or(0, |index| index + 1);
+        (line, before[start..].chars().count() + 1)
+    }
+
     fn sys(&mut self, text: &str) {
         self.console.push(Line { origin: Origin::System, text: text.to_string() });
     }
@@ -480,6 +488,13 @@ impl App {
                 self.console_scroll_back = self.console_scroll_back.saturating_sub(5);
             }
             KeyCode::End if self.pane == Pane::Console => self.console_scroll_back = 0,
+            KeyCode::PageUp if self.pane == Pane::Editor => {
+                for _ in 0..10 { self.move_editor_line(false); }
+            }
+            KeyCode::PageDown if self.pane == Pane::Editor => {
+                for _ in 0..10 { self.move_editor_line(true); }
+            }
+            KeyCode::Delete if self.pane == Pane::Editor => self.delete_forward(),
             KeyCode::Backspace => self.backspace(),
             KeyCode::Delete if self.pane == Pane::Editor && self.editor_path.is_some() => {
                 if let Some(next) = self.editor_buf[self.editor_cursor..].chars().next() {
@@ -503,10 +518,15 @@ impl App {
             KeyCode::Home if ctrl && self.pane == Pane::Editor => self.editor_cursor = 0,
             KeyCode::End if ctrl && self.pane == Pane::Editor => self.editor_cursor = self.editor_buf.len(),
             KeyCode::Home if self.pane == Pane::Editor => {
-                self.editor_cursor = self.editor_buf[..self.editor_cursor].rfind('\n').map_or(0, |p| p + 1);
+                self.editor_cursor = if ctrl { 0 } else {
+                    self.editor_buf[..self.editor_cursor].rfind('\n').map_or(0, |p| p + 1)
+                };
             }
             KeyCode::End if self.pane == Pane::Editor => {
-                self.editor_cursor = self.editor_buf[self.editor_cursor..].find('\n').map_or(self.editor_buf.len(), |p| self.editor_cursor + p);
+                self.editor_cursor = if ctrl { self.editor_buf.len() } else {
+                    self.editor_buf[self.editor_cursor..].find('\n')
+                        .map_or(self.editor_buf.len(), |p| self.editor_cursor + p)
+                };
             }
             KeyCode::Char(c) if !key.modifiers.intersects(
                 KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER
@@ -523,6 +543,14 @@ impl App {
             _ => {}
         }
         false
+    }
+
+    /// Видалення символу праворуч без розриву послідовності UTF-8.
+    fn delete_forward(&mut self) {
+        if let Some(next) = self.editor_buf[self.editor_cursor..].chars().next() {
+            self.editor_buf.drain(self.editor_cursor..self.editor_cursor + next.len_utf8());
+            self.dirty = true;
+        }
     }
 
     fn backspace(&mut self) {
@@ -861,5 +889,47 @@ mod document_navigation_tests {
         assert_eq!(app.editor_buf, source);
         assert!(!app.dirty);
         std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod editor_navigation_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn unicode_delete_and_document_navigation_preserve_utf8() {
+        let mut editor = App::new_in(std::env::temp_dir());
+        editor.pane = Pane::Editor;
+        editor.editor_buf = "абв\nїжак\nкінець".to_owned();
+        editor.editor_cursor = "абв\nї".len();
+        assert_eq!(editor.editor_position(), (2, 2));
+        editor.handle_key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+        assert_eq!(editor.editor_buf, "абв\nїак\nкінець");
+        assert_eq!(editor.editor_position(), (2, 2));
+        assert!(editor.dirty);
+        assert!(editor.editor_buf.is_char_boundary(editor.editor_cursor));
+
+        editor.handle_key(KeyEvent::new(KeyCode::Home, KeyModifiers::CONTROL));
+        assert_eq!(editor.editor_cursor, 0);
+        editor.handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::CONTROL));
+        assert_eq!(editor.editor_cursor, editor.editor_buf.len());
+        assert_eq!(editor.editor_position(), (3, 7));
+        editor.handle_key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+        assert_eq!(editor.editor_position().0, 1);
+        editor.handle_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+        assert_eq!(editor.editor_position().0, 3);
+        assert!(editor.editor_buf.is_char_boundary(editor.editor_cursor));
+    }
+
+    #[test]
+    fn delete_at_eof_does_not_mark_clean_buffer_dirty() {
+        let mut editor = App::new_in(std::env::temp_dir());
+        editor.pane = Pane::Editor;
+        editor.editor_buf = "лісп".to_owned();
+        editor.editor_cursor = editor.editor_buf.len();
+        editor.handle_key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+        assert_eq!(editor.editor_buf, "лісп");
+        assert!(!editor.dirty);
     }
 }
