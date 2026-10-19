@@ -249,7 +249,7 @@ mod pinned_file_mode_smoke {
         }
         assert!(status.success(), "помилка SENS REPL: {status}, stderr={stderr}");
         assert!(stdout.contains("укр"), "CLI не підтвердив повну українську поверхню: {stdout}");
-        assert!(stdout.lines().any(|line| line.trim() == "так"), "SENS укр має повернути ратифіковане так: {stdout}, stderr={stderr}");
+        assert!(stdout.lines().any(|line| line.trim() == "ТАК"), "SENS укр має повернути ратифіковане так: {stdout}, stderr={stderr}");
         assert!(stderr.is_empty(), "REPL stderr: {stderr}");
         println!("PINNED_SENS_UKR_REPL_OK output={}", stdout.trim());
     }
@@ -305,7 +305,7 @@ mod pinned_file_mode_smoke {
         fs::create_dir(&workspace).expect("створити реальний workspace");
         let file = workspace.join("програма.lisp");
         // Десяткові числа у вихідному Lisp: результат інтерпретує тільки SENS.
-        fs::write(&file, "(+ 2 3)\n(+ 4 5)\n").expect("записати багаторядковий Lisp");
+        fs::write(&file, "(додати 2 3)\n(додати 4 5)\n").expect("записати багаторядковий Lisp");
         let (status, stdout, stderr) = run_file(&selected, &file);
         assert!(status.success(), "SENS не виконав програму: {status}, stderr={stderr}");
         assert_eq!(stdout.trim(), "9", "SENS має повернути значення останньої форми");
