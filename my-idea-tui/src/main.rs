@@ -6,6 +6,7 @@
 //! Вертикаль (#85): Open workspace → Explorer → Edit → Save → Run → Output → Stop.
 
 mod app;
+mod ast;
 mod engine;
 mod i18n;
 mod ui;
@@ -83,6 +84,7 @@ fn main() -> io::Result<()> {
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> io::Result<()> {
     loop {
         app.drain_engine();
+        app.refresh_ast();
         terminal.draw(|f| ui::draw(f, app))?;
 
         if event::poll(std::time::Duration::from_millis(200))? {

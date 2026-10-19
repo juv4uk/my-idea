@@ -10,6 +10,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::engine::{self, Engine, Line, Origin};
 use crate::i18n;
+use crate::ast;
 
 #[path = "../../src-tauri/src/workspace_save.rs"]
 mod workspace_save;
@@ -64,6 +65,10 @@ pub struct App {
     pub console: Vec<Line>,
     /// Скільки логічних рядків відступити від хвоста консолі (0 = останній вивід).
     pub console_scroll_back: usize,
+    pub ast_visible: bool,
+    pub ast_scroll: usize,
+    pub ast_lines: Vec<String>,
+    ast_cached_source: String,
     pub input: String,
     /// UTF-8 byte offset усередині поточної команди REPL.
     pub input_cursor: usize,
@@ -103,6 +108,10 @@ impl App {
             quit_armed: false,
             console: Vec::new(),
             console_scroll_back: 0,
+            ast_visible: false,
+            ast_scroll: 0,
+            ast_lines: Vec::new(),
+            ast_cached_source: String::new(),
             input: String::new(),
             input_cursor: 0,
             history: Vec::new(),
@@ -266,6 +275,9 @@ impl App {
                     self.editor_path = Some(p.clone());
                     self.undo.clear();
                     self.redo.clear();
+                    self.ast_cached_source.clear();
+                    self.ast_lines.clear();
+                    self.ast_scroll = 0;
                     self.dirty = false;
                     self.active_tab = self.tabs.len();
                     self.tabs.push(OpenDocument {
@@ -623,6 +635,20 @@ impl App {
         }
     }
 
+    /// AST отримуємо тільки з reader-а pinned SENS і лише коли змінився текст.
+    /// Жодної інтерпретації чи дублювання правил Lisp у TUI.
+    pub fn refresh_ast(&mut self) {
+        if self.editor_path.is_none() {
+            self.ast_lines.clear();
+            self.ast_cached_source.clear();
+            self.ast_scroll = 0;
+        } else if self.ast_lines.is_empty() || self.ast_cached_source != self.editor_buf {
+            self.ast_lines = ast::render(&self.editor_buf);
+            self.ast_cached_source.clone_from(&self.editor_buf);
+            self.ast_scroll = 0;
+        }
+    }
+
     /// true — вийти з TUI.
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
@@ -654,7 +680,14 @@ impl App {
             },
             KeyCode::Esc => self.pane = Pane::Explorer,
             KeyCode::F(5) => self.run_current(),
+            KeyCode::F(6) => { self.ast_visible = !self.ast_visible; self.refresh_ast(); },
             KeyCode::F(9) => self.stop(),
+            KeyCode::PageUp if self.ast_visible && key.modifiers.contains(KeyModifiers::ALT) => {
+                self.ast_scroll = self.ast_scroll.saturating_sub(6);
+            },
+            KeyCode::PageDown if self.ast_visible && key.modifiers.contains(KeyModifiers::ALT) => {
+                self.ast_scroll = self.ast_scroll.saturating_add(6).min(self.ast_lines.len().saturating_sub(1));
+            },
             KeyCode::Tab if ctrl => self.cycle_tab(key.modifiers.contains(KeyModifiers::SHIFT)),
             KeyCode::BackTab if ctrl => self.cycle_tab(true),
             KeyCode::Tab => self.cycle_pane(),

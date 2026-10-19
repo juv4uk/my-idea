@@ -10,6 +10,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
     match (lang, key) {
         ("uk", "files") => "Файли",
         ("uk", "editor") => "Редактор",
+        ("uk", "ast") => "Дерево SENS",
         ("uk", "console") => "Консоль",
         ("uk", "open") => "Відкрити папку",
         ("uk", "save") => "Зберегти",
@@ -22,6 +23,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
 
         ("de", "files") => "Explorer",
         ("de", "editor") => "Editor",
+        ("de", "ast") => "SENS-Baum",
         ("de", "console") => "Konsole",
         ("de", "open") => "Ordner öffnen",
         ("de", "save") => "Speichern",
@@ -34,6 +36,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
 
         ("en", "files") => "Explorer",
         ("en", "editor") => "Editor",
+        ("en", "ast") => "SENS AST",
         ("en", "console") => "Console",
         ("en", "open") => "Open folder",
         ("en", "save") => "Save",

@@ -23,22 +23,31 @@ pub fn draw(f: &mut Frame, app: &App) {
 }
 
 fn draw_body(f: &mut Frame, app: &App, area: Rect) {
-    // Вузький термінал: не стискати редактор до кількох символів.
-    // Всі три складники тієї самої IDE лишаються видимими.
+    // Малий екран: усі чотири панелі в одній вертикальній колонці.
     if area.width < 76 {
         let rows = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(5), Constraint::Percentage(55), Constraint::Min(4)])
+            .constraints(if app.ast_visible {
+                vec![Constraint::Length(4), Constraint::Percentage(44),
+                     Constraint::Percentage(25), Constraint::Min(4)]
+            } else {
+                vec![Constraint::Length(5), Constraint::Percentage(55), Constraint::Min(4)]
+            })
             .split(area);
         draw_explorer(f, app, rows[0]);
         draw_editor(f, app, rows[1]);
-        draw_console(f, app, rows[2]);
+        if app.ast_visible {
+            draw_ast(f, app, rows[2]);
+            draw_console(f, app, rows[3]);
+        } else {
+            draw_console(f, app, rows[2]);
+        }
         return;
     }
 
     let cols = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(28), Constraint::Min(1)])
+        .constraints([Constraint::Length(25), Constraint::Min(1)])
         .split(area);
     let right = Layout::default()
         .direction(Direction::Vertical)
@@ -46,7 +55,16 @@ fn draw_body(f: &mut Frame, app: &App, area: Rect) {
         .split(cols[1]);
 
     draw_explorer(f, app, cols[0]);
-    draw_editor(f, app, right[0]);
+    if app.ast_visible {
+        let editor_ast = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
+            .split(right[0]);
+        draw_editor(f, app, editor_ast[0]);
+        draw_ast(f, app, editor_ast[1]);
+    } else {
+        draw_editor(f, app, right[0]);
+    }
     draw_console(f, app, right[1]);
 }
 
@@ -140,6 +158,20 @@ fn console_visual_rows(text: &str, width: usize) -> Vec<String> {
     rows
 }
 
+fn draw_ast(f: &mut Frame, app: &App, area: Rect) {
+    let lines = if app.editor_path.is_none() {
+        vec!["Відкрийте .lisp у Explorer".to_string()]
+    } else {
+        app.ast_lines.clone()
+    };
+    let visible = area.height.saturating_sub(2) as usize;
+    let scroll = app.ast_scroll.min(lines.len().saturating_sub(visible));
+    let para = Paragraph::new(lines.join("\n"))
+        .block(pane_block(app.t("ast"), false))
+        .scroll((scroll.min(u16::MAX as usize) as u16, 0));
+    f.render_widget(para, area);
+}
+
 fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     let inner_width = area.width.saturating_sub(2) as usize;
     let mut lines: Vec<Line> = Vec::new();
@@ -178,11 +210,11 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
         String::new()
     };
     let text = if area.width < 76 {
-        format!(" {} | {} | {}{} | Ctrl+S  F5  F9",
+        format!(" {} | {} | {}{} | Ctrl+S  F5  F6 AST  F9",
             app.pane_label(), app.language, run, position)
     } else {
         format!(
-            " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S Save  F5 Run  F9 Stop ",
+            " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S Save  F5 Run  F6 AST  F9 Stop ",
             app.pane_label(), app.language, run, position
         )
     };

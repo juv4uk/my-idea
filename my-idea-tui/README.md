@@ -7,7 +7,7 @@
 дослідження [#84](https://github.com/juv4uk/my-idea/issues/84). Продуктова межа —
 `docs/ADR-003-SIMPLE-SELF-BUILDING-IDE.md`.
 
-> **Статус: збірка й тести Rust пройшли у GitHub Actions (run #39260079011); реальний SENS file-mode smoke ще не підтверджений.**
+> **Стан: перша вертикаль пройшла реальний SENS CLI та UKR REPL smoke (GitHub Actions #39275464108); AST на F6 потребує окремого зеленого запуску після цього коміту.**
 > Збірку Ratatui перевірено на GitHub-hosted runner; SENS-рушій окремо має запускатися із pinned gitlink.
 > Це каркас для огляду й першого зрізу, а не «готово».
 
@@ -65,6 +65,8 @@ cargo build --release --manifest-path my-idea-tui/Cargo.toml
 | `PageUp` / `PageDown` / `End` | Console: попередній вивід / наступний / найновіший |
 | Bracketed paste із буфера термінала | Editor: багаторядковий UTF-8 одним блоком; Console: тільки один рядок, без випадкового виконання кількох форм |
 | `F5` | Запуск збереженого файла через pinned SENS CLI |
+| `F6` | показати/сховати AST від **того самого pinned SENS reader** (синтаксичні помилки з рядком і стовпцем) |
+| `Alt+PageUp` / `Alt+PageDown` | прокручувати AST при відкритій панелі |
 | `Backspace` (Explorer) | до батьківського каталогу в межах workspace |
 | `F9` | Stop (файл і REPL) |
 | `Ctrl-S` | зберегти поточну вкладку |
@@ -84,7 +86,7 @@ cargo build --release --manifest-path my-idea-tui/Cargo.toml
 
 ## Що далі (поза першою вертикалею)
 
-AST/Preview, вкладки, палітра команд, повний паритет панелей — після працездатної
+AST-панель уже користується справжнім `sens::parse` із pinned gitlink (F6); вкладки, палітра команд, повний паритет панелей — після працездатної
 вертикалі. Візуальні компоненти ClojureScript і Ratatui **окремі**; повторно
 використовується контракт команд і семантика виконання, а не віджети.
 
