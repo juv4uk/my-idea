@@ -49,7 +49,7 @@ fn main() -> io::Result<()> {
     run(&mut terminal, &mut app)
 }
 
-fn run<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> io::Result<()> {
     loop {
         app.drain_engine();
         terminal.draw(|f| ui::draw(f, app))?;

@@ -67,7 +67,7 @@ impl App {
         app
     }
 
-    pub fn t(&self, key: &str) -> &'static str {
+    pub fn t<'a>(&self, key: &'a str) -> &'a str {
         i18n::t(&self.language, key)
     }
 
