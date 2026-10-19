@@ -99,7 +99,7 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     // Ratatui за замовчуванням показує перші рядки Paragraph; для REPL
     // найважливіші останні stdout/stderr і поточний промпт.
     let visible = area.height.saturating_sub(2) as usize; // рамка панелі
-    let scroll = lines.len().saturating_sub(visible).min(u16::MAX as usize) as u16;
+    let scroll = console_scroll_start(lines.len(), visible, app.console_scroll_back);
     let para = Paragraph::new(lines)
         .block(pane_block(app.t("console"), app.pane == Pane::Console))
         .wrap(Wrap { trim: false })
@@ -117,4 +117,25 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
     );
     let para = Paragraph::new(text).style(Style::default().add_modifier(Modifier::REVERSED));
     f.render_widget(para, area);
+}
+
+// Коли відступ дорівнює нулю, промпт і останній результат завжди видимі.
+// Прокрутка не стирає stderr/stdout і не втручається у SENS-сесію.
+fn console_scroll_start(lines: usize, visible: usize, back: usize) -> u16 {
+    lines.saturating_sub(visible)
+        .saturating_sub(back)
+        .min(u16::MAX as usize) as u16
+}
+
+#[cfg(test)]
+mod console_scrolling_tests {
+    use super::console_scroll_start;
+
+    #[test]
+    fn shows_latest_output_and_allows_reviewing_prior_lines() {
+        assert_eq!(console_scroll_start(30, 8, 0), 22);
+        assert_eq!(console_scroll_start(30, 8, 5), 17);
+        assert_eq!(console_scroll_start(30, 8, 999), 0);
+        assert_eq!(console_scroll_start(4, 8, 0), 0);
+    }
 }

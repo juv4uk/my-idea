@@ -59,7 +59,8 @@ cargo build --release --manifest-path my-idea-tui/Cargo.toml
 |---|---|
 | `Tab` / `Shift-Tab` | перемикання панелей |
 | `Enter` | Explorer: відкрити; Console: надіслати; Editor: новий рядок |
-| `↑` / `↓` | Explorer: вибір; Console: історія |
+| `↑` / `↓` | Explorer: вибір; Console: історія введених команд |
+| `PageUp` / `PageDown` / `End` | Console: попередній вивід / наступний / найновіший |
 | `F5` | Run (поточний файл через pinned SENS) |
 | `F9` | Stop |
 | `Ctrl-S` | зберегти поточний файл |

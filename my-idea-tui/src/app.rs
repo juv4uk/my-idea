@@ -32,6 +32,8 @@ pub struct App {
     pub dirty: bool,
     pub quit_armed: bool,
     pub console: Vec<Line>,
+    /// Скільки логічних рядків відступити від хвоста консолі (0 = останній вивід).
+    pub console_scroll_back: usize,
     pub input: String,
     pub history: Vec<String>,
     pub hist_idx: usize,
@@ -56,6 +58,7 @@ impl App {
             dirty: false,
             quit_armed: false,
             console: Vec::new(),
+            console_scroll_back: 0,
             input: String::new(),
             history: Vec::new(),
             hist_idx: 0,
@@ -281,6 +284,14 @@ impl App {
                     self.dirty = true;
                 }
             }
+            KeyCode::PageUp if self.pane == Pane::Console => {
+                self.console_scroll_back = self.console_scroll_back.saturating_add(5)
+                    .min(self.console.len());
+            }
+            KeyCode::PageDown if self.pane == Pane::Console => {
+                self.console_scroll_back = self.console_scroll_back.saturating_sub(5);
+            }
+            KeyCode::End if self.pane == Pane::Console => self.console_scroll_back = 0,
             KeyCode::Backspace => self.backspace(),
             KeyCode::Up => self.up(),
             KeyCode::Down => self.down(),
