@@ -496,13 +496,6 @@ impl App {
             }
             KeyCode::Delete if self.pane == Pane::Editor => self.delete_forward(),
             KeyCode::Backspace => self.backspace(),
-            KeyCode::Delete if self.pane == Pane::Editor && self.editor_path.is_some() => {
-                if let Some(next) = self.editor_buf[self.editor_cursor..].chars().next() {
-                    self.remember_edit();
-                    self.editor_buf.drain(self.editor_cursor..self.editor_cursor + next.len_utf8());
-                    self.dirty = true;
-                }
-            },
             KeyCode::Up => self.up(),
             KeyCode::Down => self.down(),
             KeyCode::Left => {
@@ -547,9 +540,13 @@ impl App {
 
     /// Видалення символу праворуч без розриву послідовності UTF-8.
     fn delete_forward(&mut self) {
+        if self.editor_path.is_none() { return; }
         if let Some(next) = self.editor_buf[self.editor_cursor..].chars().next() {
+            // Поведінка Delete має бути симетрична Backspace: Ctrl+Z повертає
+            // вилучений український символ, а край файла лишається чистим.
+            self.remember_edit();
             self.editor_buf.drain(self.editor_cursor..self.editor_cursor + next.len_utf8());
-            self.dirty = true;
+            self.dirty = self.editor_buf != self.editor_original;
         }
     }
 
