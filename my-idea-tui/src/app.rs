@@ -241,6 +241,30 @@ impl App {
                 self.console.push(line);
             }
         }
+        // REPL може завершитися сам (EOF, помилка рушія або команда виходу).
+        // Не залишати закритий stdin у стані Some: наступна команда має
+        // створити нову сесію з того самого pinned SENS.
+        let repl_result = self.repl_engine.as_mut().map(|eng| eng.try_wait());
+        match repl_result {
+            Some(Ok(Some(status))) => {
+                if let Some(mut eng) = self.repl_engine.take() {
+                    eng.finish_readers();
+                    while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
+                }
+                self.sys(&format!("SENS REPL exit-status={status}; наступна команда відкриє нову сесію."));
+            }
+            Some(Err(error)) => {
+                if let Some(mut eng) = self.repl_engine.take() {
+                    eng.stop();
+                    while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
+                }
+                self.console.push(Line {
+                    origin: Origin::Stderr,
+                    text: format!("SENS REPL wait: {error}"),
+                });
+            }
+            _ => {}
+        }
         if let Some(eng) = self.run_engine.as_ref() {
             while let Ok(line) = eng.rx.try_recv() {
                 self.console.push(line);
