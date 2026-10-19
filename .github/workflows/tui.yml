@@ -37,8 +37,29 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          # Рівно зафіксований gitlink; не клонувати рухомий main SENS.
-          submodules: recursive
+          # Не покладатися на пошкоджений Git object store підмодуля в
+          # постійному workspace локального runner (pack unresolved deltas).
+          submodules: false
+      - name: Отримати точний SENS gitlink без пошкодженого кешу підмодуля
+        shell: bash
+        run: |
+          set -euo pipefail
+          gitlink="$(git rev-parse HEAD:external/sens)"
+          # Зачіпаємо тільки підмодуль всередині checkout поточного job.
+          # Старий .git/modules/external/sens не можна повторно використати:
+          # у локального runner саме він повертав '523 unresolved deltas'.
+          rm -rf -- external/sens .git/modules/external/sens
+          mkdir -p external/sens
+          git -C external/sens init -q
+          git -C external/sens remote add origin https://github.com/juv4uk/sens.git
+          # GitHub підтримує fetch exact reachable commit; часткове отримання
+          # уникає величезного старого pack і не змінює pinned SHA.
+          git -C external/sens -c protocol.version=2 fetch \
+            --no-tags --filter=blob:none --depth=1 origin "$gitlink"
+          git -C external/sens checkout --detach --force FETCH_HEAD
+          checked_out="$(git -C external/sens rev-parse HEAD)"
+          test "$checked_out" = "$gitlink"
+          printf 'PINNED_SENS_GITLINK=%s\n' "$gitlink"
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify real workspace save and build Ratatui
         run: |
