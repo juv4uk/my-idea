@@ -27,7 +27,12 @@ struct TerminalGuard;
 impl TerminalGuard {
     fn enter() -> io::Result<Self> {
         enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen)?;
+        if let Err(error) = execute!(io::stdout(), EnterAlternateScreen) {
+            // Raw-режим уже активний: не залишати термінал з вимкненим echo,
+            // якщо альтернативний екран недоступний.
+            let _ = disable_raw_mode();
+            return Err(error);
+        }
         Ok(TerminalGuard)
     }
 }
