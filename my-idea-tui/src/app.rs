@@ -289,13 +289,9 @@ impl App {
         }
     }
 
-    /// Створити новий текстовий Lisp у поточній папці Explorer. Ніколи не
-    /// перезаписувати існуючий файл й не змінювати буфер із незбереженими змінами.
+    /// Створити новий Lisp у поточній папці Explorer без перезапису.
+    /// Незбережені чернетки зберігаються незалежно в інших вкладках.
     fn create_new_document(&mut self, name: &str) {
-        if self.dirty {
-            self.sys(self.t("dirty-new"));
-            return;
-        }
         let candidate = Path::new(name);
         if name.is_empty()
             || name.contains('\\')
@@ -1456,7 +1452,7 @@ mod create_document_tests {
     }
 
     #[test]
-    fn cannot_escape_workspace_or_discard_unsaved_source() {
+    fn cannot_escape_workspace_and_creating_new_tab_preserves_unsaved_source() {
         let root = std::env::temp_dir().join(format!(
             "my-idea-new-safe-{}-{}", std::process::id(),
             NONCE.fetch_add(1, Ordering::Relaxed)
@@ -1474,11 +1470,30 @@ mod create_document_tests {
         assert_eq!(app.editor_path.as_ref(), Some(&first));
         app.paste("(цитата дім)");
         assert!(app.dirty);
+        // Створення нового документа не губить чернетку попередньої вкладки.
         app.create_new_document("другий.lisp");
-        assert!(!root.join("другий.lisp").exists());
+        let second = root.join("другий.lisp");
+        assert!(second.is_file());
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert_eq!(app.tabs.len(), 2);
+        assert_eq!(app.editor_buf, "");
+        assert!(!app.dirty);
+
+        app.paste("(цитата другий)");
+        app.save();
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "(цитата другий)");
+        app.cycle_tab(true);
         assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert_eq!(app.editor_buf, "(цитата дім)");
         assert!(app.dirty);
-        assert_eq!(std::fs::read_to_string(first).unwrap(), "");
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "");
+
+        // Повернувшись до нової вкладки, бачимо раніше збережений код.
+        app.cycle_tab(false);
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert_eq!(app.editor_buf, "(цитата другий)");
+        assert!(!app.dirty);
+        assert!(app.has_unsaved_changes(), "чернетка іншої вкладки не повинна загубитися");
         std::fs::remove_dir_all(root).unwrap();
     }
 }
