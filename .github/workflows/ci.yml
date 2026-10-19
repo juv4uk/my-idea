@@ -76,6 +76,12 @@ jobs:
         run: bunx playwright install chromium --with-deps
       - run: bun run test
       - run: bun run check
+      # CLI Guard transports sources exclusively through the Zig compiler
+      # pinned in the *same* external/sens gitlink (SHA256-checked action).
+      - name: Встановити Zig із точного SENS gitlink для sidecar
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: "0.16.0"
       - name: Build my-lisp CLI sidecar for tests · Зібрати sidecar my-lisp для тестів
         run: bash scripts/build-repl-sidecar.sh
       - name: Checkout exact CML witness source
