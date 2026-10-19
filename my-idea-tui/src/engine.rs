@@ -223,7 +223,6 @@ mod pinned_file_mode_smoke {
     #[test]
     #[ignore = "реальний SENS_PINNED_CLI потрібен; CI перевіряє разом із file-mode"]
     fn pinned_ukr_repl_smoke() {
-        use std::io::Write;
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let expected = root.join("external/sens/target/release/my-lisp")
             .canonicalize().expect("бінарник із pinned external/sens");
@@ -250,7 +249,7 @@ mod pinned_file_mode_smoke {
         }
         assert!(status.success(), "помилка SENS REPL: {status}, stderr={stderr}");
         assert!(stdout.contains("укр"), "CLI не підтвердив повну українську поверхню: {stdout}");
-        assert!(stdout.contains("(1)"), "дійсний SENS не виконав український виклик: {stdout}, stderr={stderr}");
+        assert!(stdout.lines().any(|line| line.trim() == "так"), "SENS укр має повернути ратифіковане так: {stdout}, stderr={stderr}");
         assert!(stderr.is_empty(), "REPL stderr: {stderr}");
         println!("PINNED_SENS_UKR_REPL_OK output={}", stdout.trim());
     }
