@@ -2058,8 +2058,8 @@ name = "my-idea"
 version = "0.13.9"
 dependencies = [
  "indexmap 1.9.3",
- "my-lisp",
- "my-lisp-literate",
+ "sens",
+ "sens-literate",
  "serde",
  "serde_json",
  "sha2",
@@ -2069,28 +2069,6 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-opener",
  "tauri-plugin-shell",
-]
-
-[[package]]
-name = "my-lisp"
-version = "0.39.0"
-dependencies = [
- "my-lisp-host",
-]
-
-[[package]]
-name = "my-lisp-host"
-version = "0.39.0"
-dependencies = [
- "my-lisp",
-]
-
-[[package]]
-name = "my-lisp-literate"
-version = "0.39.0"
-dependencies = [
- "my-lisp",
- "pulldown-cmark",
 ]
 
 [[package]]
@@ -2980,6 +2958,29 @@ checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 dependencies = [
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "sens"
+version = "0.42.0"
+dependencies = [
+ "sens-host",
+ "serde_json",
+]
+
+[[package]]
+name = "sens-host"
+version = "0.42.0"
+dependencies = [
+ "sens",
+]
+
+[[package]]
+name = "sens-literate"
+version = "0.42.0"
+dependencies = [
+ "pulldown-cmark",
+ "sens",
 ]
 
 [[package]]
