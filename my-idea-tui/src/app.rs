@@ -23,7 +23,8 @@ pub enum Pane {
 pub struct App {
     pub language: String,
     pub pane: Pane,
-    pub cwd: PathBuf,
+    pub cwd: PathBuf, // Незмінний корінь workspace, зокрема для безпечного Save
+    pub explorer_dir: PathBuf, // Поточний каталог Explorer усередині workspace
     pub files: Vec<PathBuf>,
     pub file_sel: usize,
     pub editor_path: Option<PathBuf>,
@@ -49,6 +50,7 @@ impl App {
         let mut app = App {
             language: "uk".to_string(),
             pane: Pane::Explorer,
+            explorer_dir: cwd.clone(),
             cwd,
             files: Vec::new(),
             file_sel: 0,
@@ -92,27 +94,26 @@ impl App {
     // ---- робочий простір / файли -------------------------------------------
 
     pub fn reload_files(&mut self) {
-        self.files.clear();
-        if let Ok(rd) = std::fs::read_dir(&self.cwd) {
-            for e in rd.flatten() {
-                let p = e.path();
-                if p.is_file() {
-                    self.files.push(p);
-                }
-            }
-        }
-        self.files.sort();
+        self.files = directory_entries(&self.explorer_dir);
         if self.file_sel >= self.files.len() {
             self.file_sel = self.files.len().saturating_sub(1);
         }
     }
 
     fn open_selected(&mut self) {
-        if self.dirty {
-            self.sys("Незбережені зміни: Ctrl+S перед відкриттям іншого файлу");
-            return;
-        }
         if let Some(p) = self.files.get(self.file_sel).cloned() {
+            // Навігація каталогами не змінює корінь workspace для Save/Run.
+            if p.is_dir() {
+                self.explorer_dir = p;
+                self.file_sel = 0;
+                self.reload_files();
+                self.status = format!("каталог {}", self.explorer_dir.display());
+                return;
+            }
+            if self.dirty {
+                self.sys("Незбережені зміни: Ctrl+S перед відкриттям іншого файлу");
+                return;
+            }
             match std::fs::read_to_string(&p) {
                 Ok(text) => {
                     self.editor_buf = text;
@@ -336,7 +337,18 @@ impl App {
                 }
             }
             Pane::Editor => {}
-            Pane::Explorer => {}
+            Pane::Explorer => {
+                if self.explorer_dir != self.cwd {
+                    if let Some(parent) = self.explorer_dir.parent() {
+                        if parent.starts_with(&self.cwd) {
+                            self.explorer_dir = parent.to_path_buf();
+                            self.file_sel = 0;
+                            self.reload_files();
+                            self.status = format!("каталог {}", self.explorer_dir.display());
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -422,4 +434,45 @@ impl App {
 
 pub fn display_name(p: &Path) -> String {
     p.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string())
+}
+
+    
+/// Explorer показує звичайні каталоги і файли; символьні посилання не
+/// використовуємо як прихований шлях за межі вибраного workspace.
+fn directory_entries(dir: &Path) -> Vec<PathBuf> {
+    let mut entries = Vec::new();
+    if let Ok(read_dir) = std::fs::read_dir(dir) {
+        for entry in read_dir.flatten() {
+            if let Ok(kind) = entry.file_type() {
+                if kind.is_dir() || kind.is_file() {
+                    entries.push(entry.path());
+                }
+            }
+        }
+    }
+    entries.sort_by(|a, b| b.is_dir().cmp(&a.is_dir()).then_with(|| a.cmp(b)));
+    entries
+}
+
+#[cfg(test)]
+mod directory_tests {
+    use super::*;
+
+    #[test]
+    fn explorer_lists_directories_before_files() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NONCE: AtomicU64 = AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-tui-explorer-{}-{}", std::process::id(),
+            NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("а.lisp"), "дані").unwrap();
+        std::fs::create_dir(root.join("б")).unwrap();
+        let entries = directory_entries(&root);
+        assert_eq!(entries.len(), 2);
+        assert!(entries[0].is_dir());
+        assert!(entries[1].is_file());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
