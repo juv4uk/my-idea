@@ -1,32 +1,32 @@
-# GitHub-hosted CI · Ранери GitHub · GitHub-Runner
+# Локальні GitHub Actions ранери · my-idea
 
-## Чинний порядок (19.10.2026)
+## Чинна маршрутизація (рішення власника · 19.10.2026)
 
-**`juv4uk/my-idea` використовує GitHub-hosted ранери, а не локальний WSL/self-hosted runner.** Достатньо стандартних GitHub Actions; реєструвати ранери на комп'ютері власника чи запускати `./run.sh` не потрібно.
+**Ratatui/TUI перевіряється на локальних Linux/X64 repo-scoped runner-ах.**
+`.github/workflows/tui.yml` використовує `runs-on: [self-hosted, Linux, X64]`.
+Додаткова мітка `core-local` не потрібна для цього job: вона обмежувала планувальник, не будучи підтвердженою.
 
-- `.github/workflows/ci.yml`: перевірки `main` (`push`), pull request і ручний `workflow_dispatch`; job `hosted-web` на **`ubuntu-24.04`**.
-- `.github/workflows/tui.yml`: збірка Ratatui на **`ubuntu-24.04`** за зміни `my-idea-tui/**` / самого workflow на `main`, або вручну.
-- `.github/workflows/publish-release.yml`: релізні jobs на GitHub-hosted Ubuntu, Windows і macOS. Конкретну платформу визначає `runs-on` у job або `matrix.platform`.
-- Інші наявні workflow теж мають використовувати лише GitHub-hosted `runs-on`; не повертайте `[self-hosted, linux, x64]`, WSL/Guix як умову розміщення job чи прив'язку до постійно ввімкненого ПК.
+- TUI job запускає справжні тести/збірку Rust та file-mode/REPL SENS зі строго pinned `external/sens`.
+- Для економії CPU використовується одна concurrency group на гілку і `CARGO_BUILD_JOBS=2`.
+- `.github/workflows/ci.yml` залишається на GitHub-hosted Ubuntu для P0 Tauri/Playwright, якщо не надійде окреме рішення про його перенесення.
+- `.github/workflows/publish-release.yml` залишається на GitHub-hosted Linux/Windows/macOS; переносні релізи не запускати без потреби на локальному ПК.
+- Жодна зміна runner routing сама по собі не змінює gitlink `external/sens` або семантику SENS.
 
-Пріоритет — **один змістовний автоматичний CI для кожного коміту**, із реальними SENS-перевірками, без дубльованих запусків або фіктивних зелених статусів. У `ci.yml` push/PR перевіряються на одному hosted job, а точний CML witness запускається через `workflow_dispatch`.
+## Фактичний стан та докази
 
-## Як перевірити стан
+Доступний GitHub Actions job не означає, що runner зареєстрований або почав працювати.
+Для конкретного SHA у GitHub Actions потрібно перевірити:
 
-Відкрийте [GitHub Actions](https://github.com/juv4uk/my-idea/actions) і перевірте runs **CI · Перевірка · Prüfung** та **TUI · my-idea-tui · Ratatui** для потрібного SHA. Переконайтеся, що job отримав GitHub-hosted runner, пройшов усі кроки та завершився `success`. Якщо run `queued`, `failure` або відсутній — не називайте збірку зеленою; з'ясуйте причину у логах GitHub Actions.
+1. `labels`: `self-hosted`, `Linux`, `X64`; `runner_name` — назва реально призначеного локального runner-а.
+2. `status`: queued ≠ in_progress ≠ completed/success. Не називати CI зеленим до завершення.
+3. Логи Cargo і SENS містять справжній SHA `PINNED_SENS_GITLINK` та `PINNED_SENS_*_OK`, а не нуль тестів.
 
-Збірка в TUI workflow — це **перевірка компіляції**, а не доказ наскрізного виконання SENS-файла. Поведінка `Open → Edit → Save → Run → Output → Stop` потребує окремого реального smoke на тому самому pinned `external/sens`.
-
-## Доступ до підмодулів
-
-Основний CI читає зафіксовані gitlink-и. Для приватних залежностей використовуйте репозиторні secrets `SUBMODULE_READ_TOKEN` або `SENS_READ_TOKEN` із мінімальними правами на читання; якщо доступ дозволяє стандартний `GITHUB_TOKEN`, окремий секрет не потрібен. **Не записуйте токени у файли, workflow або команди Git.**
-
-## Раніше встановлений локальний runner
-
-Сам по собі перехід workflow на `ubuntu-24.04` **не видаляє** реєстрацію self-hosted runner у налаштуваннях GitHub чи службу на ПК. Якщо ранер був зареєстрований, власник може перевірити його в **Repository Settings → Actions → Runners** і видалити після підтвердження, що жодний чинний workflow його не потребує. Це окрема операція, не передумова hosted CI.
+Якщо job лишається queued — перевірити **Settings → Actions → Runners** саме цього репозиторію та Linux/X64 labels на зареєстрованих runner-ах.
+Доступність Desktop Commander не є свідком доступності GitHub Actions runner.
+Не запускати повторно старі червоні workflows, не вимикати TLS, не публікувати реєстраційні токени.
 
 ---
 
-**Deutsch:** Alle regulären CI- und TUI-Jobs laufen auf GitHub-hosted Runnern. Es ist keine Registrierung eines lokalen WSL-Runners erforderlich. Ein bereits registrierter Runner wird dadurch nicht automatisch entfernt.
+**Deutsch:** Ratatui CI verwendet einen lokalen self-hosted Linux/X64-Runner; Release-Matrizen bleiben GitHub-hosted.
 
-**English:** Regular CI and TUI jobs run on GitHub-hosted runners. No local WSL runner registration is required. Existing self-hosted runner registrations are not removed automatically.
+**English:** Ratatui CI uses local self-hosted Linux/X64; release jobs remain GitHub-hosted.

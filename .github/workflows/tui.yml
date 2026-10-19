@@ -1,7 +1,7 @@
 name: TUI · my-idea-tui · Ratatui
 
-# Раннери — тільки GitHub-hosted (як і решта my-idea). Self-hosted заборонено
-# політикою репо; тут явно `ubuntu-24.04`.
+# Рішення власника від 19.10.2026: TUI на локальному Linux/X64 runner.
+# Інші jobs/релізні матриці не перенаправляти без окремого аналізу.
 on:
   push:
     branches: [main]
@@ -19,15 +19,20 @@ on:
 permissions:
   contents: read
 
+# На малопотужному локальному ПК лише одна актуальна збірка TUI на гілку.
+concurrency:
+  group: my-idea-tui-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Build my-idea-tui (GitHub-hosted runner)
-    # ТИМЧАСОВО: GitHub Actions у стані інциденту (від 15:49 UTC 19.10.2026) —
-    # hosted-раннери не призначаються. За вказівкою власника job іде на локальний
-    # self-hosted раннер (wsm-i5-6400). Типова політика репо — GitHub-hosted;
-    # повернути `ubuntu-24.04` після відновлення Actions.
-    runs-on: [self-hosted, Linux, X64, core-local]
-    timeout-minutes: 20
+    name: Build my-idea-tui (local Linux runner)
+    # Repo-scoped runner: використовуємо гарантовані стандартні Linux/X64 labels.
+    # Додаткова core-local не підтверджена і залишала job в queued.
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '2'
     steps:
       - uses: actions/checkout@v5
         with:
