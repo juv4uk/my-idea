@@ -635,7 +635,7 @@ impl App {
                 self.remember_edit();
                 self.editor_buf.insert_str(self.editor_cursor, &normalized);
                 self.editor_cursor += normalized.len();
-                self.dirty = true;
+                self.dirty = self.editor_buf != self.editor_original;
             }
             Pane::Console => {
                 if text.contains('\r') || text.contains('\n') {
@@ -723,7 +723,7 @@ impl App {
                     self.remember_edit();
                     self.editor_buf.insert(self.editor_cursor, '\n');
                     self.editor_cursor += 1;
-                    self.dirty = true;
+                    self.dirty = self.editor_buf != self.editor_original;
                 }
             }
             KeyCode::PageUp if self.pane == Pane::Console => {
@@ -785,7 +785,7 @@ impl App {
                     self.remember_edit();
                     self.editor_buf.insert(self.editor_cursor, c);
                     self.editor_cursor += c.len_utf8();
-                    self.dirty = true;
+                    self.dirty = self.editor_buf != self.editor_original;
                 }
             }
             _ => {}
@@ -818,7 +818,7 @@ impl App {
                     self.remember_edit();
                     self.editor_buf.drain(previous..self.editor_cursor);
                     self.editor_cursor = previous;
-                    self.dirty = true;
+                    self.dirty = self.editor_buf != self.editor_original;
                 }
             }
             Pane::Editor => {}
@@ -1574,6 +1574,58 @@ mod ast_visibility_tests {
 
         let _ = app.handle_key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
         assert!(app.ast_lines.iter().any(|l| l.contains("батько")), "{:?}", app.ast_lines);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod actual_dirty_state_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn manually_reverted_ukrainian_edits_allow_clean_tab_close() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-dirty-content-{}-{stamp}", std::process::id(),
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("текст.lisp");
+        let original = "(цитата їжак)\n";
+        std::fs::write(&path, original).unwrap();
+        let mut app = App::new_in(root.clone());
+        app.file_sel = app.files.iter().position(|p| p == &path).unwrap();
+        app.open_selected();
+        assert_eq!(app.editor_buf, original);
+
+        // Додавання та ручне видалення UTF-8 символу відновлює чистий стан
+        // без Ctrl+Z або зайвого запису у файлову систему.
+        app.handle_key(KeyEvent::new(KeyCode::Char('ґ'), KeyModifiers::NONE));
+        assert!(app.dirty);
+        app.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        assert_eq!(app.editor_buf, original);
+        assert!(!app.dirty);
+        assert!(!app.has_unsaved_changes());
+
+        app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(app.dirty);
+        app.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        assert_eq!(app.editor_buf, original);
+        assert!(!app.dirty);
+
+        app.paste("є");
+        assert!(app.dirty);
+        app.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        assert_eq!(app.editor_buf, original);
+        assert!(!app.dirty);
+        assert!(!app.tabs_title().contains("текст.lisp*"));
+
+        app.handle_key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL));
+        assert!(app.editor_path.is_none(), "чисту вкладку можна закрити");
+        assert!(app.tabs.is_empty());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), original,
+            "ручне скасування не перезаписує файл");
         std::fs::remove_dir_all(root).unwrap();
     }
 }
