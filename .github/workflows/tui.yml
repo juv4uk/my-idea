@@ -8,11 +8,13 @@ on:
     paths:
       - "my-idea-tui/**"
       - "src-tauri/src/workspace_save.rs"
+      - "external/sens"
       - ".github/workflows/tui.yml"
   pull_request:
     paths:
       - "my-idea-tui/**"
       - "src-tauri/src/workspace_save.rs"
+      - "external/sens"
       - ".github/workflows/tui.yml"
   workflow_dispatch:
 
