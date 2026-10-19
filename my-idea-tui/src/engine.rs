@@ -239,10 +239,10 @@ mod pinned_file_mode_smoke {
         fs::create_dir(&workspace).expect("створити реальний workspace");
         let file = workspace.join("програма.lisp");
         // Десяткові числа у вихідному Lisp: результат інтерпретує тільки SENS.
-        fs::write(&file, "(+ 2 3)\n").expect("записати Lisp-програму");
+        fs::write(&file, "(+ 2 3)\n(+ 4 5)\n").expect("записати багаторядковий Lisp");
         let (status, stdout, stderr) = run_file(&selected, &file);
         assert!(status.success(), "SENS не виконав програму: {status}, stderr={stderr}");
-        assert_eq!(stdout.trim(), "5", "SENS повернув неправильний результат");
+        assert_eq!(stdout.trim(), "9", "SENS має повернути значення останньої форми");
         assert!(stderr.is_empty(), "SENS помилково повідомив: {stderr}");
 
         fs::write(&file, "(\n").expect("записати помилкове джерело");
@@ -251,7 +251,7 @@ mod pinned_file_mode_smoke {
         assert!(stderr.contains("Parse error"), "немає реальної діагностики: {stderr}");
         println!(
             "PINNED_SENS_FILE_MODE_OK success_stdout={} failure_exit={} failure_stderr={}",
-            "5", status, stderr.trim()
+            "9", status, stderr.trim()
         );
         assert!(stdout.is_empty(), "некоректна програма не повинна мати результат");
         fs::remove_dir_all(workspace).expect("прибрати тимчасовий workspace");
