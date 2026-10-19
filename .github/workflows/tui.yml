@@ -22,7 +22,11 @@ permissions:
 jobs:
   build:
     name: Build my-idea-tui (GitHub-hosted runner)
-    runs-on: ubuntu-24.04
+    # ТИМЧАСОВО: GitHub Actions у стані інциденту (від 15:49 UTC 19.10.2026) —
+    # hosted-раннери не призначаються. За вказівкою власника job іде на локальний
+    # self-hosted раннер (wsm-i5-6400). Типова політика репо — GitHub-hosted;
+    # повернути `ubuntu-24.04` після відновлення Actions.
+    runs-on: [self-hosted, Linux, X64, core-local]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
