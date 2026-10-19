@@ -1,0 +1,27 @@
+# Самостійний крейт: власний порожній workspace, щоб додавання TUI НЕ змінювало
+# кореневий `Cargo.toml`/`Cargo.lock` і не впливало на наявний CI my-idea.
+[workspace]
+
+[package]
+name = "my-idea-tui"
+version = "0.0.1"
+edition = "2021"
+description = "Термінальна (TUI) поверхня my-idea — той самий продукт, що GUI, лише в терміналі (Ratatui)"
+license-file = "../LICENSE"
+
+# Окремий бінарник. Це НЕ новий рушій і НЕ друга мова: виконання йде через
+# той самий pinned SENS CLI з `external/sens`, що й у GUI (жодної другої семантики).
+[[bin]]
+name = "my-idea-tui"
+path = "src/main.rs"
+
+[dependencies]
+# Один термінальний бекенд, без зайвих шарів (ADR-003 / #85).
+# `default-features = false` прибирає all-widgets/macros/layout-cache/underline-color
+# і всі бекенди, крім crossterm; звичайні віджети лишаються в ratatui-widgets.
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
+crossterm = "0.29"
+
+# Рушій НЕ додаємо як Cargo-залежність: TUI лише запускає той самий pinned
+# `my-lisp` CLI (як це вже робить GUI-консоль). Тому gitlink `external/sens`
+# не змінюється, а #81 лишається окремою задачею.

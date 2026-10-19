@@ -1,0 +1,25 @@
+name: TUI · my-idea-tui · Ratatui
+
+# Раннери — тільки GitHub-hosted (як і решта my-idea). Self-hosted заборонено
+# політикою репо; тут явно `ubuntu-24.04`.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "my-idea-tui/**"
+      - ".github/workflows/tui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build my-idea-tui (GitHub-hosted runner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build TUI · Зібрати TUI · TUI bauen
+        run: cargo build --release --manifest-path my-idea-tui/Cargo.toml
