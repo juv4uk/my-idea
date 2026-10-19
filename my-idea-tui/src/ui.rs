@@ -77,12 +77,10 @@ fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_editor(f: &mut Frame, app: &App, area: Rect) {
-    let title = match &app.editor_path {
-        Some(p) => {
-            let star = if app.dirty { " •" } else { "" };
-            format!("{}{star}  {}", app.t("editor"), p.display())
-        }
-        None => app.t("editor").to_string(),
+    let title = if app.editor_path.is_some() {
+        format!("{}  {}", app.t("editor"), app.tabs_title())
+    } else {
+        app.t("editor").to_string()
     };
     let mut shown = app.editor_buf.clone();
     if shown.is_char_boundary(app.editor_cursor) {

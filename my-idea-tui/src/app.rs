@@ -22,9 +22,22 @@ pub enum Pane {
 
 /// Знімок редагованого тексту. Зберігаємо лише стани користувацьких змін;
 /// SENS-семантику не інтерпретуємо й не переписуємо.
+#[derive(Clone)]
 struct EditSnapshot {
     text: String,
     cursor: usize,
+}
+
+/// Один файл у вкладках. Незбережений текст та Undo/Redo належать документу,
+/// а не поточному Explorer, тому перемикання не знищує зміни.
+#[derive(Clone)]
+struct OpenDocument {
+    path: PathBuf,
+    text: String,
+    original: String,
+    cursor: usize,
+    undo: Vec<EditSnapshot>,
+    redo: Vec<EditSnapshot>,
 }
 
 const MAX_EDIT_HISTORY: usize = 64;
@@ -37,6 +50,8 @@ pub struct App {
     pub files: Vec<PathBuf>,
     pub file_sel: usize,
     pub editor_path: Option<PathBuf>,
+    tabs: Vec<OpenDocument>,
+    active_tab: usize,
     pub editor_buf: String,
     // Текст відкритого файла на диску при останньому Open/Save.
     pub editor_original: String,
@@ -76,6 +91,8 @@ impl App {
             files: Vec::new(),
             file_sel: 0,
             editor_path: None,
+            tabs: Vec::new(),
+            active_tab: 0,
             editor_buf: String::new(),
             editor_original: String::new(),
             editor_cursor: 0,
@@ -133,9 +150,97 @@ impl App {
         }
     }
 
+    /// Поточний видимий документ у вкладці синхронізується перед перемиканням.
+    fn store_active_tab(&mut self) {
+        let Some(path) = self.editor_path.as_ref() else { return; };
+        if let Some(tab) = self.tabs.get_mut(self.active_tab) {
+            if &tab.path == path {
+                tab.text = self.editor_buf.clone();
+                tab.original = self.editor_original.clone();
+                tab.cursor = self.editor_cursor;
+                tab.undo = self.undo.clone();
+                tab.redo = self.redo.clone();
+            }
+        }
+    }
+
+    fn show_tab(&mut self, index: usize) {
+        let Some(tab) = self.tabs.get(index).cloned() else { return; };
+        self.active_tab = index;
+        self.editor_path = Some(tab.path.clone());
+        self.editor_buf = tab.text;
+        self.editor_original = tab.original;
+        self.editor_cursor = tab.cursor;
+        self.undo = tab.undo;
+        self.redo = tab.redo;
+        self.dirty = self.editor_buf != self.editor_original;
+        self.pane = Pane::Editor;
+        self.status = format!("open {}", tab.path.display());
+    }
+
+    fn switch_tab(&mut self, index: usize) {
+        if index >= self.tabs.len() { return; }
+        self.store_active_tab();
+        self.show_tab(index);
+    }
+
+    fn cycle_tab(&mut self, backward: bool) {
+        if self.tabs.is_empty() { return; }
+        let target = if backward {
+            (self.active_tab + self.tabs.len() - 1) % self.tabs.len()
+        } else {
+            (self.active_tab + 1) % self.tabs.len()
+        };
+        self.switch_tab(target);
+    }
+
+    fn close_current_tab(&mut self) {
+        if self.editor_path.is_none() { return; }
+        if self.dirty || self.editor_buf != self.editor_original {
+            self.sys("Незбережені зміни: Ctrl+S або Ctrl+Z перед Ctrl+W.");
+            return;
+        }
+        self.tabs.remove(self.active_tab);
+        if self.tabs.is_empty() {
+            self.editor_path = None;
+            self.editor_buf.clear();
+            self.editor_original.clear();
+            self.editor_cursor = 0;
+            self.undo.clear();
+            self.redo.clear();
+            self.dirty = false;
+            self.active_tab = 0;
+            self.pane = Pane::Explorer;
+        } else {
+            // Активна вкладка вже вилучена; не записувати її стан поверх іншої.
+            let index = self.active_tab.min(self.tabs.len() - 1);
+            self.show_tab(index);
+        }
+    }
+
+    fn has_unsaved_changes(&self) -> bool {
+        (self.editor_path.is_some() && (self.dirty || self.editor_buf != self.editor_original))
+            || self.tabs.iter().enumerate().any(|(index, tab)| {
+                index != self.active_tab && tab.text != tab.original
+            })
+    }
+
+    /// Підписи вкладок GUI-подібної робочої поверхні: ● = активна, * = брудна.
+    pub fn tabs_title(&self) -> String {
+        self.tabs.iter().enumerate().map(|(index, tab)| {
+            let name = display_name(&tab.path);
+            let dirty = if index == self.active_tab {
+                self.editor_buf != self.editor_original
+            } else {
+                tab.text != tab.original
+            };
+            format!("{}{}{}", if index == self.active_tab { "›" } else { "" },
+                name, if dirty { "*" } else { "" })
+        }).collect::<Vec<_>>().join(" | ")
+    }
+
     fn open_selected(&mut self) {
         if let Some(p) = self.files.get(self.file_sel).cloned() {
-            // Навігація каталогами не змінює корінь workspace для Save/Run.
             if p.is_dir() {
                 self.explorer_dir = p;
                 self.file_sel = 0;
@@ -143,27 +248,33 @@ impl App {
                 self.status = format!("каталог {}", self.explorer_dir.display());
                 return;
             }
-            if self.dirty {
-                self.sys("Незбережені зміни: Ctrl+S перед відкриттям іншого файлу");
-                return;
-            }
             if p.extension().and_then(|ext| ext.to_str()) == Some("sens") {
                 self.sys("Фізичний .sens — двійковий файл, не UTF-8 Lisp. Відкрийте джерело .lisp.");
                 return;
             }
+            if let Some(index) = self.tabs.iter().position(|tab| tab.path == p) {
+                self.switch_tab(index);
+                return;
+            }
             match std::fs::read_to_string(&p) {
                 Ok(text) => {
+                    self.store_active_tab();
                     self.editor_original = text.clone();
-                    self.editor_buf = text;
-                    self.editor_cursor = self.editor_buf.len();
+                    self.editor_buf = text.clone();
+                    self.editor_cursor = text.len();
                     self.editor_path = Some(p.clone());
                     self.undo.clear();
                     self.redo.clear();
                     self.dirty = false;
+                    self.active_tab = self.tabs.len();
+                    self.tabs.push(OpenDocument {
+                        path: p.clone(), text: text.clone(), original: text,
+                        cursor: self.editor_cursor, undo: Vec::new(), redo: Vec::new(),
+                    });
                     self.pane = Pane::Editor;
                     self.status = format!("open {}", p.display());
                 }
-                Err(e) => self.sys(&format!("не вдалось відкрити {}: {e}", p.display())),
+                Err(error) => self.sys(&format!("не вдалось відкрити {}: {error}", p.display())),
             }
         }
     }
@@ -456,10 +567,11 @@ impl App {
         }
         match key.code {
             KeyCode::Char('s') if ctrl => self.save(),
+            KeyCode::Char('w') if ctrl => self.close_current_tab(),
             KeyCode::Char('z') if ctrl => self.undo_edit(),
             KeyCode::Char('y') if ctrl => self.redo_edit(),
             KeyCode::Char('c' | 'q') if ctrl => {
-                if self.dirty && !self.quit_armed {
+                if self.has_unsaved_changes() && !self.quit_armed {
                     self.quit_armed = true;
                     self.sys("Незбережені зміни: Ctrl+S — зберегти; Ctrl+Q повторно — вийти без збереження");
                 } else {
@@ -469,6 +581,8 @@ impl App {
             KeyCode::Esc => self.pane = Pane::Explorer,
             KeyCode::F(5) => self.run_current(),
             KeyCode::F(9) => self.stop(),
+            KeyCode::Tab if ctrl => self.cycle_tab(key.modifiers.contains(KeyModifiers::SHIFT)),
+            KeyCode::BackTab if ctrl => self.cycle_tab(true),
             KeyCode::Tab => self.cycle_pane(),
             KeyCode::BackTab => self.cycle_pane_back(),
             KeyCode::Enter => {
@@ -1026,5 +1140,92 @@ mod repl_input_cursor_tests {
         assert!(app.input.is_empty());
         assert_eq!(app.input_cursor, 0);
         assert!(app.repl_engine.is_none());
+    }
+}
+
+#[cfg(test)]
+mod document_tabs_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn tabs_preserve_ukrainian_edits_and_independent_undo_history() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir()
+            .join(format!("my-idea-real-tabs-{}-{stamp}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let first = root.join("а.lisp");
+        let second = root.join("б.lisp");
+        std::fs::write(&first, "(атом а)\n").unwrap();
+        std::fs::write(&second, "(атом б)\n").unwrap();
+
+        let mut app = App::new_in(root.clone());
+        app.file_sel = app.files.iter().position(|path| path == &first).unwrap();
+        app.open_selected();
+        app.paste("(цитата ї)\n");
+        let first_edited = app.editor_buf.clone();
+        assert!(app.dirty);
+
+        app.pane = Pane::Explorer;
+        app.file_sel = app.files.iter().position(|path| path == &second).unwrap();
+        app.open_selected(); // не відкидає незбережений текст першого файла
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert_eq!(app.editor_buf, "(атом б)\n");
+        assert!(!app.dirty);
+        app.paste("(цитата є)\n");
+        let second_edited = app.editor_buf.clone();
+
+        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::CONTROL));
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert_eq!(app.editor_buf, first_edited);
+        assert!(app.dirty);
+        assert!(app.tabs_title().contains("›а.lisp*"));
+
+        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
+        assert_eq!(app.editor_buf, "(атом а)\n");
+        assert!(!app.dirty);
+        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::CONTROL));
+        assert_eq!(app.editor_buf, second_edited);
+        assert!(app.dirty);
+
+        // Не дозволяти закрити брудну вкладку або вийти із чистої,
+        // поки в іншій вкладці лишилися незбережені зміни.
+        app.handle_key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL));
+        assert_eq!(app.tabs.len(), 2);
+        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
+        assert!(!app.dirty);
+        app.handle_key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL));
+        assert_eq!(app.tabs.len(), 1);
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "(атом а)\n");
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "(атом б)\n");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn background_dirty_tab_requires_explicit_quit_confirmation() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-quit-tabs-{}-{stamp}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let first = root.join("а.lisp");
+        let second = root.join("б.lisp");
+        std::fs::write(&first, "(цитата а)").unwrap();
+        std::fs::write(&second, "(цитата б)").unwrap();
+        let mut app = App::new_in(root.clone());
+        app.file_sel = app.files.iter().position(|p| p == &first).unwrap();
+        app.open_selected();
+        app.paste("ї");
+        app.file_sel = app.files.iter().position(|p| p == &second).unwrap();
+        app.open_selected();
+        assert!(!app.dirty);
+        assert!(app.has_unsaved_changes());
+        let quit = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL);
+        assert!(!app.handle_key(quit));
+        assert!(app.quit_armed);
+        assert!(app.handle_key(quit));
+        std::fs::remove_dir_all(root).unwrap();
     }
 }
