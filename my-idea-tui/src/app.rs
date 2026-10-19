@@ -462,7 +462,8 @@ impl App {
         match repl_result {
             Some(Ok(Some(status))) => {
                 if let Some(mut eng) = self.repl_engine.take() {
-                    eng.finish_readers();
+                    // Закрити pipe-и нащадків CLI до приєднання reader-потоків.
+                    eng.stop();
                     while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
                 }
                 self.sys(&format!("{}={status}; {}", self.t("repl-exit-status"), self.t("repl-next")));
@@ -489,7 +490,8 @@ impl App {
             match result {
                 Some(Ok(Some(status))) => {
                     if let Some(mut eng) = self.run_engine.take() {
-                        eng.finish_readers();
+                        // Закрити pipe-и нащадків CLI до приєднання reader-потоків.
+                    eng.stop();
                         while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
                     }
                     self.engine_running = false;

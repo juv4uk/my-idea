@@ -108,27 +108,27 @@ impl Engine {
     }
 
     pub fn stop(&mut self) {
-        // Власна process group створена у spawn(). Вбивство лише PID
-        // залишає дочірні процеси з відкритими stdout/stderr і блокує
-        // finish_readers(); F9 мусить завершити ВСЕ дерево CLI.
-        if matches!(self.child.try_wait(), Ok(None)) {
-            #[cfg(unix)]
-            {
-                let pid = self.child.id();
-                let killed_group = i32::try_from(pid).ok().is_some_and(|pid| {
-                    // POSIX kill(-pgid, SIGKILL) надсилає сигнал власній
-                    // групі, не групі Ratatui; SIGKILL = 9.
-                    unsafe extern "C" {
-                        fn kill(pid: i32, sig: i32) -> i32;
-                    }
-                    unsafe { kill(-pid, 9) == 0 }
-                });
-                if !killed_group {
-                    let _ = self.child.kill();
+        // На Unix після виходу головного CLI нащадки ще можуть утримувати
+        // stdout/stderr. Групу слід завершити навіть після exit-status:
+        // інакше finish_readers() зависне на успадкованих каналах.
+        let parent_running = !matches!(self.child.try_wait(), Ok(Some(_)));
+        #[cfg(unix)]
+        {
+            let killed_group = i32::try_from(self.child.id()).ok().is_some_and(|pid| {
+                // Окремий PGID створено при spawn(): ніколи не зачіпаємо
+                // групу термінала/Ratatui.
+                unsafe extern "C" {
+                    fn kill(pid: i32, sig: i32) -> i32;
                 }
+                unsafe { kill(-pid, 9) == 0 } // SIGKILL
+            });
+            if !killed_group && parent_running {
+                let _ = self.child.kill();
             }
-            #[cfg(not(unix))]
-            {
+        }
+        #[cfg(not(unix))]
+        {
+            if parent_running {
                 let _ = self.child.kill();
             }
         }
@@ -163,6 +163,23 @@ mod stop_process_group_tests {
         assert!(
             started.elapsed() < Duration::from_secs(2),
             "Stop залишив дочірній процес з відкритим каналом stdout/stderr"
+        );
+    }
+
+    #[test]
+    fn stop_after_parent_exit_still_closes_descendant_pipes() {
+        // Shell завершився, а sleep продовжує успадковано утримувати
+        // stdout/stderr. Попередня перевірка try_wait(None) пропускала
+        // завершення групи та чекала 4 секунди у join().
+        let mut command = Command::new("sh");
+        command.args(["-c", "sleep 4 & exit 0"]);
+        let mut engine = Engine::spawn(command).expect("реальна група процесів");
+        assert!(engine.child.wait().expect("завершити shell").success());
+        let started = Instant::now();
+        engine.stop();
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "нащадок завершеного CLI утримує stdout/stderr"
         );
     }
 }
