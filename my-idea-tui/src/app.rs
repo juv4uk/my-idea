@@ -40,7 +40,8 @@ pub struct App {
     pub input: String,
     pub history: Vec<String>,
     pub hist_idx: usize,
-    pub engine: Option<Engine>,
+    pub repl_engine: Option<Engine>,
+    pub run_engine: Option<Engine>,
     pub engine_running: bool,
     pub quit: bool,
     pub status: String,
@@ -67,14 +68,14 @@ impl App {
             input: String::new(),
             history: Vec::new(),
             hist_idx: 0,
-            engine: None,
+            repl_engine: None,
+            run_engine: None,
             engine_running: false,
             quit: false,
             status: String::new(),
         };
         app.sys(i18n::t(&app.language, "banner"));
         app.reload_files();
-        app.start_engine();
         app
     }
 
@@ -115,6 +116,10 @@ impl App {
             }
             if self.dirty {
                 self.sys("Незбережені зміни: Ctrl+S перед відкриттям іншого файлу");
+                return;
+            }
+            if p.extension().and_then(|ext| ext.to_str()) == Some("sens") {
+                self.sys("Фізичний .sens — двійковий файл, не UTF-8 Lisp. Відкрийте джерело .lisp.");
                 return;
             }
             match std::fs::read_to_string(&p) {
@@ -165,63 +170,93 @@ impl App {
 
     // ---- рушій -------------------------------------------------------------
 
-    fn start_engine(&mut self) {
+    /// REPL створюється лише при першому введенні, без другого evaluator.
+    fn start_repl(&mut self) {
         match engine::resolve_bin() {
-            Some(bin) => match Engine::spawn(&bin) {
+            Some(bin) => match Engine::spawn_repl(&bin) {
                 Ok(eng) => {
-                    self.engine = Some(eng);
-                    self.sys(&format!("SENS engine: {bin}"));
+                    self.repl_engine = Some(eng);
+                    self.sys(&format!("SENS REPL: {}", bin.display()));
                 }
-                Err(e) => {
-                    let msg = format!("{} ({e})", self.t("no-engine"));
-                    self.sys(&msg);
-                }
+                Err(error) => self.sys(&format!("{} ({error})", self.t("no-engine"))),
             },
-            None => {
-                let msg = self.t("no-engine").to_string();
-                self.sys(&msg);
-            }
+            None => self.sys(self.t("no-engine")),
         }
     }
 
-    /// Run: надіслати вміст поточного файла рушію (реальне виконання pinned SENS).
+    /// F5 = CLI file mode. Незбережений буфер не видаємо за файл на диску.
     fn run_current(&mut self) {
         let Some(path) = self.editor_path.clone() else {
             self.sys("немає відкритого файла для запуску");
             return;
         };
-        if self.engine.is_none() {
-            self.start_engine();
+        if self.dirty {
+            self.sys("Спершу збережіть зміни (Ctrl+S): SENS запускає файл із диска.");
+            return;
         }
-        self.sys(self.t("run-hint"));
-        self.sys(&format!("run {}", path.display()));
-        let body = self.editor_buf.clone();
-        if let Some(eng) = self.engine.as_mut() {
-            // Передаємо весь буфер із точними LF, без обрізання/ігнорування IO-помилок.
-            // REPL залишається власником інтерпретації введених форм.
-            match eng.send_source(&body) {
-                Ok(()) => self.engine_running = true,
-                Err(error) => {
-                    self.engine_running = false;
-                    self.console.push(Line { origin: Origin::Stderr, text: format!("stdin SENS: {error}") });
-                }
+        if self.engine_running {
+            self.sys("Файл уже виконується. F9 — зупинити поточний запуск.");
+            return;
+        }
+        let Some(bin) = engine::resolve_bin() else {
+            self.sys(self.t("no-engine"));
+            return;
+        };
+        self.sys(&format!("SENS exec={} file={}", bin.display(), path.display()));
+        match Engine::spawn_file(&bin, &path) {
+            Ok(eng) => {
+                self.run_engine = Some(eng);
+                self.engine_running = true;
+                self.status = format!("run {}", path.display());
+            }
+            Err(error) => {
+                self.console.push(Line {
+                    origin: Origin::Stderr,
+                    text: format!("не вдалося запустити SENS: {error}"),
+                });
             }
         }
     }
 
     fn stop(&mut self) {
-        if let Some(mut eng) = self.engine.take() {
+        if let Some(mut eng) = self.run_engine.take() {
+            eng.stop();
+        }
+        if let Some(mut eng) = self.repl_engine.take() {
             eng.stop();
         }
         self.engine_running = false;
-        self.sys(self.t("stop"));
+        self.sys("SENS: процес зупинено (F5 — повторний запуск, REPL — наступна команда).");
     }
 
-    /// Забрати все, що рушій уже вивів (викликається в циклі малювання).
+    /// Консоль читає stdout/stderr процесів і показує exit-status файлу.
     pub fn drain_engine(&mut self) {
-        if let Some(eng) = self.engine.as_ref() {
+        if let Some(eng) = self.repl_engine.as_ref() {
             while let Ok(line) = eng.rx.try_recv() {
                 self.console.push(line);
+            }
+        }
+        if let Some(eng) = self.run_engine.as_ref() {
+            while let Ok(line) = eng.rx.try_recv() {
+                self.console.push(line);
+            }
+        }
+        if self.engine_running {
+            let result = self.run_engine.as_mut().map(|eng| eng.try_wait());
+            match result {
+                Some(Ok(Some(status))) => {
+                    self.engine_running = false;
+                    self.status = format!("SENS exit-status={status}");
+                    self.sys(&self.status.clone());
+                }
+                Some(Err(error)) => {
+                    self.engine_running = false;
+                    self.console.push(Line {
+                        origin: Origin::Stderr,
+                        text: format!("SENS wait: {error}"),
+                    });
+                }
+                _ => {}
             }
         }
     }
@@ -242,12 +277,12 @@ impl App {
         }
         // Звичайний рядок — у консоль і в рушій.
         self.console.push(Line { origin: Origin::System, text: format!("> {line}") });
-        if self.engine.is_none() {
-            self.start_engine();
+        if self.repl_engine.is_none() {
+            self.start_repl();
         }
-        if let Some(eng) = self.engine.as_mut() {
+        if let Some(eng) = self.repl_engine.as_mut() {
             if let Err(error) = eng.send_line(&line) {
-                self.console.push(Line { origin: Origin::Stderr, text: format!("stdin SENS: {error}") });
+                self.console.push(Line { origin: Origin::Stderr, text: format!("REPL stdin: {error}") });
             }
         }
     }

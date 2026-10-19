@@ -1,17 +1,13 @@
-//! Зв'язок із pinned SENS.
-//!
-//! TUI **не** містить власного інтерпретатора: він запускає той самий `my-lisp`
-//! CLI, який збирається з поточного pinned gitlink `external/sens` (як і GUI-консоль).
-//! Шлях до бінарника беремо з `MY_LISP_BIN`; інакше — з `external/sens/target/*`
-//! або з `PATH`. Ніякого `PATH`-fallback на чужу ревізію мовчки: якщо бінарника
-//! немає — інформативна помилка в консолі.
+//! Хостовий процес для точного SENS CLI з `external/sens`.
+//! Файл виконується через аргумент CLI; інтерактивні рядки — через REPL.
+//! Жодної Lisp-семантики, декодування .sens або PATH fallback у TUI.
 
-use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::io::{self, BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-/// Рядок виводу рушія з явним походженням (точні stdout/stderr/system).
 #[derive(Clone, Copy, PartialEq)]
 pub enum Origin {
     Stdout,
@@ -27,73 +23,103 @@ pub struct Line {
 
 pub struct Engine {
     child: Child,
-    stdin: ChildStdin,
+    stdin: Option<ChildStdin>,
     pub rx: Receiver<Line>,
 }
 
 impl Engine {
-    /// Спроба підняти pinned SENS CLI.
-    pub fn spawn(bin: &str) -> std::io::Result<Engine> {
-        let mut child = Command::new(bin)
-            .stdin(Stdio::piped())
+    /// Інтерактивний SENS CLI, із живим stdin лише для REPL.
+    pub fn spawn_repl(bin: &Path) -> io::Result<Self> {
+        let mut command = Command::new(bin);
+        command.stdin(Stdio::piped());
+        Self::spawn(command)
+    }
+
+    /// Точний file-mode: sens <file>, а НЕ рядки файла в REPL.
+    pub fn spawn_file(bin: &Path, source: &Path) -> io::Result<Self> {
+        let mut command = Command::new(bin);
+        command.arg(source).stdin(Stdio::null());
+        Self::spawn(command)
+    }
+
+    fn spawn(mut command: Command) -> io::Result<Self> {
+        let mut child = command
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
-
-        let stdin = child.stdin.take().expect("piped stdin");
+        let stdin = child.stdin.take();
         let stdout = child.stdout.take().expect("piped stdout");
         let stderr = child.stderr.take().expect("piped stderr");
+        let (tx, rx) = mpsc::channel();
 
-        let (tx, rx) = mpsc::channel::<Line>();
-
-        let tx_out = tx.clone();
+        let stdout_tx = tx.clone();
         thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().flatten() {
-                let _ = tx_out.send(Line { origin: Origin::Stdout, text: line });
+            for result in BufReader::new(stdout).lines() {
+                match result {
+                    Ok(text) => { let _ = stdout_tx.send(Line { origin: Origin::Stdout, text }); }
+                    Err(error) => {
+                        let _ = stdout_tx.send(Line { origin: Origin::Stderr, text: format!("stdout read: {error}") });
+                        break;
+                    }
+                }
             }
         });
-        let tx_err = tx.clone();
         thread::spawn(move || {
-            for line in BufReader::new(stderr).lines().flatten() {
-                let _ = tx_err.send(Line { origin: Origin::Stderr, text: line });
+            for result in BufReader::new(stderr).lines() {
+                match result {
+                    Ok(text) => { let _ = tx.send(Line { origin: Origin::Stderr, text }); }
+                    Err(error) => {
+                        let _ = tx.send(Line { origin: Origin::Stderr, text: format!("stderr read: {error}") });
+                        break;
+                    }
+                }
             }
         });
-
-        Ok(Engine { child, stdin, rx })
+        Ok(Self { child, stdin, rx })
     }
 
-    /// Надіслати рядок рушію (без вигаданої семантики — просто stdin).
-    pub fn send_line(&mut self, line: &str) -> std::io::Result<()> {
-        self.stdin.write_all(line.as_bytes())?;
-        self.stdin.write_all(b"\n")?;
-        self.stdin.flush()
+    pub fn send_line(&mut self, line: &str) -> io::Result<()> {
+        let stdin = self.stdin.as_mut().ok_or_else(|| io::Error::new(
+            io::ErrorKind::BrokenPipe, "process is not an interactive REPL"
+        ))?;
+        stdin.write_all(line.as_bytes())?;
+        stdin.write_all(b"\n")?;
+        stdin.flush()
     }
 
-    /// Передати весь вихідний буфер, зберігаючи LF та всі символи.
-    pub fn send_source(&mut self, source: &str) -> std::io::Result<()> {
-        self.stdin.write_all(source.as_bytes())?;
-        if !source.ends_with('\n') { self.stdin.write_all(b"\n")?; }
-        self.stdin.flush()
+    pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
+        self.child.try_wait()
     }
 
-    /// Зупинити процес і дочекатися звільнення його ресурсів.
     pub fn stop(&mut self) {
-        let _ = self.child.kill();
+        // Завершений процес повторно вбивати не потрібно.
+        if matches!(self.child.try_wait(), Ok(None)) {
+            let _ = self.child.kill();
+        }
         let _ = self.child.wait();
     }
 }
 
 impl Drop for Engine {
-    fn drop(&mut self) { self.stop(); }
+    fn drop(&mut self) {
+        self.stop();
+    }
 }
 
-/// Лише бінарник із закріпленого external/sens; ніякого випадкового PATH.
-pub fn resolve_bin() -> Option<String> {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent()?;
-    let binary = if cfg!(windows) { "my-lisp.exe" } else { "my-lisp" };
+/// Лише локальна збірка з поточного pinned підмодуля — ніякого PATH,
+/// MY_LISP_BIN або завантаження іншої ревізії.
+pub fn resolve_bin() -> Option<PathBuf> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent()?;
+    if !root.join("external/sens/Cargo.toml").is_file() {
+        return None;
+    }
     for profile in ["release", "debug"] {
-        let path = root.join("external").join("sens").join("target").join(profile).join(binary);
-        if path.is_file() { return Some(path.to_string_lossy().into_owned()); }
+        for name in if cfg!(windows) { ["sens.exe", "my-lisp.exe"] } else { ["sens", "my-lisp"] } {
+            let bin = root.join("external/sens/target").join(profile).join(name);
+            if bin.is_file() {
+                return Some(bin);
+            }
+        }
     }
     None
 }
