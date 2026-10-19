@@ -74,6 +74,8 @@ pub struct App {
     pub input_cursor: usize,
     pub history: Vec<String>,
     pub hist_idx: usize,
+    /// Ненадіслана чернетка та курсор UTF-8 до переходу в історію.
+    history_draft: Option<(String, usize)>,
     pub repl_engine: Option<Engine>,
     pub run_engine: Option<Engine>,
     pub engine_running: bool,
@@ -116,6 +118,7 @@ impl App {
             input_cursor: 0,
             history: Vec::new(),
             hist_idx: 0,
+            history_draft: None,
             repl_engine: None,
             run_engine: None,
             engine_running: false,
@@ -516,6 +519,7 @@ impl App {
         }
         self.history.push(line.clone());
         self.hist_idx = self.history.len();
+        self.history_draft = None;
 
         if let Some(rest) = line.strip_prefix(':') {
             self.meta(rest);
@@ -820,8 +824,11 @@ impl App {
             Pane::Explorer => self.file_sel = self.file_sel.saturating_sub(1),
             Pane::Console => {
                 if self.hist_idx > 0 {
+                    if self.hist_idx == self.history.len() {
+                        self.history_draft = Some((self.input.clone(), self.input_cursor));
+                    }
                     self.hist_idx -= 1;
-                    self.input = self.history.get(self.hist_idx).cloned().unwrap_or_default();
+                    self.input = self.history[self.hist_idx].clone();
                     self.input_cursor = self.input.len();
                 }
             }
@@ -840,11 +847,14 @@ impl App {
                 if self.hist_idx + 1 < self.history.len() {
                     self.hist_idx += 1;
                     self.input = self.history[self.hist_idx].clone();
-                } else {
+                    self.input_cursor = self.input.len();
+                } else if self.hist_idx < self.history.len() {
                     self.hist_idx = self.history.len();
-                    self.input.clear();
+                    let (draft, cursor) = self.history_draft.take()
+                        .unwrap_or_else(|| (String::new(), 0));
+                    self.input = draft;
+                    self.input_cursor = cursor;
                 }
-                self.input_cursor = self.input.len();
             }
             Pane::Editor => self.move_editor_line(true),
         }
@@ -1426,5 +1436,61 @@ mod create_document_tests {
         assert!(app.dirty);
         assert_eq!(std::fs::read_to_string(first).unwrap(), "");
         std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod repl_history_draft_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn up_down_restores_ukrainian_draft_and_utf8_cursor() {
+        let mut app = App::new_in(std::env::temp_dir());
+        app.pane = Pane::Console;
+        // Це команди IDE, без дочірнього SENS; тут перевіряється реальна
+        // клавіатурна поведінка редактора вводу, не імітація evaluator.
+        app.submit(":інтерфейс de");
+        app.submit(":інтерфейс uk");
+        let draft = "(атом? 'чернетка)".to_owned();
+        let cursor = "(атом? '".len();
+        app.input = draft.clone();
+        app.input_cursor = cursor;
+        let up = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
+        let down = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+        app.handle_key(up);
+        assert_eq!(app.input, ":інтерфейс uk");
+        app.handle_key(up);
+        assert_eq!(app.input, ":інтерфейс de");
+        app.handle_key(down);
+        assert_eq!(app.input, ":інтерфейс uk");
+        app.handle_key(down);
+        assert_eq!(app.input, draft);
+        assert_eq!(app.input_cursor, cursor);
+        assert!(app.input.is_char_boundary(app.input_cursor));
+        assert!(app.history_draft.is_none());
+        app.handle_key(down);
+        assert_eq!(app.input, draft);
+        // Зміна запису історії не змінює збережену чернетку.
+        app.handle_key(up);
+        app.input.push('!');
+        app.input_cursor = app.input.len();
+        app.handle_key(down);
+        assert_eq!(app.input, draft);
+        assert_eq!(app.input_cursor, cursor);
+        assert_eq!(app.history[1], ":інтерфейс uk");
+    }
+
+    #[test]
+    fn empty_history_does_not_clear_input() {
+        let mut app = App::new_in(std::env::temp_dir());
+        app.pane = Pane::Console;
+        app.input = "чернетка".to_owned();
+        app.input_cursor = "чер".len();
+        app.handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        app.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(app.input, "чернетка");
+        assert_eq!(app.input_cursor, "чер".len());
+        assert!(app.history_draft.is_none());
     }
 }
