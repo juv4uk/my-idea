@@ -64,8 +64,8 @@
     "expected": "3/4"
   },
   {
-    "expr": "# Literate SENS\n\nText outside the code block is ignored.\n\n```sens\n(за-умовою ((тотожне? (як-є радіо) (як-є радіо)) (як-є правильно)))\n```\n\nMore ignored prose.",
-    "expected": "правильно",
+    "expr": "# Literate SENS\n\nThis is a literate program.\n\n```sens\n(визначити х 10)\n(помножити х 2)\n```\n\nIt ignores non-code blocks.",
+    "expected": "20",
     "mode": "markdown"
   }
 ]
