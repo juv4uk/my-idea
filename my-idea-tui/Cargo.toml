@@ -20,7 +20,7 @@ path = "src/main.rs"
 # `default-features = false` прибирає all-widgets/macros/layout-cache/underline-color
 # і всі бекенди, крім crossterm; звичайні віджети лишаються в ratatui-widgets.
 ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
-crossterm = "0.29"
+crossterm = { version = "0.29", features = ["bracketed-paste"] }
 
 # Рушій НЕ додаємо як Cargo-залежність: TUI лише запускає той самий pinned
 # `my-lisp` CLI (як це вже робить GUI-консоль). Тому gitlink `external/sens`

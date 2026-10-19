@@ -14,7 +14,7 @@ use std::io;
 use std::path::PathBuf;
 
 use crossterm::{
-    event::{self, Event, KeyEventKind},
+    event::{self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -23,7 +23,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use app::App;
 
 /// Гарантоване відновлення термінала (raw/alternate-screen) навіть при помилці.
-struct TerminalGuard;
+struct TerminalGuard { bracketed_paste: bool }
 
 impl TerminalGuard {
     fn enter() -> io::Result<Self> {
@@ -34,14 +34,19 @@ impl TerminalGuard {
             let _ = disable_raw_mode();
             return Err(error);
         }
-        Ok(TerminalGuard)
+        // Legacy Windows terminals may not support bracketed paste.
+        let bracketed_paste = execute!(io::stdout(), EnableBracketedPaste).is_ok();
+        Ok(TerminalGuard { bracketed_paste })
     }
 }
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
-        let _ = disable_raw_mode();
+        if self.bracketed_paste {
+            let _ = execute!(io::stdout(), DisableBracketedPaste);
+        }
         let _ = execute!(io::stdout(), LeaveAlternateScreen);
+        let _ = disable_raw_mode();
     }
 }
 
@@ -81,13 +86,14 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> 
         terminal.draw(|f| ui::draw(f, app))?;
 
         if event::poll(std::time::Duration::from_millis(200))? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind != KeyEventKind::Press {
-                    continue;
+            match event::read()? {
+                Event::Paste(text) => app.paste(&text),
+                Event::Key(key) if key.kind == KeyEventKind::Press => {
+                    if app.handle_key(key) {
+                        return Ok(());
+                    }
                 }
-                if app.handle_key(key) {
-                    return Ok(());
-                }
+                _ => {}
             }
         }
         if app.quit {

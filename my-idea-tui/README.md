@@ -63,6 +63,7 @@ cargo build --release --manifest-path my-idea-tui/Cargo.toml
 | `Enter` | Explorer: відкрити; Console: надіслати; Editor: новий рядок |
 | `↑` / `↓` | Explorer: вибір; Console: історія введених команд |
 | `PageUp` / `PageDown` / `End` | Console: попередній вивід / наступний / найновіший |
+| Bracketed paste із буфера термінала | Editor: багаторядковий UTF-8 одним блоком; Console: тільки один рядок, без випадкового виконання кількох форм |
 | `F5` | Запуск збереженого файла через pinned SENS CLI |
 | `Backspace` (Explorer) | до батьківського каталогу в межах workspace |
 | `F9` | Stop (файл і REPL) |

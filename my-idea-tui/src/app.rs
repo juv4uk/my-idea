@@ -346,6 +346,32 @@ impl App {
         }
     }
 
+    /// Bracketed paste зберігає багаторядковий український Lisp як одне редагування.
+    /// У REPL заборонено перетворювати вставлені переноси рядків на окремі eval.
+    pub fn paste(&mut self, text: &str) {
+        if text.is_empty() { return; }
+        match self.pane {
+            Pane::Editor => {
+                if self.editor_path.is_none() {
+                    self.sys("Спочатку відкрийте файл у редакторі.");
+                    return;
+                }
+                let normalized = text.replace("\r\n", "\n");
+                self.editor_buf.insert_str(self.editor_cursor, &normalized);
+                self.editor_cursor += normalized.len();
+                self.dirty = true;
+            }
+            Pane::Console => {
+                if text.contains('\r') || text.contains('\n') {
+                    self.sys("Багаторядкова вставка в REPL не виконується: збережіть файл і натисніть F5.");
+                } else {
+                    self.input.push_str(text);
+                }
+            }
+            Pane::Explorer => self.sys("Виберіть редактор або консоль перед вставленням."),
+        }
+    }
+
     /// true — вийти з TUI.
     pub fn handle_key(&mut self, key: KeyEvent) -> bool {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
@@ -404,7 +430,9 @@ impl App {
             KeyCode::End if self.pane == Pane::Editor => {
                 self.editor_cursor = self.editor_buf[self.editor_cursor..].find('\n').map_or(self.editor_buf.len(), |p| self.editor_cursor + p);
             }
-            KeyCode::Char(c) => {
+            KeyCode::Char(c) if !key.modifiers.intersects(
+                KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER
+            ) => {
                 if self.pane == Pane::Console {
                     self.input.push(c);
                 } else if self.pane == Pane::Editor {
@@ -610,5 +638,39 @@ mod save_conflict_tests {
         assert!(save_loaded_file(&workspace, &source, "(атом б)\n", "(атом г)\n").is_err());
         assert_eq!(fs::read_to_string(&source).unwrap(), "(атом в)\n");
         fs::remove_dir_all(workspace).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod paste_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    #[test]
+    fn utf8_multiline_paste_is_single_edit_and_repl_cannot_execute_it() {
+        static NONCE: AtomicU64 = AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "my-idea-paste-{}-{}", std::process::id(), NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let source = dir.join("програма.lisp");
+        std::fs::write(&source, "(цитата а)").unwrap();
+        let mut app = App::new_in(dir.clone());
+        app.open_selected();
+        assert_eq!(app.editor_path.as_ref(), Some(&source));
+        app.editor_cursor = "(цитата ".len();
+        app.paste("б\r\nв");
+        assert_eq!(app.editor_buf, "(цитата б\nва)");
+        assert!(app.editor_buf.is_char_boundary(app.editor_cursor));
+        assert!(app.dirty);
+        app.pane = Pane::Console;
+        let before = app.console.len();
+        app.paste("(цитата а)\n(цитата б)");
+        assert!(app.input.is_empty());
+        assert!(app.repl_engine.is_none());
+        assert_eq!(app.console.len(), before + 1);
+        app.paste("(цитата г)");
+        assert_eq!(app.input, "(цитата г)");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }
