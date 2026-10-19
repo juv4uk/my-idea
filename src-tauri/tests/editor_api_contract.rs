@@ -16,7 +16,7 @@ fn plugin_registers_command_and_modifies_selection_via_editor_api() {
     let plugin_source = r#"
         (editor/register-command "bracket-selection"
           (lambda ()
-            (editor/replace-selection (string-append "[" (string-append (editor/selection) "]"))))
+            (editor/replace-selection (зчепити "[" (зчепити (editor/selection) "]"))))
           "Wrap active selection in brackets")
     "#;
 
@@ -47,7 +47,7 @@ fn plugin_can_read_buffer_and_emit_editor_messages() {
     let plugin_source = r#"
         (editor/register-command "greet-buffer"
           (lambda ()
-            (editor/message (string-append "Buffer: " (editor/buffer-text))))
+            (editor/message (зчепити "Buffer: " (editor/buffer-text))))
           "Emit greeting with buffer text")
     "#;
 
