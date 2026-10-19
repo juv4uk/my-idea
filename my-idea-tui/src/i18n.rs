@@ -17,7 +17,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("uk", "stop") => "Зупинити",
         ("uk", "quit") => "Вихід",
         ("uk", "banner") => "my-idea-tui · термінальна поверхня SENS. :мова ук|en|de — мова інтерфейсу.",
-        ("uk", "no-engine") => "Рушій не знайдено: задайте MY_LISP_BIN або зберіть pinned my-lisp CLI.",
+        ("uk", "no-engine") => "Рушій не знайдено: зберіть pinned SENS CLI в external/sens/target.",
         ("uk", "run-hint") => "Запуск поточного файла через pinned SENS…",
 
         ("de", "files") => "Explorer",
@@ -29,7 +29,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("de", "stop") => "Stoppen",
         ("de", "quit") => "Beenden",
         ("de", "banner") => "my-idea-tui · SENS-Terminaloberfläche. :мова ук|en|de — Oberflächensprache.",
-        ("de", "no-engine") => "Engine nicht gefunden: MY_LISP_BIN setzen oder pinned my-lisp CLI bauen.",
+        ("de", "no-engine") => "Engine nicht gefunden: pinned SENS CLI unter external/sens/target bauen.",
         ("de", "run-hint") => "Aktuelle Datei über pinned SENS ausführen…",
 
         ("en", "files") => "Explorer",
@@ -41,7 +41,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("en", "stop") => "Stop",
         ("en", "quit") => "Quit",
         ("en", "banner") => "my-idea-tui · SENS terminal surface. :мова ук|en|de — UI language.",
-        ("en", "no-engine") => "Engine not found: set MY_LISP_BIN or build the pinned my-lisp CLI.",
+        ("en", "no-engine") => "Engine not found: build the pinned SENS CLI under external/sens/target.",
         ("en", "run-hint") => "Running current file via pinned SENS…",
 
         _ => key,
