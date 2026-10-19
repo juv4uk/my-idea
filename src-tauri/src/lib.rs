@@ -512,7 +512,7 @@ mod language_adapter_tests {
         let mut session = ReplSession::default();
         let result = evaluate_source_in_session(
             &mut session,
-            "(cons (second (quote (radio antenna))) (cons (/ 1 3) (quote ())))",
+            "(cons (second (quote (radio antenna))) (cons 1/3 (quote ())))",
             Some("my-lisp"),
         )
         .expect("native evaluation should succeed");
@@ -523,8 +523,8 @@ mod language_adapter_tests {
     #[test]
     fn native_adapter_preserves_definitions_across_sequential_evaluations() {
         let mut session = ReplSession::default();
-        evaluate_source_in_session(&mut session, "(define ide-persisted 42)", Some("my-lisp")).unwrap();
-        let result = evaluate_source_in_session(&mut session, "(+ ide-persisted 8)", Some("my-lisp")).unwrap();
+        evaluate_source_in_session(&mut session, "(define ide-persisted #d24:000000000000000000101010)", Some("my-lisp")).unwrap();
+        let result = evaluate_source_in_session(&mut session, "(+ ide-persisted #d24:000000000000000000001000)", Some("my-lisp")).unwrap();
         assert_eq!(result.value, "50");
     }
 }
