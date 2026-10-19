@@ -25,6 +25,7 @@ pub struct Engine {
     child: Child,
     stdin: Option<ChildStdin>,
     pub rx: Receiver<Line>,
+    readers: Vec<thread::JoinHandle<()>>, 
 }
 
 impl Engine {
@@ -53,7 +54,7 @@ impl Engine {
         let (tx, rx) = mpsc::channel();
 
         let stdout_tx = tx.clone();
-        thread::spawn(move || {
+        let stdout_reader = thread::spawn(move || {
             for result in BufReader::new(stdout).lines() {
                 match result {
                     Ok(text) => { let _ = stdout_tx.send(Line { origin: Origin::Stdout, text }); }
@@ -64,7 +65,7 @@ impl Engine {
                 }
             }
         });
-        thread::spawn(move || {
+        let stderr_reader = thread::spawn(move || {
             for result in BufReader::new(stderr).lines() {
                 match result {
                     Ok(text) => { let _ = tx.send(Line { origin: Origin::Stderr, text }); }
@@ -75,7 +76,7 @@ impl Engine {
                 }
             }
         });
-        Ok(Self { child, stdin, rx })
+        Ok(Self { child, stdin, rx, readers: vec![stdout_reader, stderr_reader] })
     }
 
     pub fn send_line(&mut self, line: &str) -> io::Result<()> {
@@ -91,12 +92,21 @@ impl Engine {
         self.child.try_wait()
     }
 
+    /// Після завершення процесу дочитати весь реальний stdout/stderr перед
+    /// публікацією exit-status. Інакше швидкий повторний F5 губить хвіст виводу.
+    pub fn finish_readers(&mut self) {
+        for reader in self.readers.drain(..) {
+            let _ = reader.join();
+        }
+    }
+
     pub fn stop(&mut self) {
         // Завершений процес повторно вбивати не потрібно.
         if matches!(self.child.try_wait(), Ok(None)) {
             let _ = self.child.kill();
         }
         let _ = self.child.wait();
+        self.finish_readers();
     }
 }
 

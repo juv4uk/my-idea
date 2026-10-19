@@ -190,6 +190,17 @@ impl App {
             self.sys("Файл уже виконується. F9 — зупинити поточний запуск.");
             return;
         }
+        match std::fs::read_to_string(&path) {
+            Ok(on_disk) if on_disk == self.editor_buf => {}
+            Ok(_) => {
+                self.sys("Файл змінено ззовні: повторно відкрийте перед F5.");
+                return;
+            }
+            Err(error) => {
+                self.sys(&format!("SENS Run: не вдалося прочитати файл: {error}"));
+                return;
+            }
+        }
         let Some(bin) = engine::resolve_bin() else {
             self.sys(self.t("no-engine"));
             return;
@@ -213,9 +224,11 @@ impl App {
     fn stop(&mut self) {
         if let Some(mut eng) = self.run_engine.take() {
             eng.stop();
+            while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
         }
         if let Some(mut eng) = self.repl_engine.take() {
             eng.stop();
+            while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
         }
         self.engine_running = false;
         self.sys("SENS: процес зупинено (F5 — повторний запуск, REPL — наступна команда).");
@@ -237,11 +250,19 @@ impl App {
             let result = self.run_engine.as_mut().map(|eng| eng.try_wait());
             match result {
                 Some(Ok(Some(status))) => {
+                    if let Some(mut eng) = self.run_engine.take() {
+                        eng.finish_readers();
+                        while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
+                    }
                     self.engine_running = false;
                     self.status = format!("SENS exit-status={status}");
                     self.sys(&self.status.clone());
                 }
                 Some(Err(error)) => {
+                    if let Some(mut eng) = self.run_engine.take() {
+                        eng.stop();
+                        while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
+                    }
                     self.engine_running = false;
                     self.console.push(Line {
                         origin: Origin::Stderr,
