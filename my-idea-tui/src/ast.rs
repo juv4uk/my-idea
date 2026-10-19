@@ -26,7 +26,17 @@ fn append_expr(expr: &Expr, source: &str, depth: usize, lines: &mut Vec<String>)
     let indent = "  ".repeat(depth.min(24));
     match &expr.kind {
         ExprKind::List(items) => {
-            lines.push(format!("{indent}Список ({})", items.len()));
+            // Reader уже визначив межі першого елемента. Беремо написання
+            // виключно з оригінального .lisp, не вигадуємо SENS/доменний код.
+            // Це важливо для українських назв функцій і вкладених форм.
+            let head = items.first()
+                .and_then(|first| source.get(first.span.start..first.span.end))
+                .map(|raw| raw.chars().take(48).collect::<String>().replace('\n', "↵"));
+            let label = match head {
+                Some(head) if !head.is_empty() => format!("Список ({}) · {head}", items.len()),
+                _ => format!("Список ({})", items.len()),
+            };
+            lines.push(format!("{indent}{label}"));
             for item in items.iter() { append_expr(item, source, depth + 1, lines); }
         }
         ExprKind::Pair(head, tail) => {
@@ -55,9 +65,18 @@ mod tests {
     fn real_pinned_sens_ast_preserves_ukrainian_source() {
         let lines = render("(атом? 'мама)\n(+ 2 3)");
         assert!(lines.iter().any(|s| s.contains("Список")), "{lines:?}");
-        assert!(lines.iter().any(|s| s.contains("атом?")), "{lines:?}");
+        assert!(lines.iter().any(|s| s.contains("Список (2) · атом?")), "{lines:?}");
+        assert!(lines.iter().any(|s| s.contains("Список (3) · +")), "{lines:?}");
         assert!(lines.iter().any(|s| s.contains("мама")), "{lines:?}");
         assert!(!lines.iter().any(|s| s.contains("Синтаксис SENS")), "{lines:?}");
+    }
+
+    #[test]
+    fn nested_reader_lists_show_original_ukrainian_heads_without_new_semantics() {
+        let lines = render("(умова (атом? їжак) (цитата мама))");
+        assert!(lines.iter().any(|s| s.contains("Список (3) · умова")), "{lines:?}");
+        assert!(lines.iter().any(|s| s.contains("Список (2) · атом?")), "{lines:?}");
+        assert!(lines.iter().any(|s| s.contains("Список (2) · цитата")), "{lines:?}");
     }
 
     #[test]
