@@ -7,7 +7,7 @@ import path from 'node:path';
 import init, { evaluate } from '../public/wasm/my_lisp_wasm.js';
 
 // Українська проєкція D1/D3: ратифіковані «так»/«ні», а не legacy 1/0.
-// D24+ арифметичні перевірки залишено справжніми, зокрема поки / не підтримується.
+// D24+ арифметика перевіряється через чинні українські голови й явне частка; без legacy-псевдонімів.
 const fixturePath = path.resolve('tests/fixtures/conformance.json');
 const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 
@@ -27,7 +27,16 @@ test('Conformance alignment tests', async (t) => {
     }
 
     await t.test('WASM adapter does not stack overflow on 100k list', () => {
-        const res = evaluate("(def build (lambda (n acc) (cond ((eq? n 0) acc) ((eq? 0 0) (build (- n 1) (cons n acc)))))) (build 100000 (quote ()))");
+        const res = evaluate(`
+            (визначити побудувати
+              (функція (кількість накопичення)
+                (за-умовою
+                  ((тотожне? кількість 0) накопичення)
+                  ((тотожне? (як-є продовжити) (як-є продовжити))
+                    (побудувати (відняти кількість 1)
+                                (сполучити кількість накопичення))))))
+            (побудувати 100000 (як-є ()))
+        `, "укр");
         assert.ok(!res.error, "Evaluation should not error out");
         assert.ok(typeof res.value === 'string');
     });
