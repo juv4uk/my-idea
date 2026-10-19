@@ -330,6 +330,21 @@ impl App {
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(file) => {
                 drop(file);
+                // Перед переходом до нового документа зберегти стан поточної
+                // вкладки, а новий файл обліковувати як окрему вкладку.
+                self.store_active_tab();
+                self.active_tab = self.tabs.len();
+                self.tabs.push(OpenDocument {
+                    path: path.clone(),
+                    text: String::new(),
+                    original: String::new(),
+                    cursor: 0,
+                    undo: Vec::new(),
+                    redo: Vec::new(),
+                });
+                self.ast_cached_source.clear();
+                self.ast_lines.clear();
+                self.ast_scroll = 0;
                 self.editor_path = Some(path.clone());
                 self.editor_original.clear();
                 self.editor_buf.clear();
@@ -1408,6 +1423,47 @@ mod create_document_tests {
         app.submit(":новий програма.lisp");
         assert_eq!(std::fs::read_to_string(&source).unwrap(), "(атом? 'дім)\n");
         assert_eq!(app.editor_path.as_ref(), Some(&source));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn new_file_is_a_real_tab_and_keeps_previous_document() {
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-new-tabs-{}-{}", std::process::id(),
+            NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let first = root.join("а.lisp");
+        let second = root.join("б.lisp");
+        std::fs::write(&first, "(цитата мама)\n").unwrap();
+        let mut app = App::new_in(root.clone());
+        app.open_selected();
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert_eq!(app.tabs.len(), 1);
+        app.create_new_document("б.lisp");
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert_eq!(app.tabs.len(), 2);
+        assert_eq!(app.active_tab, 1);
+        assert!(app.tabs_title().contains("а.lisp"));
+        assert!(app.tabs_title().contains("б.lisp"));
+
+        app.paste("(цитата тато)\n");
+        assert!(app.dirty);
+        // Перемикання у вкладку з незбереженим текстом не повинно втрачати його.
+        app.cycle_tab(false);
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert_eq!(app.editor_buf, "(цитата мама)\n");
+        assert!(!app.dirty);
+        app.cycle_tab(false);
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert_eq!(app.editor_buf, "(цитата тато)\n");
+        assert!(app.dirty);
+        app.save();
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "(цитата тато)\n");
+        app.close_current_tab();
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert_eq!(app.tabs.len(), 1);
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "(цитата мама)\n");
         std::fs::remove_dir_all(root).unwrap();
     }
 
