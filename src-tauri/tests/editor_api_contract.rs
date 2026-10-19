@@ -12,11 +12,12 @@ fn plugin_registers_command_and_modifies_selection_via_editor_api() {
     let registry = EditorCommandRegistry::new();
     registry.install_into(&mut repl);
 
-    // Canonical Lisp plugin registering a command
+    // Канонічний plugin API через D4 «функція» та D9 «рядок-додати».
+    // Перевіряємо точний ефект, не обходимо SENS арифметикою або Rust concat.
     let plugin_source = r#"
         (editor/register-command "bracket-selection"
-          (lambda ()
-            (editor/replace-selection (зчепити "[" (зчепити (editor/selection) "]"))))
+          (функція ()
+            (editor/replace-selection (рядок-додати "[" (рядок-додати (editor/selection) "]"))))
           "Wrap active selection in brackets")
     "#;
 
@@ -46,8 +47,8 @@ fn plugin_can_read_buffer_and_emit_editor_messages() {
 
     let plugin_source = r#"
         (editor/register-command "greet-buffer"
-          (lambda ()
-            (editor/message (зчепити "Buffer: " (editor/buffer-text))))
+          (функція ()
+            (editor/message (рядок-додати "Buffer: " (editor/buffer-text))))
           "Emit greeting with buffer text")
     "#;
 
