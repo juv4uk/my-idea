@@ -305,11 +305,22 @@ mod pinned_file_mode_smoke {
         fs::create_dir(&workspace).expect("створити реальний workspace");
         let file = workspace.join("програма.lisp");
         // Десяткові числа у вихідному Lisp: результат інтерпретує тільки SENS.
-        fs::write(&file, "(додати #d24:000000000000000000000010 #d24:000000000000000000000011)\n(додати #d24:000000000000000000000100 #d24:000000000000000000000101)\n").expect("записати багаторядковий Lisp");
+        // Тільки людська українська .lisp-проєкція. Точний D24+
+        // операнд створює SENS reader, не TUI і не literal #d24.
+        fs::write(&file, "(додати 2 3)\n(додати 4 5)\n")
+            .expect("записати багаторядковий український Lisp");
         let (status, stdout, stderr) = run_file(&selected, &file);
         assert!(status.success(), "SENS не виконав програму: {status}, stderr={stderr}");
         assert_eq!(stdout.trim(), "9", "SENS має повернути значення останньої форми");
         assert!(stderr.is_empty(), "SENS помилково повідомив: {stderr}");
+
+        // Мінус — це знак у людському десятковому операнді, не
+        // незалежний бітовий код і не арифметика самого редактора.
+        fs::write(&file, "(додати -2 3)\n").expect("записати знаковий десятковий операнд");
+        let (signed_status, signed_stdout, signed_stderr) = run_file(&selected, &file);
+        assert!(signed_status.success(), "SENS не виконав signed D24+: {signed_stderr}");
+        assert_eq!(signed_stdout.trim(), "1", "точна D24+ сума зі знаком");
+        assert!(signed_stderr.is_empty(), "SENS повідомив про помилку: {signed_stderr}");
 
         fs::write(&file, "(\n").expect("записати помилкове джерело");
         let (status, stdout, stderr) = run_file(&selected, &file);
