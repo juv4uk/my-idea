@@ -21,6 +21,15 @@ if [[ ! -d external/sens || ! -f external/sens/Cargo.toml ]]; then
   exit 1
 fi
 
+# Точний пін драбини доменів, спільний для GUI, WASM і sidecar.
+GITLINK="$(git rev-parse HEAD:external/sens)"
+CHECKED_OUT="$(git -C external/sens rev-parse HEAD)"
+if [[ "$GITLINK" != "$CHECKED_OUT" ]]; then
+  printf 'Помилка піна SENS: gitlink=%s checkout=%s; запустіть git submodule update --init external/sens\n' "$GITLINK" "$CHECKED_OUT" >&2
+  exit 1
+fi
+printf 'PINNED_SENS_GITLINK=%s\n' "$GITLINK"
+
 HOST_TRIPLE="$(rustc -Vv | awk '/^host:/ {print $2}')"
 if [[ -z "$HOST_TRIPLE" ]]; then
   echo "could not determine the host target triple from \`rustc -Vv\`." >&2
