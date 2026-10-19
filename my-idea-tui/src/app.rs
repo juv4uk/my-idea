@@ -20,6 +20,15 @@ pub enum Pane {
     Console,
 }
 
+/// Знімок редагованого тексту. Зберігаємо лише стани користувацьких змін;
+/// SENS-семантику не інтерпретуємо й не переписуємо.
+struct EditSnapshot {
+    text: String,
+    cursor: usize,
+}
+
+const MAX_EDIT_HISTORY: usize = 64;
+
 pub struct App {
     pub language: String,
     pub pane: Pane,
@@ -32,6 +41,8 @@ pub struct App {
     // Текст відкритого файла на диску при останньому Open/Save.
     pub editor_original: String,
     pub editor_cursor: usize, // UTF-8 byte offset, завжди на межі символу
+    undo: Vec<EditSnapshot>,
+    redo: Vec<EditSnapshot>,
     pub dirty: bool,
     pub quit_armed: bool,
     pub console: Vec<Line>,
@@ -66,6 +77,8 @@ impl App {
             editor_buf: String::new(),
             editor_original: String::new(),
             editor_cursor: 0,
+            undo: Vec::new(),
+            redo: Vec::new(),
             dirty: false,
             quit_armed: false,
             console: Vec::new(),
@@ -133,6 +146,8 @@ impl App {
                     self.editor_buf = text;
                     self.editor_cursor = self.editor_buf.len();
                     self.editor_path = Some(p.clone());
+                    self.undo.clear();
+                    self.redo.clear();
                     self.dirty = false;
                     self.pane = Pane::Editor;
                     self.status = format!("open {}", p.display());
@@ -357,6 +372,45 @@ impl App {
         }
     }
 
+    /// Фіксація стану перед однією дією редагування; Unicode-курсор є byte offset.
+    fn remember_edit(&mut self) {
+        if self.editor_path.is_none() {
+            return;
+        }
+        if self.undo.len() >= MAX_EDIT_HISTORY {
+            self.undo.remove(0);
+        }
+        self.undo.push(EditSnapshot {
+            text: self.editor_buf.clone(),
+            cursor: self.editor_cursor,
+        });
+        self.redo.clear();
+    }
+
+    fn undo_edit(&mut self) {
+        if self.pane != Pane::Editor { return; }
+        if let Some(previous) = self.undo.pop() {
+            self.redo.push(EditSnapshot {
+                text: std::mem::replace(&mut self.editor_buf, previous.text),
+                cursor: self.editor_cursor,
+            });
+            self.editor_cursor = previous.cursor;
+            self.dirty = self.editor_buf != self.editor_original;
+        }
+    }
+
+    fn redo_edit(&mut self) {
+        if self.pane != Pane::Editor { return; }
+        if let Some(next) = self.redo.pop() {
+            self.undo.push(EditSnapshot {
+                text: std::mem::replace(&mut self.editor_buf, next.text),
+                cursor: self.editor_cursor,
+            });
+            self.editor_cursor = next.cursor;
+            self.dirty = self.editor_buf != self.editor_original;
+        }
+    }
+
     /// Bracketed paste зберігає багаторядковий український Lisp як одне редагування.
     /// У REPL заборонено перетворювати вставлені переноси рядків на окремі eval.
     pub fn paste(&mut self, text: &str) {
@@ -368,6 +422,7 @@ impl App {
                     return;
                 }
                 let normalized = text.replace("\r\n", "\n");
+                self.remember_edit();
                 self.editor_buf.insert_str(self.editor_cursor, &normalized);
                 self.editor_cursor += normalized.len();
                 self.dirty = true;
@@ -391,6 +446,8 @@ impl App {
         }
         match key.code {
             KeyCode::Char('s') if ctrl => self.save(),
+            KeyCode::Char('z') if ctrl => self.undo_edit(),
+            KeyCode::Char('y') if ctrl => self.redo_edit(),
             KeyCode::Char('c' | 'q') if ctrl => {
                 if self.dirty && !self.quit_armed {
                     self.quit_armed = true;
@@ -410,7 +467,8 @@ impl App {
                     self.submit(&line);
                 } else if self.pane == Pane::Explorer {
                     self.open_selected();
-                } else {
+                } else if self.editor_path.is_some() {
+                    self.remember_edit();
                     self.editor_buf.insert(self.editor_cursor, '\n');
                     self.editor_cursor += 1;
                     self.dirty = true;
@@ -425,6 +483,13 @@ impl App {
             }
             KeyCode::End if self.pane == Pane::Console => self.console_scroll_back = 0,
             KeyCode::Backspace => self.backspace(),
+            KeyCode::Delete if self.pane == Pane::Editor && self.editor_path.is_some() => {
+                if let Some(next) = self.editor_buf[self.editor_cursor..].chars().next() {
+                    self.remember_edit();
+                    self.editor_buf.drain(self.editor_cursor..self.editor_cursor + next.len_utf8());
+                    self.dirty = true;
+                }
+            },
             KeyCode::Up => self.up(),
             KeyCode::Down => self.down(),
             KeyCode::Left => {
@@ -446,7 +511,8 @@ impl App {
             ) => {
                 if self.pane == Pane::Console {
                     self.input.push(c);
-                } else if self.pane == Pane::Editor {
+                } else if self.pane == Pane::Editor && self.editor_path.is_some() {
+                    self.remember_edit();
                     self.editor_buf.insert(self.editor_cursor, c);
                     self.editor_cursor += c.len_utf8();
                     self.dirty = true;
@@ -464,6 +530,7 @@ impl App {
             }
             Pane::Editor if self.editor_cursor > 0 => {
                 if let Some((previous, _)) = self.editor_buf[..self.editor_cursor].char_indices().last() {
+                    self.remember_edit();
                     self.editor_buf.drain(previous..self.editor_cursor);
                     self.editor_cursor = previous;
                     self.dirty = true;
@@ -683,5 +750,77 @@ mod paste_tests {
         app.paste("(цитата г)");
         assert_eq!(app.input, "(цитата г)");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod edit_history_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    #[test]
+    fn unicode_paste_undo_redo_and_saved_state_are_real_edits() {
+        static NONCE: AtomicU64 = AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-edit-history-{}-{}", std::process::id(),
+            NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let first = root.join("а.lisp");
+        let second = root.join("б.lisp");
+        std::fs::write(&first, "(цитата мама)\n").unwrap();
+        std::fs::write(&second, "(цитата тато)\n").unwrap();
+        let mut app = App::new_in(root.clone());
+        assert_eq!(app.files[0], first);
+        // Explorer actually opens a file, not a synthesized testing-only buffer.
+        app.open_selected();
+        let original = app.editor_buf.clone();
+        app.paste("\n(цитата дім)");
+        assert!(app.dirty);
+        assert_eq!(app.undo.len(), 1);
+        assert!(app.editor_buf.ends_with("(цитата дім)"));
+        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
+        assert_eq!(app.editor_buf, original);
+        assert!(!app.dirty);
+        assert!(app.editor_buf.is_char_boundary(app.editor_cursor));
+        app.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::CONTROL));
+        assert!(app.dirty);
+        assert!(app.editor_buf.ends_with("(цитата дім)"));
+        app.save();
+        assert!(!app.dirty);
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), app.editor_buf);
+        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
+        assert!(app.dirty, "undo of saved change must mark buffer unsaved");
+        app.handle_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::CONTROL));
+        assert!(!app.dirty);
+
+        // History belongs to the currently opened file only.
+        app.pane = Pane::Explorer;
+        app.file_sel = 1;
+        app.open_selected();
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert!(app.undo.is_empty() && app.redo.is_empty());
+        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
+        assert_eq!(app.editor_buf, "(цитата тато)\n");
+        assert!(!app.dirty);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn delete_does_not_split_utf8_codepoint() {
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-delete-{}-{:?}", std::process::id(), std::thread::current().id()
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let source = root.join("а.lisp");
+        std::fs::write(&source, "дім").unwrap();
+        let mut app = App::new_in(root.clone());
+        app.open_selected();
+        app.editor_cursor = 0;
+        app.handle_key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+        assert_eq!(app.editor_buf, "ім");
+        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
+        assert_eq!(app.editor_buf, "дім");
+        std::fs::remove_dir_all(root).unwrap();
     }
 }
