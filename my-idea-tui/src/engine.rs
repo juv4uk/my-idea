@@ -254,6 +254,36 @@ mod pinned_file_mode_smoke {
         println!("PINNED_SENS_UKR_REPL_OK output={}", stdout.trim());
     }
 
+    /// Реальний SENS REPL у TUI: локальний інтерфейс не поглинає
+    /// мета-команди мови й не відповідає за їхню семантику.
+    #[test]
+    #[ignore = "потрібен pinned CLI; виконує наявний GitHub-hosted smoke"]
+    fn pinned_tui_meta_command_reaches_sens() {
+        use std::time::{Duration, Instant};
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap()
+            .canonicalize().expect("реальний workspace");
+        let mut app = crate::app::App::new_in(root);
+        app.submit(":допомога");
+        let deadline = Instant::now() + Duration::from_secs(12);
+        loop {
+            app.drain_engine();
+            if app.console.iter().any(|line|
+                line.origin == Origin::Stdout && line.text.starts_with("Поверхні:")) {
+                break;
+            }
+            if Instant::now() >= deadline {
+                let log = app.console.iter().map(|line| line.text.as_str())
+                    .collect::<Vec<_>>().join("\\n");
+                panic!("команда :допомога не дійшла до реального SENS REPL: {log}");
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        assert!(!app.console.iter().any(|line|
+            line.text.contains("невідома команда: :допомога")),
+            "Ratatui не повинен перехоплювати мета-команди SENS");
+        println!("PINNED_TUI_META_REPL_OK :допомога");
+    }
+
     #[test]
     #[ignore = "потрібен реальний SENS_PINNED_CLI; GitHub-hosted TUI CI запускає тест явно"]
     fn pinned_file_mode_smoke() {

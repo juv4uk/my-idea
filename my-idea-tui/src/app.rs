@@ -331,13 +331,19 @@ impl App {
             self.meta(rest);
             return;
         }
-        // Звичайний рядок — у консоль і в рушій.
+        self.forward_to_repl(&line);
+    }
+
+    /// Лише транспорт для наявного SENS: не класифікуємо й не трактуємо
+    /// невідомі Lisp/REPL команди на стороні Ratatui.
+    fn forward_to_repl(&mut self, line: &str) {
+        self.console_scroll_back = 0;
         self.console.push(Line { origin: Origin::System, text: format!("> {line}") });
         if self.repl_engine.is_none() {
             self.start_repl();
         }
         if let Some(eng) = self.repl_engine.as_mut() {
-            if let Err(error) = eng.send_line(&line) {
+            if let Err(error) = eng.send_line(line) {
                 self.console.push(Line { origin: Origin::Stderr, text: format!("REPL stdin: {error}") });
             }
         }
@@ -355,20 +361,12 @@ impl App {
                 Some(l) => self.sys(&format!("невідомий код інтерфейсу або зайві аргументи: {l}; доступно uk|de|en")),
                 None => self.sys("Мова інтерфейсу: uk|de|en; :мова — проєкція SENS"),
             },
-            // Мета-команда мови належить чинному SENS REPL — не локальному UI.
-            Some("мова") | Some("surface") => {
-                if self.repl_engine.is_none() { self.start_repl(); }
-                if let Some(eng) = self.repl_engine.as_mut() {
-                    let arguments = rest.split_once(char::is_whitespace).map_or("", |(_, args)| args);
-                    if let Err(error) = eng.send_line(&format!(":мова {arguments}")) {
-                        self.console.push(Line { origin: Origin::Stderr, text: format!("SENS :мова: {error}") });
-                    }
-                }
-            },
             Some("run") => self.run_current(),
             Some("stop") => self.stop(),
             Some("save") => self.save(),
-            _ => self.sys(&format!("невідома команда: :{rest}")),
+            // Усі інші :команди належать SENS (наприклад :допомога,
+            // :імена, :ім\'я, :мова); TUI не приховує його можливостей.
+            _ => self.forward_to_repl(&format!(":{rest}")),
         }
     }
 
