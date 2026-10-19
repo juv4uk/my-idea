@@ -70,10 +70,6 @@ jobs:
         uses: ./external/sens/.github/actions/install-zig
         with:
           version: "0.16.0"
-      # Той самий компілятор Zig із pinned SENS, що використовує
-      # його власний CI: перевірка SHA256 архіву + точна .zig-version.
-      # Не замінювати guard транспорт заглушкою або host-evaluator.
-      - uses: ./external/sens/.github/actions/install-zig
       - name: "Реальний pinned SENS: перевірити SHA й зібрати file-mode CLI"
         shell: bash
         run: |
