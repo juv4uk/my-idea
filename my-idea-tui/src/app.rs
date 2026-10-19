@@ -249,7 +249,7 @@ impl App {
         }).collect::<Vec<_>>().join(" | ")
     }
 
-    fn open_selected(&mut self) {
+    pub(crate) fn open_selected(&mut self) {
         if let Some(p) = self.files.get(self.file_sel).cloned() {
             if p.is_dir() {
                 self.explorer_dir = p;

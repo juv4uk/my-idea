@@ -50,9 +50,11 @@ cargo build --release --manifest-path my-idea-tui/Cargo.toml
 ./my-idea-tui/target/release/my-idea-tui
 # або відкрити конкретний workspace, не змінюючи поточного каталогу:
 ./my-idea-tui/target/release/my-idea-tui /шлях/до/проєкту
+# або одразу відкрити український Lisp-файл у редакторі:
+./my-idea-tui/target/release/my-idea-tui /шлях/до/проєкту/програма.lisp
 ```
 
-Якщо CLI не зібрано в `external/sens/target/{release,debug}`, консоль показує інформативну помилку. `PATH` та `MY_LISP_BIN` не підміняють pinned джерело. Шлях до вже зібраного бінарника сам собою не є SHA-attestation: після зміни gitlink перебудуйте CLI.
+Файл `.lisp` або `.лісп` відкривається до входу в raw-режим термінала; для `.sens` (двійковий T5M) та некоректного UTF-8 повертається явна помилка, без пошкодження термінала.\n\nЯкщо CLI не зібрано в `external/sens/target/{release,debug}`, консоль показує інформативну помилку. `PATH` та `MY_LISP_BIN` не підміняють pinned джерело. Шлях до вже зібраного бінарника сам собою не є SHA-attestation: після зміни gitlink перебудуйте CLI.
 
 ## Клавіші
 
