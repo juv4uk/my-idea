@@ -512,7 +512,7 @@ mod language_adapter_tests {
         let mut session = ReplSession::default();
         let result = evaluate_source_in_session(
             &mut session,
-            "(сполучити (цитата антена) (сполучити (частка 1 3) (цитата ())))",
+            "(сполучити (як-є антена) (сполучити (частка 1 3) (як-є ())))",
             Some("my-lisp"),
         ).expect("точна українська D5 частка через справжній SENS");
         assert_eq!(result.value, "(антена 1/3)");
