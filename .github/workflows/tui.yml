@@ -21,10 +21,11 @@ on:
 permissions:
   contents: read
 
-# Одна актуальна збірка TUI на гілку: скасовувати застарілі рани.
+# Не скасовувати ран при новому пуші: кожен push доводиться до кінця.
+# (Раніше cancel-in-progress: true витісняв попередній ран на ту саму гілку.)
 concurrency:
   group: my-idea-tui-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
