@@ -24,10 +24,17 @@ Reload is explicit — the "⟲" button in my-idea's header. No file-watcher.
 
 ## Editor API
 
-- `(editor/register-command "name" (lambda () ...) "description")`
+**Authoritative source projection:** new Ukrainian Lisp plugins use
+`функція` (D4) and `рядок-додати` (D9), resolved by the same exact
+`external/sens` gitlink. The historical `lambda`, `string-append`,
+and `зчепити` spellings must not be copied into canonical Ukrainian
+source. For a complete runnable example, see
+`docs/examples/plugins/hello.lisp`.
+
+- `(editor/register-command "name" (функція () ...) "description")`
 - `(editor/keymap "Ctrl-Shift-b" "command-name")` — CodeMirror's own key
   string format; the host never interprets it.
-- `(editor/on "event" "handler-id" (lambda () ...))` — currently fired
+- `(editor/on "event" "handler-id" (функція () ...))` — currently fired
   events: `"after-open"`, `"before-save"`, `"after-save"`.
 - `(editor/buffer-text)` / `(editor/selection)`
 - `(editor/replace-selection "text")`
