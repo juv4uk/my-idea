@@ -9,7 +9,7 @@ use std::process::ExitStatus;
 use std::time::{Duration, Instant};
 
 fn execute(binary: &Path, source: &Path) -> (ExitStatus, Vec<engine::Line>) {
-    let mut child = engine::Engine::spawn_file(binary, source)
+    let mut child = engine::Engine::spawn_file(binary, source, source.parent().expect("робочий каталог"))
         .expect("запуск реального pinned SENS CLI");
     let deadline = Instant::now() + Duration::from_secs(60);
     let status = loop {
