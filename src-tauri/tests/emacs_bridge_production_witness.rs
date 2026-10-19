@@ -42,10 +42,10 @@ impl Drop for TestConfigDir {
 
 const BRACKET_PLUGIN: &str = r#"
 (editor/register-command "bracket-selection"
-  (lambda ()
+  (функція ()
     (editor/replace-selection
-      (string-append "["
-        (string-append (editor/selection) "]"))))
+      (рядок-додати "["
+        (рядок-додати (editor/selection) "]"))))
   "Обгорнути виділення")
 
 (editor/keymap "Ctrl-[" "bracket-selection")

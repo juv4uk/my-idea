@@ -9,8 +9,8 @@
 ;; Команда: обгортає виділений текст квадратними дужками.
 ;; A command: wraps the current selection in brackets.
 (editor/register-command "bracket-selection"
-  (lambda ()
-    (editor/replace-selection (string-append "[" (string-append (editor/selection) "]"))))
+  (функція ()
+    (editor/replace-selection (рядок-додати "[" (рядок-додати (editor/selection) "]"))))
   "Wrap the current selection in brackets")
 
 ;; Прив'язка клавіші до команди вище — своя, не CodeMirror-дефолтна.
@@ -20,5 +20,5 @@
 ;; Хук на подію: after-open спрацьовує щоразу, коли my-idea відкриває файл.
 ;; An event hook: after-open fires every time my-idea opens a file.
 (editor/on "after-open" "greet-on-open"
-  (lambda ()
+  (функція ()
     (editor/message "Файл відкрито - плагін живий · file opened - plugin is alive")))

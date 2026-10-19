@@ -15,7 +15,7 @@ fn plugin_binds_key_and_command_runs_via_dispatch() {
     repl.evaluate(
         r#"
         (editor/register-command "greet"
-          (lambda () (editor/message "hello from keymap"))
+          (функція () (editor/message "hello from keymap"))
           "Greets via keymap")
         (editor/keymap "Ctrl-g" "greet")
         "#,
@@ -39,7 +39,7 @@ fn plugin_subscribes_to_event_and_handler_runs_via_emit() {
     repl.evaluate(
         r#"
         (editor/on "selection-changed" "log-selection"
-          (lambda () (editor/message (string-append "selected: " (editor/selection)))))
+          (функція () (editor/message (рядок-додати "selected: " (editor/selection)))))
         "#,
     )
     .expect("plugin evaluation should succeed");
@@ -92,11 +92,11 @@ fn reload_does_not_duplicate_keymap_or_event_handler() {
 
     let plugin_source = r#"
         (editor/register-command "greet"
-          (lambda () (editor/message "hi"))
+          (функція () (editor/message "hi"))
           "Greets")
         (editor/keymap "Ctrl-g" "greet")
         (editor/on "selection-changed" "log-selection"
-          (lambda () (editor/message "seen")))
+          (функція () (editor/message "seen")))
         "#;
 
     // Simulates an explicit plugin reload: the same source evaluated twice.

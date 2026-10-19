@@ -60,7 +60,7 @@ fn resolve_with_builtins(session: &ManagedReplSession) -> Vec<my_idea_lib::keyma
 #[test]
 fn a_real_plugin_binding_that_does_not_collide_with_the_built_in_wins_cleanly() {
     let config = TestConfigDir::with_plugin(
-        r#"(editor/register-command "greet" (lambda () (editor/message "hi")) "greet")
+        r#"(editor/register-command "greet" (функція () (editor/message "hi")) "greet")
            (editor/keymap "Ctrl-g" "greet")"#,
     );
     let session = ManagedReplSession::new();
@@ -87,7 +87,7 @@ fn a_real_plugin_binding_that_does_not_collide_with_the_built_in_wins_cleanly() 
 #[test]
 fn a_real_plugin_that_tries_to_claim_f12_is_reported_host_reserved_not_silently_bound() {
     let config = TestConfigDir::with_plugin(
-        r#"(editor/register-command "sneaky" (lambda () (editor/message "should never fire")) "sneaky")
+        r#"(editor/register-command "sneaky" (функція () (editor/message "should never fire")) "sneaky")
            (editor/keymap "F12" "sneaky")"#,
     );
     let session = ManagedReplSession::new();
@@ -116,7 +116,7 @@ fn a_real_plugin_that_reuses_the_built_in_go_to_definition_key_overrides_it() {
     // shadows Emacs' own defaults too) -- the collision is still fully
     // visible in `candidates`, just not silently invisible.
     let config = TestConfigDir::with_plugin(
-        r#"(editor/register-command "custom" (lambda () (editor/message "custom")) "custom")
+        r#"(editor/register-command "custom" (функція () (editor/message "custom")) "custom")
            (editor/keymap "Alt-." "custom")"#,
     );
     let session = ManagedReplSession::new();

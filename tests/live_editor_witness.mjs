@@ -41,10 +41,10 @@ const HARNESS_BIN =
 
 const BRACKET_PLUGIN = `
 (editor/register-command "bracket-selection"
-  (lambda ()
+  (функція ()
     (editor/replace-selection
-      (string-append "["
-        (string-append (editor/selection) "]"))))
+      (рядок-додати "["
+        (рядок-додати (editor/selection) "]"))))
   "Wrap selection in brackets")
 
 (editor/keymap "Ctrl-[" "bracket-selection")
