@@ -168,7 +168,7 @@ impl App {
             Ok(bin) => match Engine::spawn_repl(&bin.path, &self.cwd) {
                 Ok(eng) => {
                     self.repl_engine = Some(eng);
-                    self.sys(&format!("SENS REPL: {} gitlink={}", bin.path.display(), bin.pinned_sha));
+                    self.sys(&format!("SENS REPL surface=укр gitlink={} cli={} (SHA збірки окремо не засвідчено)", bin.pinned_sha, bin.path.display()));
                 }
                 Err(error) => self.sys(&format!("{} ({error})", self.t("no-engine"))),
             },
@@ -331,13 +331,24 @@ impl App {
     fn meta(&mut self, rest: &str) {
         let mut it = rest.split_whitespace();
         match it.next() {
-            Some("мова") | Some("language") => match it.next() {
-                Some(l) if i18n::LANGUAGES.contains(&l) || l == "ук" => {
-                    self.language = if l == "ук" { "uk" } else { l }.to_string();
+            // Локалізація TUI не змінює мову програми.
+            Some("інтерфейс") | Some("ui") | Some("language") => match it.next() {
+                Some(l) if i18n::LANGUAGES.contains(&l) && it.next().is_none() => {
+                    self.language = l.to_string();
                     self.sys(&format!("мова інтерфейсу: {l}"));
                 }
-                Some(l) => self.sys(&format!("невідома мова: {l}")),
-                None => self.sys(&format!("мови: {}", i18n::LANGUAGES.join(", "))),
+                Some(l) => self.sys(&format!("невідомий код інтерфейсу або зайві аргументи: {l}; доступно uk|de|en")),
+                None => self.sys("Мова інтерфейсу: uk|de|en; :мова — проєкція SENS"),
+            },
+            // Мета-команда мови належить чинному SENS REPL — не локальному UI.
+            Some("мова") | Some("surface") => {
+                if self.repl_engine.is_none() { self.start_repl(); }
+                if let Some(eng) = self.repl_engine.as_mut() {
+                    let arguments = rest.split_once(char::is_whitespace).map_or("", |(_, args)| args);
+                    if let Err(error) = eng.send_line(&format!(":мова {arguments}")) {
+                        self.console.push(Line { origin: Origin::Stderr, text: format!("SENS :мова: {error}") });
+                    }
+                }
             },
             Some("run") => self.run_current(),
             Some("stop") => self.stop(),

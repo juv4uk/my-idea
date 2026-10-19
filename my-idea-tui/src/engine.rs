@@ -32,7 +32,7 @@ impl Engine {
     /// Інтерактивний SENS CLI, із живим stdin лише для REPL.
     pub fn spawn_repl(bin: &Path, workspace: &Path) -> io::Result<Self> {
         let mut command = Command::new(bin);
-        command.current_dir(workspace).stdin(Stdio::piped());
+        command.arg("--surface=укр").current_dir(workspace).stdin(Stdio::piped());
         Self::spawn(command)
     }
 

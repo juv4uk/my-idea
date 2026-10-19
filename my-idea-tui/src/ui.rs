@@ -94,7 +94,7 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
         };
         lines.push(styled);
     }
-    let prompt = format!("my-idea[{}]> {}", app.language, app.input);
+    let prompt = format!("SENS> {}", app.input);
     lines.push(Line::from(prompt).style(Style::default().fg(Color::Yellow)));
 
     // Ratatui за замовчуванням показує перші рядки Paragraph; для REPL
@@ -111,7 +111,7 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
 fn draw_status(f: &mut Frame, app: &App, area: Rect) {
     let run = if app.engine_running { "RUN" } else { "idle" };
     let text = format!(
-        " {} | {} | {} | :мова ук|de|en  Tab  F5 Run  F9 Stop  Ctrl-C Quit ",
+        " {} | {} | {} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  F5 Run  F9 Stop ",
         app.pane_label(),
         app.language,
         run
