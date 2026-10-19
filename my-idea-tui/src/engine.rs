@@ -203,7 +203,7 @@ mod pinned_file_mode_smoke {
     static NONCE: AtomicU64 = AtomicU64::new(0);
 
     fn run_file(binary: &Path, file: &Path) -> (ExitStatus, String, String) {
-        let mut engine = Engine::spawn_file(binary, file).expect("запустити реальний SENS");
+        let mut engine = Engine::spawn_file(binary, file, file.parent().expect("workspace файла")).expect("запустити реальний SENS");
         let status = engine.child.wait().expect("дочекатися SENS");
         engine.finish_readers(); // прочитати stdout/stderr до фіксації результату
         let mut stdout = String::new();
