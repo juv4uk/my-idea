@@ -6,6 +6,8 @@ import path from 'node:path';
 // Load our Rust WASM Engine
 import init, { evaluate } from '../public/wasm/my_lisp_wasm.js';
 
+// Українська проєкція D1/D3: ратифіковані «так»/«ні», а не legacy 1/0.
+// D24+ арифметичні перевірки залишено справжніми, зокрема поки / не підтримується.
 const fixturePath = path.resolve('tests/fixtures/conformance.json');
 const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 

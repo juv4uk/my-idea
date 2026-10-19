@@ -1,19 +1,71 @@
 [
-  { "expr": "(quote radio)", "expected": "radio" },
-  { "expr": "(atom? (quote radio))", "expected": "1" },
-  { "expr": "(atom? (quote ()))", "expected": "1" },
-  { "expr": "(atom? (quote (radio antenna)))", "expected": "0" },
-  { "expr": "(eq? (quote radio) (quote radio))", "expected": "1" },
-  { "expr": "(eq? (quote radio) (quote antenna))", "expected": "0" },
-  { "expr": "(car (quote (radio antenna)))", "expected": "radio" },
-  { "expr": "(cdr (quote (radio antenna)))", "expected": "(antenna)" },
-  { "expr": "(cons (quote radio) (quote (antenna)))", "expected": "(radio antenna)" },
-  { "expr": "(cond (() (quote wrong)) ((eq? 0 0) (quote right)))", "expected": "right" },
-  { "expr": "(/ 5 6 8 7)", "expected": "5/336" },
-  { "expr": "(+ (/ 1 3) (/ 1 3))", "expected": "2/3" },
-  { "expr": "(- 1 (/ 1 3))", "expected": "2/3" },
-  { "expr": "(* (/ 2 3) (/ 9 4))", "expected": "3/2" },
-  { "expr": "(- (/ 1 3))", "expected": "-1/3" },
-  { "expr": "(+ (/ 1 2) 0.25)", "expected": "3/4" },
-  { "expr": "# Literate Lisp\n\nThis is a literate program.\n\n```sens\n(def x 10)\n(* x 2)\n```\n\nIt ignores non-code blocks.", "expected": "20", "mode": "markdown" }
+  {
+    "expr": "(як-є радіо)",
+    "expected": "радіо"
+  },
+  {
+    "expr": "(атом? (як-є радіо))",
+    "expected": "так"
+  },
+  {
+    "expr": "(атом? (як-є ()))",
+    "expected": "так"
+  },
+  {
+    "expr": "(атом? (як-є (радіо антена)))",
+    "expected": "ні"
+  },
+  {
+    "expr": "(тотожне? (як-є радіо) (як-є радіо))",
+    "expected": "так"
+  },
+  {
+    "expr": "(тотожне? (як-є радіо) (як-є антена))",
+    "expected": "ні"
+  },
+  {
+    "expr": "(перше (як-є (радіо антена)))",
+    "expected": "радіо"
+  },
+  {
+    "expr": "(решта (як-є (радіо антена)))",
+    "expected": "(антена)"
+  },
+  {
+    "expr": "(сполучити (як-є радіо) (як-є (антена)))",
+    "expected": "(радіо антена)"
+  },
+  {
+    "expr": "(за-умовою ((атом? (як-є (радіо антена))) (як-є неправильно)) ((атом? (як-є радіо)) (як-є правильно)))",
+    "expected": "правильно"
+  },
+  {
+    "expr": "(/ 5 6 8 7)",
+    "expected": "5/336"
+  },
+  {
+    "expr": "(+ (/ 1 3) (/ 1 3))",
+    "expected": "2/3"
+  },
+  {
+    "expr": "(- 1 (/ 1 3))",
+    "expected": "2/3"
+  },
+  {
+    "expr": "(* (/ 2 3) (/ 9 4))",
+    "expected": "3/2"
+  },
+  {
+    "expr": "(- (/ 1 3))",
+    "expected": "-1/3"
+  },
+  {
+    "expr": "(+ (/ 1 2) 0.25)",
+    "expected": "3/4"
+  },
+  {
+    "expr": "# Literate Lisp\n\nThis is a literate program.\n\n```sens\n(визначити х 10)\n(помножити х 2)\n```\n\nIt ignores non-code blocks.",
+    "expected": "20",
+    "mode": "markdown"
+  }
 ]

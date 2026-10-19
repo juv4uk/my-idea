@@ -319,11 +319,13 @@ test('Standalone web artifact does not stack overflow on 100k list', async () =>
     const res = await page.evaluate(async () => {
       const wasm = await window.loadMyLispWasm();
       return wasm.evaluate(`
-        (def build 
-          (lambda (n acc)
-            (cond ((eq? n 0) acc)
-                  ((eq? 0 0) (build (- n 1) (cons n acc))))))
-        (build 100000 (quote ()))
+        (визначити побудувати
+          (функція (кількість накопичення)
+            (за-умовою
+              ((тотожне? кількість 0) накопичення)
+              (так (побудувати (відняти кількість 1)
+                               (сполучити кількість накопичення))))))
+        (побудувати 100000 (як-є ()))
       `);
     });
     
