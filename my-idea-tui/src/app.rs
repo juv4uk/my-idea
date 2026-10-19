@@ -10,7 +10,6 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::engine::{self, Engine, Line, Origin};
 use crate::i18n;
-use crate::ast;
 
 #[path = "../../src-tauri/src/workspace_save.rs"]
 mod workspace_save;
@@ -65,17 +64,11 @@ pub struct App {
     pub console: Vec<Line>,
     /// Скільки логічних рядків відступити від хвоста консолі (0 = останній вивід).
     pub console_scroll_back: usize,
-    pub ast_visible: bool,
-    pub ast_scroll: usize,
-    pub ast_lines: Vec<String>,
-    ast_cached_source: String,
     pub input: String,
     /// UTF-8 byte offset усередині поточної команди REPL.
     pub input_cursor: usize,
     pub history: Vec<String>,
     pub hist_idx: usize,
-    /// Ненадіслана чернетка та курсор UTF-8 до переходу в історію.
-    history_draft: Option<(String, usize)>,
     pub repl_engine: Option<Engine>,
     pub run_engine: Option<Engine>,
     pub engine_running: bool,
@@ -110,15 +103,10 @@ impl App {
             quit_armed: false,
             console: Vec::new(),
             console_scroll_back: 0,
-            ast_visible: false,
-            ast_scroll: 0,
-            ast_lines: Vec::new(),
-            ast_cached_source: String::new(),
             input: String::new(),
             input_cursor: 0,
             history: Vec::new(),
             hist_idx: 0,
-            history_draft: None,
             repl_engine: None,
             run_engine: None,
             engine_running: false,
@@ -210,7 +198,7 @@ impl App {
     fn close_current_tab(&mut self) {
         if self.editor_path.is_none() { return; }
         if self.dirty || self.editor_buf != self.editor_original {
-            self.sys("Незбережені зміни: Ctrl+S або Ctrl+Z перед Ctrl+W.");
+            self.sys(self.t("dirty-close"));
             return;
         }
         self.tabs.remove(self.active_tab);
@@ -258,7 +246,7 @@ impl App {
                 self.explorer_dir = p;
                 self.file_sel = 0;
                 self.reload_files();
-                self.status = format!("каталог {}", self.explorer_dir.display());
+                self.status = format!("{} {}", self.t("dir"), self.explorer_dir.display());
                 return;
             }
             if p.extension().and_then(|ext| ext.to_str()) == Some("sens") {
@@ -278,9 +266,6 @@ impl App {
                     self.editor_path = Some(p.clone());
                     self.undo.clear();
                     self.redo.clear();
-                    self.ast_cached_source.clear();
-                    self.ast_lines.clear();
-                    self.ast_scroll = 0;
                     self.dirty = false;
                     self.active_tab = self.tabs.len();
                     self.tabs.push(OpenDocument {
@@ -288,9 +273,9 @@ impl App {
                         cursor: self.editor_cursor, undo: Vec::new(), redo: Vec::new(),
                     });
                     self.pane = Pane::Editor;
-                    self.status = format!("open {}", p.display());
+                    self.status = format!("{} {}", self.t("open-status"), p.display());
                 }
-                Err(error) => self.sys(&format!("не вдалось відкрити {}: {error}", p.display())),
+                Err(error) => self.sys(&format!("{} {}: {error}", self.t("open-failed"), p.display())),
             }
         }
     }
@@ -299,7 +284,7 @@ impl App {
     /// перезаписувати існуючий файл й не змінювати буфер із незбереженими змінами.
     fn create_new_document(&mut self, name: &str) {
         if self.dirty {
-            self.sys("Незбережені зміни: спочатку Ctrl+S, а потім :новий.");
+            self.sys(self.t("dirty-new"));
             return;
         }
         let candidate = Path::new(name);
@@ -316,35 +301,20 @@ impl App {
         // Навігація Explorer не повинна створювати джерела за коренем workspace.
         let root = match self.cwd.canonicalize() {
             Ok(root) => root,
-            Err(error) => { self.sys(&format!("workspace недоступний: {error}")); return; }
+            Err(error) => { self.sys(&format!("{}: {error}", self.t("ws-unavailable"))); return; }
         };
         let folder = match self.explorer_dir.canonicalize() {
             Ok(folder) => folder,
-            Err(error) => { self.sys(&format!("каталог Explorer недоступний: {error}")); return; }
+            Err(error) => { self.sys(&format!("{}: {error}", self.t("explorer-unavailable"))); return; }
         };
         if !folder.starts_with(&root) {
-            self.sys("Каталог Explorer вийшов за межі workspace.");
+            self.sys(self.t("explorer-escape"));
             return;
         }
         let path = folder.join(name);
         match OpenOptions::new().write(true).create_new(true).open(&path) {
             Ok(file) => {
                 drop(file);
-                // Перед переходом до нового документа зберегти стан поточної
-                // вкладки, а новий файл обліковувати як окрему вкладку.
-                self.store_active_tab();
-                self.active_tab = self.tabs.len();
-                self.tabs.push(OpenDocument {
-                    path: path.clone(),
-                    text: String::new(),
-                    original: String::new(),
-                    cursor: 0,
-                    undo: Vec::new(),
-                    redo: Vec::new(),
-                });
-                self.ast_cached_source.clear();
-                self.ast_lines.clear();
-                self.ast_scroll = 0;
                 self.editor_path = Some(path.clone());
                 self.editor_original.clear();
                 self.editor_buf.clear();
@@ -358,10 +328,10 @@ impl App {
                     self.file_sel = position;
                 }
                 self.pane = Pane::Editor;
-                self.status = format!("новий {}", path.display());
-                self.sys(&format!("Створено {}", path.display()));
+                self.status = format!("{} {}", self.t("new-status"), path.display());
+                self.sys(&format!("{} {}", self.t("created"), path.display()));
             }
-            Err(error) => self.sys(&format!("Не вдалося створити {}: {error}", path.display())),
+            Err(error) => self.sys(&format!("{} {}: {error}", self.t("create-failed"), path.display())),
         }
     }
 
@@ -376,10 +346,7 @@ impl App {
                 self.dirty = false;
                 self.status = format!("saved {}", path.display());
             }
-            Err(error) => self.sys(&format!(
-                "Не збережено {}: {error}. Буфер редактора не втрачено.",
-                path.display()
-            )),
+            Err(error) => self.sys(&format!("{} {}: {error}. {}", self.t("save-failed"), path.display(), self.t("buffer-kept"))),
         }
     }
 
@@ -402,25 +369,25 @@ impl App {
     /// F5 = CLI file mode. Незбережений буфер не видаємо за файл на диску.
     fn run_current(&mut self) {
         let Some(path) = self.editor_path.clone() else {
-            self.sys("немає відкритого файла для запуску");
+            self.sys(self.t("no-file"));
             return;
         };
         if self.dirty {
-            self.sys("Спершу збережіть зміни (Ctrl+S): SENS запускає файл із диска.");
+            self.sys(self.t("save-first"));
             return;
         }
         if self.engine_running {
-            self.sys("Файл уже виконується. F9 — зупинити поточний запуск.");
+            self.sys(self.t("already-running"));
             return;
         }
         match std::fs::read_to_string(&path) {
             Ok(on_disk) if on_disk == self.editor_buf => {}
             Ok(_) => {
-                self.sys("Файл змінено ззовні: повторно відкрийте перед F5.");
+                self.sys(self.t("changed-externally"));
                 return;
             }
             Err(error) => {
-                self.sys(&format!("SENS Run: не вдалося прочитати файл: {error}"));
+                self.sys(&format!("{}: {error}", self.t("run-read-failed")));
                 return;
             }
         }
@@ -442,7 +409,7 @@ impl App {
             Err(error) => {
                 self.console.push(Line {
                     origin: Origin::Stderr,
-                    text: format!("не вдалося запустити SENS: {error}"),
+                    text: format!("{}: {error}", self.t("run-failed")),
                 });
             }
         }
@@ -458,7 +425,7 @@ impl App {
             while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
         }
         self.engine_running = false;
-        self.sys("SENS: процес зупинено (F5 — повторний запуск, REPL — наступна команда).");
+        self.sys(self.t("stopped"));
     }
 
     /// Консоль читає stdout/stderr процесів і показує exit-status файлу.
@@ -478,7 +445,7 @@ impl App {
                     eng.finish_readers();
                     while let Ok(line) = eng.rx.try_recv() { self.console.push(line); }
                 }
-                self.sys(&format!("SENS REPL exit-status={status}; наступна команда відкриє нову сесію."));
+                self.sys(&format!("{}={status}; {}", self.t("repl-exit-status"), self.t("repl-next")));
             }
             Some(Err(error)) => {
                 if let Some(mut eng) = self.repl_engine.take() {
@@ -534,7 +501,6 @@ impl App {
         }
         self.history.push(line.clone());
         self.hist_idx = self.history.len();
-        self.history_draft = None;
 
         if let Some(rest) = line.strip_prefix(':') {
             self.meta(rest);
@@ -565,10 +531,10 @@ impl App {
             Some("інтерфейс") | Some("ui") | Some("language") => match it.next() {
                 Some(l) if i18n::LANGUAGES.contains(&l) && it.next().is_none() => {
                     self.language = l.to_string();
-                    self.sys(&format!("мова інтерфейсу: {l}"));
+                    self.sys(&format!("{} {l}", self.t("ui-lang-set")));
                 }
-                Some(l) => self.sys(&format!("невідомий код інтерфейсу або зайві аргументи: {l}; доступно uk|de|en")),
-                None => self.sys("Мова інтерфейсу: uk|de|en; :мова — проєкція SENS"),
+                Some(l) => self.sys(&format!("{} {l}; {}", self.t("ui-lang-bad"), self.t("ui-lang-avail"))),
+                None => self.sys(self.t("ui-lang-help")),
             },
             Some("новий") | Some("new") => {
                 let name = it.next().unwrap_or("");
@@ -633,7 +599,7 @@ impl App {
         match self.pane {
             Pane::Editor => {
                 if self.editor_path.is_none() {
-                    self.sys("Спочатку відкрийте файл у редакторі.");
+                    self.sys(self.t("open-file-first"));
                     return;
                 }
                 let normalized = text.replace("\r\n", "\n");
@@ -644,27 +610,13 @@ impl App {
             }
             Pane::Console => {
                 if text.contains('\r') || text.contains('\n') {
-                    self.sys("Багаторядкова вставка в REPL не виконується: збережіть файл і натисніть F5.");
+                    self.sys(self.t("paste-multiline"));
                 } else {
                     self.input.insert_str(self.input_cursor, text);
                     self.input_cursor += text.len();
                 }
             }
-            Pane::Explorer => self.sys("Виберіть редактор або консоль перед вставленням."),
-        }
-    }
-
-    /// AST отримуємо тільки з reader-а pinned SENS і лише коли змінився текст.
-    /// Жодної інтерпретації чи дублювання правил Lisp у TUI.
-    pub fn refresh_ast(&mut self) {
-        if self.editor_path.is_none() {
-            self.ast_lines.clear();
-            self.ast_cached_source.clear();
-            self.ast_scroll = 0;
-        } else if self.ast_lines.is_empty() || self.ast_cached_source != self.editor_buf {
-            self.ast_lines = ast::render(&self.editor_buf);
-            self.ast_cached_source.clone_from(&self.editor_buf);
-            self.ast_scroll = 0;
+            Pane::Explorer => self.sys(self.t("paste-no-target")),
         }
     }
 
@@ -681,7 +633,7 @@ impl App {
                     self.pane = Pane::Console;
                     self.console_scroll_back = 0;
                 } else {
-                    self.sys("Консоль має незавершений ввід: завершіть або очистіть його перед Ctrl+N.");
+                    self.sys(self.t("console-unfinished"));
                     self.pane = Pane::Console;
                 }
             },
@@ -692,21 +644,14 @@ impl App {
             KeyCode::Char('c' | 'q') if ctrl => {
                 if self.has_unsaved_changes() && !self.quit_armed {
                     self.quit_armed = true;
-                    self.sys("Незбережені зміни: Ctrl+S — зберегти; Ctrl+Q повторно — вийти без збереження");
+                    self.sys(self.t("quit-dirty"));
                 } else {
                     return true;
                 }
             },
             KeyCode::Esc => self.pane = Pane::Explorer,
             KeyCode::F(5) => self.run_current(),
-            KeyCode::F(6) => { self.ast_visible = !self.ast_visible; self.refresh_ast(); },
             KeyCode::F(9) => self.stop(),
-            KeyCode::PageUp if self.ast_visible && key.modifiers.contains(KeyModifiers::ALT) => {
-                self.ast_scroll = self.ast_scroll.saturating_sub(6);
-            },
-            KeyCode::PageDown if self.ast_visible && key.modifiers.contains(KeyModifiers::ALT) => {
-                self.ast_scroll = self.ast_scroll.saturating_add(6).min(self.ast_lines.len().saturating_sub(1));
-            },
             KeyCode::Tab if ctrl => self.cycle_tab(key.modifiers.contains(KeyModifiers::SHIFT)),
             KeyCode::BackTab if ctrl => self.cycle_tab(true),
             KeyCode::Tab => self.cycle_pane(),
@@ -826,7 +771,7 @@ impl App {
                             self.explorer_dir = parent.to_path_buf();
                             self.file_sel = 0;
                             self.reload_files();
-                            self.status = format!("каталог {}", self.explorer_dir.display());
+                            self.status = format!("{} {}", self.t("dir"), self.explorer_dir.display());
                         }
                     }
                 }
@@ -839,11 +784,8 @@ impl App {
             Pane::Explorer => self.file_sel = self.file_sel.saturating_sub(1),
             Pane::Console => {
                 if self.hist_idx > 0 {
-                    if self.hist_idx == self.history.len() {
-                        self.history_draft = Some((self.input.clone(), self.input_cursor));
-                    }
                     self.hist_idx -= 1;
-                    self.input = self.history[self.hist_idx].clone();
+                    self.input = self.history.get(self.hist_idx).cloned().unwrap_or_default();
                     self.input_cursor = self.input.len();
                 }
             }
@@ -862,14 +804,11 @@ impl App {
                 if self.hist_idx + 1 < self.history.len() {
                     self.hist_idx += 1;
                     self.input = self.history[self.hist_idx].clone();
-                    self.input_cursor = self.input.len();
-                } else if self.hist_idx < self.history.len() {
+                } else {
                     self.hist_idx = self.history.len();
-                    let (draft, cursor) = self.history_draft.take()
-                        .unwrap_or_else(|| (String::new(), 0));
-                    self.input = draft;
-                    self.input_cursor = cursor;
+                    self.input.clear();
                 }
+                self.input_cursor = self.input.len();
             }
             Pane::Editor => self.move_editor_line(true),
         }
@@ -1427,47 +1366,6 @@ mod create_document_tests {
     }
 
     #[test]
-    fn new_file_is_a_real_tab_and_keeps_previous_document() {
-        let root = std::env::temp_dir().join(format!(
-            "my-idea-new-tabs-{}-{}", std::process::id(),
-            NONCE.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir(&root).unwrap();
-        let first = root.join("а.lisp");
-        let second = root.join("б.lisp");
-        std::fs::write(&first, "(цитата мама)\n").unwrap();
-        let mut app = App::new_in(root.clone());
-        app.open_selected();
-        assert_eq!(app.editor_path.as_ref(), Some(&first));
-        assert_eq!(app.tabs.len(), 1);
-        app.create_new_document("б.lisp");
-        assert_eq!(app.editor_path.as_ref(), Some(&second));
-        assert_eq!(app.tabs.len(), 2);
-        assert_eq!(app.active_tab, 1);
-        assert!(app.tabs_title().contains("а.lisp"));
-        assert!(app.tabs_title().contains("б.lisp"));
-
-        app.paste("(цитата тато)\n");
-        assert!(app.dirty);
-        // Перемикання у вкладку з незбереженим текстом не повинно втрачати його.
-        app.cycle_tab(false);
-        assert_eq!(app.editor_path.as_ref(), Some(&first));
-        assert_eq!(app.editor_buf, "(цитата мама)\n");
-        assert!(!app.dirty);
-        app.cycle_tab(false);
-        assert_eq!(app.editor_path.as_ref(), Some(&second));
-        assert_eq!(app.editor_buf, "(цитата тато)\n");
-        assert!(app.dirty);
-        app.save();
-        assert_eq!(std::fs::read_to_string(&second).unwrap(), "(цитата тато)\n");
-        app.close_current_tab();
-        assert_eq!(app.editor_path.as_ref(), Some(&first));
-        assert_eq!(app.tabs.len(), 1);
-        assert_eq!(std::fs::read_to_string(&first).unwrap(), "(цитата мама)\n");
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
     fn cannot_escape_workspace_or_discard_unsaved_source() {
         let root = std::env::temp_dir().join(format!(
             "my-idea-new-safe-{}-{}", std::process::id(),
@@ -1492,61 +1390,5 @@ mod create_document_tests {
         assert!(app.dirty);
         assert_eq!(std::fs::read_to_string(first).unwrap(), "");
         std::fs::remove_dir_all(root).unwrap();
-    }
-}
-
-#[cfg(test)]
-mod repl_history_draft_tests {
-    use super::*;
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    #[test]
-    fn up_down_restores_ukrainian_draft_and_utf8_cursor() {
-        let mut app = App::new_in(std::env::temp_dir());
-        app.pane = Pane::Console;
-        // Це команди IDE, без дочірнього SENS; тут перевіряється реальна
-        // клавіатурна поведінка редактора вводу, не імітація evaluator.
-        app.submit(":інтерфейс de");
-        app.submit(":інтерфейс uk");
-        let draft = "(атом? 'чернетка)".to_owned();
-        let cursor = "(атом? '".len();
-        app.input = draft.clone();
-        app.input_cursor = cursor;
-        let up = KeyEvent::new(KeyCode::Up, KeyModifiers::NONE);
-        let down = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
-        app.handle_key(up);
-        assert_eq!(app.input, ":інтерфейс uk");
-        app.handle_key(up);
-        assert_eq!(app.input, ":інтерфейс de");
-        app.handle_key(down);
-        assert_eq!(app.input, ":інтерфейс uk");
-        app.handle_key(down);
-        assert_eq!(app.input, draft);
-        assert_eq!(app.input_cursor, cursor);
-        assert!(app.input.is_char_boundary(app.input_cursor));
-        assert!(app.history_draft.is_none());
-        app.handle_key(down);
-        assert_eq!(app.input, draft);
-        // Зміна запису історії не змінює збережену чернетку.
-        app.handle_key(up);
-        app.input.push('!');
-        app.input_cursor = app.input.len();
-        app.handle_key(down);
-        assert_eq!(app.input, draft);
-        assert_eq!(app.input_cursor, cursor);
-        assert_eq!(app.history[1], ":інтерфейс uk");
-    }
-
-    #[test]
-    fn empty_history_does_not_clear_input() {
-        let mut app = App::new_in(std::env::temp_dir());
-        app.pane = Pane::Console;
-        app.input = "чернетка".to_owned();
-        app.input_cursor = "чер".len();
-        app.handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
-        app.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
-        assert_eq!(app.input, "чернетка");
-        assert_eq!(app.input_cursor, "чер".len());
-        assert!(app.history_draft.is_none());
     }
 }
