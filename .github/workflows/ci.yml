@@ -3,6 +3,10 @@ name: CI · Перевірка · Prüfung
 on:
   push:
     branches: [main]
+    # Для TUI-only пушів є цільова перевірка на GitHub-hosted; не дублювати P0 CI.
+    paths-ignore:
+      - 'my-idea-tui/**'
+      - '.github/workflows/tui.yml'
   pull_request:
   workflow_dispatch:
 
