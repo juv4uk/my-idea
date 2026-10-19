@@ -53,4 +53,4 @@ jobs:
           proof="${RUNNER_TEMP}/pinned-sens-file-mode.log"
           cargo test --manifest-path my-idea-tui/Cargo.toml pinned_file_mode_smoke -- --ignored --nocapture 2>&1 | tee "$proof"
           grep -F 'PINNED_SENS_FILE_MODE_OK ' "$proof"
-          grep -E 'test result: ok\\. 1 passed; 0 failed' "$proof"
+          grep -F '1 passed; 0 failed' "$proof"
