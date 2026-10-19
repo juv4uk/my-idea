@@ -81,7 +81,11 @@ test('native file commands are constrained to the selected workspace', () => {
   assert.match(rust, /create_new\(true\)/);
   assert.match(rust, /new file parent escapes the workspace/);
   assert.match(rust, /starts_with\(root\)/);
-  assert.match(rust, /only existing workspace files can be saved/);
+  // Фактичний захист запису спільний для GUI і Ratatui; поведінку перевіряють Rust-тести.
+  const save = readFileSync('src-tauri/src/workspace_save.rs', 'utf8');
+  assert.match(rust, /workspace_save::save_existing_workspace_file/);
+  assert.match(save, /only existing workspace files can be saved/);
+  assert.match(save, /!destination\.starts_with\(&root\)/);
 });
 
 test('new native documents use the create-only workspace command once', () => {
