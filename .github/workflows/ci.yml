@@ -43,9 +43,19 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      # SENS pins Rust 1.99.0 in external/sens/rust-toolchain.toml.
+      # dtolnay@stable sets a different toolchain; install wasm target on
+      # the toolchain actually selected by Cargo in the submodule.
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
+      - name: Install WASM target for the pinned SENS Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -n 's/^channel *= *"\([^"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          test -n "$pinned"
+          rustup toolchain install "$pinned" --profile minimal
+          rustup target add wasm32-unknown-unknown --toolchain "$pinned"
+          rustup run "$pinned" rustc --print target-libdir --target wasm32-unknown-unknown
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Install Tauri Linux system dependencies · Встановити системні залежності Tauri для Linux · Tauri-Linux-Systemabhängigkeiten installieren
