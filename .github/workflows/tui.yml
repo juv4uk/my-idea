@@ -7,10 +7,12 @@ on:
     branches: [main]
     paths:
       - "my-idea-tui/**"
+      - "src-tauri/src/workspace_save.rs"
       - ".github/workflows/tui.yml"
   pull_request:
     paths:
       - "my-idea-tui/**"
+      - "src-tauri/src/workspace_save.rs"
       - ".github/workflows/tui.yml"
   workflow_dispatch:
 
@@ -25,5 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build TUI · Зібрати TUI · TUI bauen
-        run: cargo build --release --manifest-path my-idea-tui/Cargo.toml
+      - name: Verify real workspace save and build Ratatui
+        run: |
+          cargo test --manifest-path my-idea-tui/Cargo.toml
+          cargo build --release --manifest-path my-idea-tui/Cargo.toml

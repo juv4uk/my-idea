@@ -6,6 +6,7 @@ pub mod plugins;
 pub mod repl;
 pub mod repl_console;
 pub mod repl_process;
+mod workspace_save;
 pub mod self_build;
 pub use repl::{
     evaluate_source_in_session, parse_startup_target, resolve_initial_workspace,
@@ -804,57 +805,9 @@ fn read_workspace_file(path: String, state: State<'_, Workspace>) -> Result<Stri
     fs::read_to_string(safe_existing(&root, &path)?).map_err(|error| error.to_string())
 }
 
-/// Replace an existing workspace file only after its replacement has been
-/// completely written on the same filesystem. A failed write must not truncate
-/// the last saved source. This is shared by the desktop GUI and future TUI.
+/// Збереження GUI і TUI має один файловий контракт.
 fn save_existing_workspace_file(root: &Path, relative: &str, contents: &str) -> Result<(), String> {
-    let destination = safe_existing(root, relative)?;
-    if !destination.is_file() {
-        return Err("only existing workspace files can be saved".into());
-    }
-    let permissions = fs::metadata(&destination)
-        .map_err(|error| format!("could not read file permissions: {error}"))?
-        .permissions();
-    if permissions.readonly() {
-        return Err("workspace file is read-only".into());
-    }
-    let parent = destination
-        .parent()
-        .ok_or_else(|| "workspace file has no parent directory".to_string())?;
-    let name = destination
-        .file_name()
-        .ok_or_else(|| "workspace file has no file name".to_string())?
-        .to_string_lossy();
-    let nonce = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|error| error.to_string())?
-        .as_nanos();
-
-    for attempt in 0..16_u128 {
-        let temporary = parent.join(format!(
-            ".{name}.my-idea-save-{}-{}.tmp",
-            std::process::id(),
-            nonce + attempt
-        ));
-        let mut file = match OpenOptions::new().write(true).create_new(true).open(&temporary) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(format!("could not create save temporary file: {error}")),
-        };
-        let result = (|| -> std::io::Result<()> {
-            file.write_all(contents.as_bytes())?;
-            file.sync_all()?;
-            file.set_permissions(permissions.clone())?;
-            drop(file);
-            fs::rename(&temporary, &destination)?;
-            Ok(())
-        })();
-        if result.is_err() {
-            let _ = fs::remove_file(&temporary);
-        }
-        return result.map_err(|error| format!("workspace file was not saved: {error}"));
-    }
-    Err("could not allocate a unique save temporary file".into())
+    workspace_save::save_existing_workspace_file(root, Path::new(relative), contents)
 }
 
 #[tauri::command]

@@ -10,6 +10,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::engine::{self, Engine, Line, Origin};
 use crate::i18n;
 
+#[path = "../../src-tauri/src/workspace_save.rs"]
+mod workspace_save;
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum Pane {
     Explorer,
@@ -123,12 +126,17 @@ impl App {
 
     fn save(&mut self) {
         if let Some(p) = self.editor_path.clone() {
-            match std::fs::write(&p, &self.editor_buf) {
-                Ok(_) => {
+            let result = p.strip_prefix(&self.cwd)
+                .map_err(|error| format!("файл поза workspace: {error}"))
+                .and_then(|relative| {
+                    workspace_save::save_existing_workspace_file(&self.cwd, relative, &self.editor_buf)
+                });
+            match result {
+                Ok(()) => {
                     self.dirty = false;
                     self.status = format!("saved {}", p.display());
                 }
-                Err(e) => self.sys(&format!("не вдалось зберегти {}: {e}", p.display())),
+                Err(error) => self.sys(&format!("не вдалось зберегти {}: {error}", p.display())),
             }
         }
     }
