@@ -126,7 +126,11 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
         };
         lines.push(styled);
     }
-    let prompt = format!("SENS> {}", app.input);
+    let mut input = app.input.clone();
+    if input.is_char_boundary(app.input_cursor) {
+        input.insert(app.input_cursor, '▏');
+    }
+    let prompt = format!("SENS> {input}");
     lines.push(Line::from(prompt).style(Style::default().fg(Color::Yellow)));
 
     // Ratatui за замовчуванням показує перші рядки Paragraph; для REPL

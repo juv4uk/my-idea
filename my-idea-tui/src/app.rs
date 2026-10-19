@@ -49,6 +49,8 @@ pub struct App {
     /// Скільки логічних рядків відступити від хвоста консолі (0 = останній вивід).
     pub console_scroll_back: usize,
     pub input: String,
+    /// UTF-8 byte offset усередині поточної команди REPL.
+    pub input_cursor: usize,
     pub history: Vec<String>,
     pub hist_idx: usize,
     pub repl_engine: Option<Engine>,
@@ -84,6 +86,7 @@ impl App {
             console: Vec::new(),
             console_scroll_back: 0,
             input: String::new(),
+            input_cursor: 0,
             history: Vec::new(),
             hist_idx: 0,
             repl_engine: None,
@@ -437,7 +440,8 @@ impl App {
                 if text.contains('\r') || text.contains('\n') {
                     self.sys("Багаторядкова вставка в REPL не виконується: збережіть файл і натисніть F5.");
                 } else {
-                    self.input.push_str(text);
+                    self.input.insert_str(self.input_cursor, text);
+                    self.input_cursor += text.len();
                 }
             }
             Pane::Explorer => self.sys("Виберіть редактор або консоль перед вставленням."),
@@ -470,6 +474,7 @@ impl App {
             KeyCode::Enter => {
                 if self.pane == Pane::Console {
                     let line = std::mem::take(&mut self.input);
+                    self.input_cursor = 0;
                     self.submit(&line);
                 } else if self.pane == Pane::Explorer {
                     self.open_selected();
@@ -487,24 +492,29 @@ impl App {
             KeyCode::PageDown if self.pane == Pane::Console => {
                 self.console_scroll_back = self.console_scroll_back.saturating_sub(5);
             }
-            KeyCode::End if self.pane == Pane::Console => self.console_scroll_back = 0,
+            KeyCode::Home if self.pane == Pane::Console => self.input_cursor = 0,
+            KeyCode::End if self.pane == Pane::Console => {
+                if ctrl { self.console_scroll_back = 0; }
+                else { self.input_cursor = self.input.len(); }
+            },
             KeyCode::PageUp if self.pane == Pane::Editor => {
                 for _ in 0..10 { self.move_editor_line(false); }
             }
             KeyCode::PageDown if self.pane == Pane::Editor => {
                 for _ in 0..10 { self.move_editor_line(true); }
             }
+            KeyCode::Delete if self.pane == Pane::Console => self.delete_input_forward(),
             KeyCode::Delete if self.pane == Pane::Editor => self.delete_forward(),
             KeyCode::Backspace => self.backspace(),
             KeyCode::Up => self.up(),
             KeyCode::Down => self.down(),
             KeyCode::Left => {
                 if self.pane == Pane::Editor { self.move_editor_cursor(false); }
+                else if self.pane == Pane::Console { self.move_input_cursor(false); }
             }
             KeyCode::Right => {
-                if self.pane == Pane::Editor {
-                    self.move_editor_cursor(true);
-                }
+                if self.pane == Pane::Editor { self.move_editor_cursor(true); }
+                else if self.pane == Pane::Console { self.move_input_cursor(true); }
             }
             // Ctrl+Home / Ctrl+End переміщують курсор між краями всього
             // документа; звичайні Home / End залишаються межами рядка.
@@ -525,7 +535,8 @@ impl App {
                 KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER
             ) => {
                 if self.pane == Pane::Console {
-                    self.input.push(c);
+                    self.input.insert(self.input_cursor, c);
+                    self.input_cursor += c.len_utf8();
                 } else if self.pane == Pane::Editor && self.editor_path.is_some() {
                     self.remember_edit();
                     self.editor_buf.insert(self.editor_cursor, c);
@@ -553,7 +564,10 @@ impl App {
     fn backspace(&mut self) {
         match self.pane {
             Pane::Console => {
-                self.input.pop();
+                if let Some((previous, _)) = self.input[..self.input_cursor].char_indices().last() {
+                    self.input.drain(previous..self.input_cursor);
+                    self.input_cursor = previous;
+                }
             }
             Pane::Editor if self.editor_cursor > 0 => {
                 if let Some((previous, _)) = self.editor_buf[..self.editor_cursor].char_indices().last() {
@@ -586,6 +600,7 @@ impl App {
                 if self.hist_idx > 0 {
                     self.hist_idx -= 1;
                     self.input = self.history.get(self.hist_idx).cloned().unwrap_or_default();
+                    self.input_cursor = self.input.len();
                 }
             }
             Pane::Editor => self.move_editor_line(false),
@@ -607,8 +622,26 @@ impl App {
                     self.hist_idx = self.history.len();
                     self.input.clear();
                 }
+                self.input_cursor = self.input.len();
             }
             Pane::Editor => self.move_editor_line(true),
+        }
+    }
+
+    /// Редагування REPL-команди: лише її ввід, жодної Lisp-семантики.
+    fn move_input_cursor(&mut self, forward: bool) {
+        if forward {
+            if let Some(ch) = self.input[self.input_cursor..].chars().next() {
+                self.input_cursor += ch.len_utf8();
+            }
+        } else if let Some((previous, _)) = self.input[..self.input_cursor].char_indices().last() {
+            self.input_cursor = previous;
+        }
+    }
+
+    fn delete_input_forward(&mut self) {
+        if let Some(ch) = self.input[self.input_cursor..].chars().next() {
+            self.input.drain(self.input_cursor..self.input_cursor + ch.len_utf8());
         }
     }
 
@@ -940,5 +973,58 @@ mod editor_navigation_tests {
         assert_eq!(editor.editor_buf, "лісп");
         assert!(!editor.dirty);
         std::fs::remove_dir_all(workspace).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod repl_input_cursor_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn press(app: &mut App, code: KeyCode) {
+        assert!(!app.handle_key(KeyEvent::new(code, KeyModifiers::NONE)));
+        assert!(app.input.is_char_boundary(app.input_cursor));
+    }
+
+    #[test]
+    fn ukrainian_repl_input_can_be_edited_in_the_middle() {
+        let mut app = App::new_in(std::path::PathBuf::from("."));
+        app.pane = Pane::Console;
+        app.paste("дм");
+        press(&mut app, KeyCode::Left);
+        press(&mut app, KeyCode::Char('і'));
+        assert_eq!(app.input, "дім");
+        assert_eq!(app.input_cursor, "ді".len());
+
+        press(&mut app, KeyCode::Home);
+        press(&mut app, KeyCode::Right);
+        press(&mut app, KeyCode::Delete);
+        assert_eq!(app.input, "дм");
+        assert_eq!(app.input_cursor, "д".len());
+        press(&mut app, KeyCode::Backspace);
+        assert_eq!(app.input, "м");
+        assert_eq!(app.input_cursor, 0);
+        press(&mut app, KeyCode::End);
+        assert_eq!(app.input_cursor, app.input.len());
+        assert!(app.repl_engine.is_none(), "редагування не виконує SENS до Enter");
+    }
+
+    #[test]
+    fn history_and_paste_keep_unicode_cursor_valid() {
+        let mut app = App::new_in(std::path::PathBuf::from("."));
+        app.pane = Pane::Console;
+        app.history = vec!["(атом мама)".into(), "(атом дім)".into()];
+        app.hist_idx = app.history.len();
+        press(&mut app, KeyCode::Up);
+        assert_eq!(app.input, "(атом дім)");
+        assert_eq!(app.input_cursor, app.input.len());
+        press(&mut app, KeyCode::Home);
+        app.paste("укр ");
+        assert_eq!(app.input, "укр (атом дім)");
+        assert_eq!(app.input_cursor, "укр ".len());
+        press(&mut app, KeyCode::Down);
+        assert!(app.input.is_empty());
+        assert_eq!(app.input_cursor, 0);
+        assert!(app.repl_engine.is_none());
     }
 }
