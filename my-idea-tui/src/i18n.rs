@@ -6,7 +6,7 @@
 
 pub const LANGUAGES: [&str; 3] = ["uk", "de", "en"];
 
-pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
+pub fn t(lang: &str, key: &'static str) -> &'static str {
     match (lang, key) {
         ("uk", "files") => "Файли",
         ("uk", "editor") => "Редактор",
