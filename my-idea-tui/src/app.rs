@@ -15,7 +15,7 @@ use crate::ast;
 #[path = "../../src-tauri/src/workspace_save.rs"]
 mod workspace_save;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Pane {
     Explorer,
     Editor,
@@ -670,7 +670,6 @@ impl App {
                 if self.input.is_empty() {
                     self.input = ":новий ".to_string();
                     self.input_cursor = self.input.len();
-                    self.history_draft = None;
                     self.pane = Pane::Console;
                     self.console_scroll_back = 0;
                 } else {
