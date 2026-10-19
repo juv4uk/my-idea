@@ -72,30 +72,10 @@ impl ReplSession {
     }
 
     pub fn evaluate_mode(&mut self, source: &str, mode: SourceMode) -> Result<LispEvaluation, String> {
-        // Спільний SENS reader на GUI/WASM/CLI: українські десяткові операнди
-        // набувають exact D24+ до eval. Жодної GUI-хостової арифметики.
-        let (code, maps) = sens_literate::extract_code(source, mode == SourceMode::Literate);
-        if mode == SourceMode::Literate && maps.is_empty() {
-            let (result, forms) = sens_literate::eval_literate(source, mode, &mut self.session)
-                .map_err(|error| error.to_string())?;
-            return Ok(LispEvaluation {
-                value: result.value.to_string(),
-                output: result.output,
-                ast: format!("{forms:#?}"),
-                engine: "SENS · Rust",
-            });
-        }
-
-        let remap = |mut error: sens::LanguageError| {
-            error.span.start = sens_literate::remap_offset(error.span.start, &maps);
-            error.span.end = sens_literate::remap_offset(error.span.end, &maps);
-            error.to_string()
-        };
-        let parsed = sens::parse(&code).map_err(&remap)?;
-        let forms = sens::source_projection::project_ukr_decimal_integer_literals(&parsed, &code)
-            .map_err(&remap)?;
-        sens::load_core_library(&mut self.session).map_err(&remap)?;
-        let result = sens::eval_parsed_expressions(&forms, &mut self.session).map_err(&remap)?;
+        // Єдиний SENS reader/projection для CLI, native GUI і literate.
+        // Не дублюємо тут парсинг, D24+ lowering або помилковий byte-map.
+        let (result, forms) = sens_literate::eval_literate_ukr(source, mode, &mut self.session)
+            .map_err(|error| error.to_string())?;
 
         Ok(LispEvaluation {
             value: result.value.to_string(),
