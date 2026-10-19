@@ -11,6 +11,7 @@ mod i18n;
 mod ui;
 
 use std::io;
+use std::path::PathBuf;
 
 use crossterm::{
     event::{self, Event, KeyEventKind},
@@ -44,13 +45,33 @@ impl Drop for TerminalGuard {
     }
 }
 
+/// Позиційний аргумент задає робочий простір; відмова до входу в raw mode.
+fn workspace_from_args() -> io::Result<PathBuf> {
+    let mut args = std::env::args_os().skip(1);
+    let requested = args.next().map(PathBuf::from);
+    if args.next().is_some() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            "використання: my-idea-tui [каталог-проєкту]"));
+    }
+    let root = match requested {
+        Some(path) => path,
+        None => std::env::current_dir()?,
+    }.canonicalize()?;
+    if !root.is_dir() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            format!("не каталог робочого простору: {}", root.display())));
+    }
+    Ok(root)
+}
+
 fn main() -> io::Result<()> {
+    let workspace = workspace_from_args()?;
     let _guard = TerminalGuard::enter()?;
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let mut app = App::new();
+    let mut app = App::new_in(workspace);
     run(&mut terminal, &mut app)
 }
 

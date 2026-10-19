@@ -50,6 +50,11 @@ pub struct App {
 impl App {
     pub fn new() -> App {
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        Self::new_in(cwd)
+    }
+
+    /// Ініціалізація обраного каталогу без зміни cwd процесу та SENS-оточення.
+    pub fn new_in(cwd: PathBuf) -> App {
         let mut app = App {
             language: "uk".to_string(),
             pane: Pane::Explorer,
