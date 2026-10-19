@@ -44,6 +44,13 @@ impl Engine {
     }
 
     fn spawn(mut command: Command) -> io::Result<Self> {
+        // SENS може запускати дочірні процеси. Власна POSIX process group
+        // дає F9 змогу завершити їх разом з CLI, не чіпаючи TUI/terminal.
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
         let mut child = command
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -101,9 +108,29 @@ impl Engine {
     }
 
     pub fn stop(&mut self) {
-        // Завершений процес повторно вбивати не потрібно.
+        // Власна process group створена у spawn(). Вбивство лише PID
+        // залишає дочірні процеси з відкритими stdout/stderr і блокує
+        // finish_readers(); F9 мусить завершити ВСЕ дерево CLI.
         if matches!(self.child.try_wait(), Ok(None)) {
-            let _ = self.child.kill();
+            #[cfg(unix)]
+            {
+                let pid = self.child.id();
+                let killed_group = i32::try_from(pid).ok().is_some_and(|pid| {
+                    // POSIX kill(-pgid, SIGKILL) надсилає сигнал власній
+                    // групі, не групі Ratatui; SIGKILL = 9.
+                    unsafe extern "C" {
+                        fn kill(pid: i32, sig: i32) -> i32;
+                    }
+                    unsafe { kill(-pid, 9) == 0 }
+                });
+                if !killed_group {
+                    let _ = self.child.kill();
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = self.child.kill();
+            }
         }
         let _ = self.child.wait();
         self.finish_readers();
@@ -113,6 +140,30 @@ impl Engine {
 impl Drop for Engine {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+#[cfg(all(test, unix))]
+mod stop_process_group_tests {
+    use super::Engine;
+    use std::process::Command;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn f9_stop_terminates_descendants_holding_stdout_pipes() {
+        // Відтворення саме застарілого зависання: shell запускає sleep;
+        // stdout/stderr онука успадковуються від shell. Якщо вбити тільки
+        // shell, join() reader-ів чекатиме завершення sleep.
+        let mut command = Command::new("sh");
+        command.args(["-c", "sleep 4 & wait"]);
+        let mut engine = Engine::spawn(command).expect("створити реальне дерево процесів");
+        std::thread::sleep(Duration::from_millis(150));
+        let started = Instant::now();
+        engine.stop();
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "Stop залишив дочірній процес з відкритим каналом stdout/stderr"
+        );
     }
 }
 
