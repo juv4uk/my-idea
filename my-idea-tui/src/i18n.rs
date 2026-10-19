@@ -56,6 +56,9 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("uk", "console-unfinished") => "Консоль має незавершений ввід: завершіть або очистіть його перед Ctrl+N.",
         ("uk", "quit-dirty") => "Незбережені зміни: Ctrl+S — зберегти; Ctrl+Q повторно — вийти без збереження",
 
+        ("uk", "verify-failed") => "неможливо перевірити поточний файл",
+        ("uk", "save-conflict") => "файл змінено ззовні після Open/Save; нові дані не перезаписано",
+        ("uk", "outside-ws") => "файл поза workspace",
         ("de", "files") => "Explorer",
         ("de", "ast") => "AST / SENS",
         ("de", "editor") => "Editor",
@@ -104,6 +107,9 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("de", "console-unfinished") => "Die Konsole hat eine unvollständige Eingabe: vor Ctrl+N abschließen oder leeren.",
         ("de", "quit-dirty") => "Ungespeicherte Änderungen: Ctrl+S — speichern; Ctrl+Q erneut — ohne Speichern beenden",
 
+        ("de", "verify-failed") => "aktuelle Datei kann nicht geprüft werden",
+        ("de", "save-conflict") => "Datei nach Open/Save extern geändert; neue Daten nicht überschrieben",
+        ("de", "outside-ws") => "Datei außerhalb des Workspace",
         ("en", "files") => "Explorer",
         ("en", "ast") => "AST / SENS",
         ("en", "editor") => "Editor",
@@ -152,6 +158,9 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("en", "console-unfinished") => "Console has unfinished input: finish or clear it before Ctrl+N.",
         ("en", "quit-dirty") => "Unsaved changes: Ctrl+S — save; Ctrl+Q again — quit without saving",
 
+        ("en", "verify-failed") => "cannot verify current file",
+        ("en", "save-conflict") => "file changed externally after Open/Save; new data not overwritten",
+        ("en", "outside-ws") => "file outside workspace",
         _ => key,
     }
 }

@@ -359,7 +359,7 @@ impl App {
         let Some(path) = self.editor_path.clone() else { return; };
         if !self.dirty { return; }
         // Захист від паралельного редагування + спільний GUI/TUI атомарний запис.
-        let result = save_loaded_file(&self.cwd, &path, &self.editor_original, &self.editor_buf);
+        let result = save_loaded_file(&self.language, &self.cwd, &path, &self.editor_original, &self.editor_buf);
         match result {
             Ok(()) => {
                 self.editor_original = self.editor_buf.clone();
@@ -975,14 +975,14 @@ mod directory_tests {
  
 /// Захищає джерело іншого процесу від перезапису, а потім атомарно зберігає.
 /// Чисто файловий контракт; жодних імітаторів SENS-семантики.
-fn save_loaded_file(root: &Path, path: &Path, original: &str, updated: &str) -> Result<(), String> {
+fn save_loaded_file(lang: &str, root: &Path, path: &Path, original: &str, updated: &str) -> Result<(), String> {
     let disk = std::fs::read_to_string(path)
-        .map_err(|error| format!("неможливо перевірити поточний файл: {error}"))?;
+        .map_err(|error| format!("{}: {error}", i18n::t(lang, "verify-failed")))?;
     if disk != original {
-        return Err("файл змінено ззовні після Open/Save; нові дані не перезаписано".into());
+        return Err(i18n::t(lang, "save-conflict").to_string());
     }
     let relative = path.strip_prefix(root)
-        .map_err(|error| format!("файл поза workspace: {error}"))?;
+        .map_err(|error| format!("{}: {error}", i18n::t(lang, "outside-ws")))?;
     workspace_save::save_existing_workspace_file(root, relative, updated)
 }
 
@@ -1003,12 +1003,12 @@ mod save_conflict_tests {
         fs::write(&source, "(атом а)\n").unwrap();
 
         // Перший Ctrl+S зберігає реальне Unicode-джерело.
-        save_loaded_file(&workspace, &source, "(атом а)\n", "(атом б)\n").unwrap();
+        save_loaded_file("uk", &workspace, &source, "(атом а)\n", "(атом б)\n").unwrap();
         assert_eq!(fs::read_to_string(&source).unwrap(), "(атом б)\n");
 
         // Інший редактор змінив файл: TUI не знищує його правки.
         fs::write(&source, "(атом в)\n").unwrap();
-        assert!(save_loaded_file(&workspace, &source, "(атом б)\n", "(атом г)\n").is_err());
+        assert!(save_loaded_file("uk", &workspace, &source, "(атом б)\n", "(атом г)\n").is_err());
         assert_eq!(fs::read_to_string(&source).unwrap(), "(атом в)\n");
         fs::remove_dir_all(workspace).unwrap();
     }
