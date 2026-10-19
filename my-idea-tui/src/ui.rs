@@ -55,8 +55,9 @@ fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
     if !app.files.is_empty() {
         state.select(Some(app.file_sel));
     }
+    let heading = format!("{} · {}", app.t("files"), app.explorer_dir.display());
     let list = List::new(items)
-        .block(pane_block(&format!("{} · {}", app.t("files"), app.explorer_dir.display()), app.pane == Pane::Explorer))
+        .block(pane_block(&heading, app.pane == Pane::Explorer))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("› ");
     f.render_stateful_widget(list, area, &mut state);
