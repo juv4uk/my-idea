@@ -49,14 +49,14 @@ fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = app
         .files
         .iter()
-        .map(|p| ListItem::new(display_name(p)))
+        .map(|p| ListItem::new(if p.is_dir() { format!("{}/", display_name(p)) } else { display_name(p) }))
         .collect();
     let mut state = ListState::default();
     if !app.files.is_empty() {
         state.select(Some(app.file_sel));
     }
     let list = List::new(items)
-        .block(pane_block(app.t("files"), app.pane == Pane::Explorer))
+        .block(pane_block(&format!("{} · {}", app.t("files"), app.explorer_dir.display()), app.pane == Pane::Explorer))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("› ");
     f.render_stateful_widget(list, area, &mut state);
