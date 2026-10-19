@@ -498,6 +498,10 @@ impl App {
                     self.move_editor_cursor(true);
                 }
             }
+            // Ctrl+Home / Ctrl+End переміщують курсор між краями всього
+            // документа; звичайні Home / End залишаються межами рядка.
+            KeyCode::Home if ctrl && self.pane == Pane::Editor => self.editor_cursor = 0,
+            KeyCode::End if ctrl && self.pane == Pane::Editor => self.editor_cursor = self.editor_buf.len(),
             KeyCode::Home if self.pane == Pane::Editor => {
                 self.editor_cursor = self.editor_buf[..self.editor_cursor].rfind('\n').map_or(0, |p| p + 1);
             }
@@ -819,6 +823,43 @@ mod edit_history_tests {
         assert_eq!(app.editor_buf, "ім");
         app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
         assert_eq!(app.editor_buf, "дім");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+
+#[cfg(test)]
+mod document_navigation_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    #[test]
+    fn ctrl_home_end_navigate_document_without_modifying_unicode_source() {
+        static NONCE: AtomicU64 = AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-tui-nav-{}-{}", std::process::id(),
+            NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("програма.lisp");
+        let source = "(цитата дім)\n(цитата мова)\n";
+        std::fs::write(&path, source).unwrap();
+        let mut app = App::new_in(root.clone());
+        app.open_selected();
+        assert_eq!(app.editor_path.as_ref(), Some(&path));
+        assert_eq!(app.editor_cursor, source.len());
+
+        app.handle_key(KeyEvent::new(KeyCode::Home, KeyModifiers::CONTROL));
+        assert_eq!(app.editor_cursor, 0);
+        app.handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
+        assert_eq!(app.editor_cursor, source.find('\n').unwrap());
+        app.handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::CONTROL));
+        assert_eq!(app.editor_cursor, source.len());
+        app.handle_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+        assert_eq!(app.editor_cursor, source.len()); // останній порожній рядок
+        assert_eq!(app.editor_buf, source);
+        assert!(!app.dirty);
         std::fs::remove_dir_all(root).unwrap();
     }
 }
