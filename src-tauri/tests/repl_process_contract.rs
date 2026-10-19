@@ -12,7 +12,7 @@ use my_idea_lib::repl_process::{
 };
 use std::path::Path;
 use std::sync::mpsc::channel;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[test]
 fn repl_process_forwards_lines_written_to_a_simple_echo_command() {
@@ -58,19 +58,33 @@ fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_docum
         .expect("the real REPL should print its startup banner");
     assert!(banner.line.contains("sens REPL"));
 
+    // Only canonical Ukrainian D3 QUOTE is executable in new source.
     process.write_line(":мова ук").expect("write_line should succeed");
-    process.write_line("(атом? (quote мама))").expect("write_line should succeed");
+    process.write_line("(атом? (як-є мама))").expect("write_line should succeed");
 
+    // After reading the first banner line, four more introductory lines are
+    // still buffered. Counting exactly four messages consumed only those,
+    // not the responses to :мова and the predicate. Await both real outputs.
+    let deadline = Instant::now() + Duration::from_secs(15);
     let mut lines = Vec::new();
-    while lines.len() < 4 {
-        match rx.recv_timeout(Duration::from_secs(10)) {
-            Ok(line) => lines.push(line.line),
+    let mut switched = false;
+    let mut evaluated = false;
+    while Instant::now() < deadline && !(switched && evaluated) {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        match rx.recv_timeout(remaining) {
+            Ok(line) => {
+                if line.stream == ReplProcessStream::Stdout {
+                    switched |= line.line.trim() == "Поверхня: українська (ук)";
+                    evaluated |= line.line.trim() == "ТАК";
+                }
+                lines.push(format!("{:?}: {}", line.stream, line.line));
+            }
             Err(_) => break,
         }
     }
     let joined = lines.join("\n");
-    assert!(joined.contains("українська"), "surface switch reply missing, got: {joined:?}");
-    assert!(joined.contains("так"), "localized ukrainian output missing, got: {joined:?}");
+    assert!(switched, "real REPL surface-switch reply missing: {joined}");
+    assert!(evaluated, "real pinned SENS D1 output missing: {joined}");
 }
 
 #[test]
