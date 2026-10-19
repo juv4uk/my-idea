@@ -30,16 +30,16 @@ pub struct Engine {
 
 impl Engine {
     /// Інтерактивний SENS CLI, із живим stdin лише для REPL.
-    pub fn spawn_repl(bin: &Path) -> io::Result<Self> {
+    pub fn spawn_repl(bin: &Path, workspace: &Path) -> io::Result<Self> {
         let mut command = Command::new(bin);
-        command.stdin(Stdio::piped());
+        command.current_dir(workspace).stdin(Stdio::piped());
         Self::spawn(command)
     }
 
     /// Точний file-mode: sens <file>, а НЕ рядки файла в REPL.
-    pub fn spawn_file(bin: &Path, source: &Path) -> io::Result<Self> {
+    pub fn spawn_file(bin: &Path, source: &Path, workspace: &Path) -> io::Result<Self> {
         let mut command = Command::new(bin);
-        command.arg(source).stdin(Stdio::null());
+        command.current_dir(workspace).arg(source).stdin(Stdio::null());
         Self::spawn(command)
     }
 
@@ -116,90 +116,75 @@ impl Drop for Engine {
     }
 }
 
-/// Лише локальна збірка з поточного pinned підмодуля — ніякого PATH,
-/// MY_LISP_BIN або завантаження іншої ревізії.
-pub fn resolve_bin() -> Option<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent()?;
-    if !root.join("external/sens/Cargo.toml").is_file() {
-        return None;
-    }
-    for profile in ["release", "debug"] {
-        for name in if cfg!(windows) { ["sens.exe", "my-lisp.exe"] } else { ["sens", "my-lisp"] } {
-            let bin = root.join("external/sens/target").join(profile).join(name);
-            if bin.is_file() {
-                return Some(bin);
-            }
-        }
-    }
-    None
+/// Результат резолюції містить точну ревізію підмодуля, а не лише назву файла.
+pub struct ResolvedBin {
+    pub path: PathBuf,
+    pub pinned_sha: String,
 }
 
+fn repository_root(start: &Path) -> Option<PathBuf> {
+    start.ancestors().find(|candidate| {
+        candidate.join(".gitmodules").is_file()
+            && candidate.join("my-idea-tui/Cargo.toml").is_file()
+    }).map(Path::to_path_buf)
+}
 
-// Цей тест навмисно не запускається від звичайного cargo test: для нього
-// потрібна реальна збірка SENS із поточного gitlink. TUI workflow запускає
-// його явно, після перевірки точного SHA підмодуля.
-#[cfg(test)]
-mod pinned_file_mode_smoke {
-    use super::{Engine, Origin};
-    use std::fs;
-    use std::path::{Path, PathBuf};
-    use std::process::ExitStatus;
-    use std::sync::atomic::{AtomicU64, Ordering};
+fn revision(root: &Path, reference: &str) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C").arg(root)
+        .arg("rev-parse").arg(reference)
+        .output()
+        .map_err(|error| format!("не вдалося запустити git: {error}"))?;
+    let sha = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if !output.status.success() || sha.len() != 40 || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(format!("git не визначив ревізію {reference} у {}", root.display()));
+    }
+    Ok(sha)
+}
 
-    static NONCE: AtomicU64 = AtomicU64::new(0);
-
-    fn run_file(binary: &Path, file: &Path) -> (ExitStatus, String, String) {
-        let mut engine = Engine::spawn_file(binary, file).expect("запустити реальний SENS");
-        let status = engine.child.wait().expect("дочекатися SENS");
-        engine.finish_readers(); // прочитати stdout/stderr до фіксації результату
-        let mut stdout = String::new();
-        let mut stderr = String::new();
-        for line in engine.rx.try_iter() {
-            match line.origin {
-                Origin::Stdout => { stdout.push_str(&line.text); stdout.push('\n'); }
-                Origin::Stderr => { stderr.push_str(&line.text); stderr.push('\n'); }
-                Origin::System => panic!("SENS CLI не створює TUI-повідомлень"),
+/// Шукати від фактичного EXE, потім від робочого каталогу — ніколи від
+/// CARGO_MANIFEST_DIR, який містить шлях машини, що компілювала TUI.
+/// Ревізія checkout зовнішнього SENS мусить збігатися з gitlink HEAD.
+pub fn resolve_bin() -> Result<ResolvedBin, String> {
+    let root = std::env::current_exe().ok()
+        .and_then(|exe| repository_root(&exe))
+        .or_else(|| std::env::current_dir().ok().and_then(|cwd| repository_root(&cwd)))
+        .ok_or_else(|| "не знайдено checkout my-idea з .gitmodules поруч із TUI".to_string())?;
+    let submodule = root.join("external/sens");
+    if !submodule.join("Cargo.toml").is_file() {
+        return Err("закріплений external/sens не ініціалізовано (git submodule update --init external/sens)".into());
+    }
+    let pinned_sha = revision(&root, "HEAD:external/sens")?;
+    let checkout_sha = revision(&submodule, "HEAD")?;
+    if checkout_sha != pinned_sha {
+        return Err(format!(
+            "SENS checkout {} не відповідає pinned gitlink {}",
+            checkout_sha, pinned_sha
+        ));
+    }
+    let binary = if cfg!(windows) { ["sens.exe", "my-lisp.exe"] } else { ["sens", "my-lisp"] };
+    for profile in ["release", "debug"] {
+        for name in binary {
+            let path = submodule.join("target").join(profile).join(name);
+            if path.is_file() {
+                return Ok(ResolvedBin { path, pinned_sha });
             }
         }
-        (status, stdout, stderr)
     }
+    Err(format!(
+        "немає зібраного CLI в external/sens/target (gitlink {pinned_sha}); зберіть SENS із цієї ревізії"
+    ))
+}
+
+#[cfg(test)]
+mod repository_tests {
+    use super::repository_root;
+    use std::path::Path;
 
     #[test]
-    #[ignore = "потрібен реальний SENS_PINNED_CLI; GitHub-hosted TUI CI запускає тест явно"]
-    fn pinned_file_mode_smoke() {
+    fn finds_repository_above_tui_binary_location() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-        let expected = root.join("external/sens/target/release/my-lisp")
-            .canonicalize().expect("збірка pinned sens-cli має існувати");
-        let selected = PathBuf::from(std::env::var_os("SENS_PINNED_CLI")
-            .expect("SENS_PINNED_CLI обов'язковий для реального smoke"));
-        assert_eq!(
-            selected.canonicalize().expect("шлях CLI має існувати"),
-            expected,
-            "заборонено перевіряти сторонній CLI або PATH fallback"
-        );
-
-        let workspace = std::env::temp_dir().join(format!(
-            "my-idea-sens-file-smoke-{}-{}",
-            std::process::id(), NONCE.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&workspace).expect("створити реальний workspace");
-        let file = workspace.join("програма.lisp");
-        // Десяткові числа у вихідному Lisp: результат інтерпретує тільки SENS.
-        fs::write(&file, "(+ 2 3)\n").expect("записати Lisp-програму");
-        let (status, stdout, stderr) = run_file(&selected, &file);
-        assert!(status.success(), "SENS не виконав програму: {status}, stderr={stderr}");
-        assert_eq!(stdout.trim(), "5", "SENS повернув неправильний результат");
-        assert!(stderr.is_empty(), "SENS помилково повідомив: {stderr}");
-
-        fs::write(&file, "(\n").expect("записати помилкове джерело");
-        let (status, stdout, stderr) = run_file(&selected, &file);
-        assert!(!status.success(), "SENS прийняв синтаксичну помилку");
-        assert!(stderr.contains("Parse error"), "немає реальної діагностики: {stderr}");
-        println!(
-            "PINNED_SENS_FILE_MODE_OK success_stdout={} failure_exit={} failure_stderr={}",
-            "5", status, stderr.trim()
-        );
-        assert!(stdout.is_empty(), "некоректна програма не повинна мати результат");
-        fs::remove_dir_all(workspace).expect("прибрати тимчасовий workspace");
+        let target = root.join("my-idea-tui/target/release/my-idea-tui");
+        assert_eq!(repository_root(&target).as_deref(), Some(root));
     }
 }

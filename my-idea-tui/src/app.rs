@@ -165,14 +165,14 @@ impl App {
     /// REPL створюється лише при першому введенні, без другого evaluator.
     fn start_repl(&mut self) {
         match engine::resolve_bin() {
-            Some(bin) => match Engine::spawn_repl(&bin) {
+            Ok(bin) => match Engine::spawn_repl(&bin.path, &self.cwd) {
                 Ok(eng) => {
                     self.repl_engine = Some(eng);
-                    self.sys(&format!("SENS REPL: {}", bin.display()));
+                    self.sys(&format!("SENS REPL: {} gitlink={}", bin.path.display(), bin.pinned_sha));
                 }
                 Err(error) => self.sys(&format!("{} ({error})", self.t("no-engine"))),
             },
-            None => self.sys(self.t("no-engine")),
+            Err(error) => self.sys(&format!("SENS REPL: {error}")),
         }
     }
 
@@ -201,12 +201,16 @@ impl App {
                 return;
             }
         }
-        let Some(bin) = engine::resolve_bin() else {
-            self.sys(self.t("no-engine"));
-            return;
+        let bin = match engine::resolve_bin() {
+            Ok(bin) => bin,
+            Err(error) => {
+                self.sys(&format!("SENS Run: {error}"));
+                return;
+            }
         };
-        self.sys(&format!("SENS exec={} file={}", bin.display(), path.display()));
-        match Engine::spawn_file(&bin, &path) {
+        self.sys(&format!("SENS gitlink={} exec={} file={}",
+            bin.pinned_sha, bin.path.display(), path.display()));
+        match Engine::spawn_file(&bin.path, &path, &self.cwd) {
             Ok(eng) => {
                 self.run_engine = Some(eng);
                 self.engine_running = true;
