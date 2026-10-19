@@ -3,7 +3,8 @@
 //! Вертикаль #85: Open workspace → Explorer → Edit → Save → Run → Output → Stop.
 //! Панелі: дерево проєкту | редактор | консоль/вивід.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+use std::fs::OpenOptions;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -279,6 +280,61 @@ impl App {
         }
     }
 
+    /// Створити новий текстовий Lisp у поточній папці Explorer. Ніколи не
+    /// перезаписувати існуючий файл й не змінювати буфер із незбереженими змінами.
+    fn create_new_document(&mut self, name: &str) {
+        if self.dirty {
+            self.sys("Незбережені зміни: спочатку Ctrl+S, а потім :новий.");
+            return;
+        }
+        let candidate = Path::new(name);
+        if name.is_empty()
+            || name.contains('\\')
+            || name.chars().any(char::is_control)
+            || !matches!(candidate.components().next(), Some(Component::Normal(_)))
+            || candidate.components().count() != 1
+            || !matches!(candidate.extension().and_then(|ext| ext.to_str()), Some("lisp" | "лісп"))
+        {
+            self.sys("Вкажіть одне ім'я .lisp або .лісп без шляху, наприклад :новий програма.lisp");
+            return;
+        }
+        // Навігація Explorer не повинна створювати джерела за коренем workspace.
+        let root = match self.cwd.canonicalize() {
+            Ok(root) => root,
+            Err(error) => { self.sys(&format!("workspace недоступний: {error}")); return; }
+        };
+        let folder = match self.explorer_dir.canonicalize() {
+            Ok(folder) => folder,
+            Err(error) => { self.sys(&format!("каталог Explorer недоступний: {error}")); return; }
+        };
+        if !folder.starts_with(&root) {
+            self.sys("Каталог Explorer вийшов за межі workspace.");
+            return;
+        }
+        let path = folder.join(name);
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(file) => {
+                drop(file);
+                self.editor_path = Some(path.clone());
+                self.editor_original.clear();
+                self.editor_buf.clear();
+                self.editor_cursor = 0;
+                self.undo.clear();
+                self.redo.clear();
+                self.dirty = false;
+                self.quit_armed = false;
+                self.reload_files();
+                if let Some(position) = self.files.iter().position(|p| p == &path) {
+                    self.file_sel = position;
+                }
+                self.pane = Pane::Editor;
+                self.status = format!("новий {}", path.display());
+                self.sys(&format!("Створено {}", path.display()));
+            }
+            Err(error) => self.sys(&format!("Не вдалося створити {}: {error}", path.display())),
+        }
+    }
+
     fn save(&mut self) {
         let Some(path) = self.editor_path.clone() else { return; };
         if !self.dirty { return; }
@@ -483,6 +539,14 @@ impl App {
                 Some(l) => self.sys(&format!("невідомий код інтерфейсу або зайві аргументи: {l}; доступно uk|de|en")),
                 None => self.sys("Мова інтерфейсу: uk|de|en; :мова — проєкція SENS"),
             },
+            Some("новий") | Some("new") => {
+                let name = it.next().unwrap_or("");
+                if it.next().is_some() {
+                    self.sys("Потрібне одне ім'я без пробілів: :новий програма.lisp");
+                } else {
+                    self.create_new_document(name);
+                }
+            },
             Some("run") => self.run_current(),
             Some("stop") => self.stop(),
             Some("save") => self.save(),
@@ -566,6 +630,16 @@ impl App {
             self.quit_armed = false;
         }
         match key.code {
+            KeyCode::Char('n') if ctrl => {
+                if self.input.is_empty() {
+                    self.input = ":новий ".to_string();
+                    self.pane = Pane::Console;
+                    self.console_scroll_back = 0;
+                } else {
+                    self.sys("Консоль має незавершений ввід: завершіть або очистіть його перед Ctrl+N.");
+                    self.pane = Pane::Console;
+                }
+            },
             KeyCode::Char('s') if ctrl => self.save(),
             KeyCode::Char('w') if ctrl => self.close_current_tab(),
             KeyCode::Char('z') if ctrl => self.undo_edit(),
@@ -1226,6 +1300,75 @@ mod document_tabs_tests {
         assert!(!app.handle_key(quit));
         assert!(app.quit_armed);
         assert!(app.handle_key(quit));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+
+#[cfg(test)]
+mod create_document_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NONCE: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn create_edit_save_new_ukrainian_lisp_file_without_overwrite() {
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-new-lisp-{}-{}", std::process::id(),
+            NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let mut app = App::new_in(root.clone());
+
+        // Той самий ввід консолі, що доступний користувачу, не тестова підміна стану.
+        app.handle_key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::CONTROL));
+        assert_eq!(app.pane, Pane::Console);
+        assert_eq!(app.input, ":новий ");
+        app.submit(":новий програма.lisp");
+        let source = root.join("програма.lisp");
+        assert_eq!(app.editor_path.as_ref(), Some(&source));
+        assert_eq!(std::fs::read_to_string(&source).unwrap(), "");
+        assert_eq!(app.pane, Pane::Editor);
+        assert!(!app.dirty);
+
+        app.paste("(атом? 'дім)\n");
+        assert!(app.dirty);
+        app.handle_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL));
+        assert!(!app.dirty);
+        assert_eq!(std::fs::read_to_string(&source).unwrap(), "(атом? 'дім)\n");
+
+        // Існуючі дані не можна випадково обнулити повторним :новий.
+        app.submit(":новий програма.lisp");
+        assert_eq!(std::fs::read_to_string(&source).unwrap(), "(атом? 'дім)\n");
+        assert_eq!(app.editor_path.as_ref(), Some(&source));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cannot_escape_workspace_or_discard_unsaved_source() {
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-new-safe-{}-{}", std::process::id(),
+            NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let mut app = App::new_in(root.clone());
+
+        for name in ["../поза.lisp", "/tmp/поза.lisp", "під/поза.lisp", r"під\поза.lisp",
+                     "без_розширення", "порожньо.sens"] {
+            app.create_new_document(name);
+            assert!(app.editor_path.is_none(), "небезпечний шлях: {name}");
+        }
+        app.create_new_document("перший.лісп");
+        let first = root.join("перший.лісп");
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        app.paste("(цитата дім)");
+        assert!(app.dirty);
+        app.create_new_document("другий.lisp");
+        assert!(!root.join("другий.lisp").exists());
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert!(app.dirty);
+        assert_eq!(std::fs::read_to_string(first).unwrap(), "");
         std::fs::remove_dir_all(root).unwrap();
     }
 }
