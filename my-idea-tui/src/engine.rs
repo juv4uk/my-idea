@@ -218,6 +218,43 @@ mod pinned_file_mode_smoke {
         (status, stdout, stderr)
     }
 
+    /// Перевірка не через mock: точно той самий CLI з gitlink, який запускає TUI.
+    /// У TUI мова uk|de|en — інтерфейс; --surface=укр керує лише справжнім SENS.
+    #[test]
+    #[ignore = "реальний SENS_PINNED_CLI потрібен; CI перевіряє разом із file-mode"]
+    fn pinned_ukr_repl_smoke() {
+        use std::io::Write;
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let expected = root.join("external/sens/target/release/my-lisp")
+            .canonicalize().expect("бінарник із pinned external/sens");
+        let binary = PathBuf::from(std::env::var_os("SENS_PINNED_CLI")
+            .expect("SENS_PINNED_CLI вказує на точний gitlink"));
+        assert_eq!(binary.canonicalize().expect("CLI"), expected,
+            "не виконувати сторонній CLI");
+
+        let mut engine = Engine::spawn_repl(&binary, root)
+            .expect("SENS REPL --surface=укр має запуститися");
+        engine.send_line("(атом? 'мама)").expect("надсилання української форми");
+        // Закрити stdin: rustyline/REPL отримує EOF та завершується самостійно.
+        engine.stdin.take();
+        let status = engine.child.wait().expect("REPL завершився після EOF");
+        engine.finish_readers();
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        for line in engine.rx.try_iter() {
+            match line.origin {
+                Origin::Stdout => { stdout.push_str(&line.text); stdout.push('\n'); }
+                Origin::Stderr => { stderr.push_str(&line.text); stderr.push('\n'); }
+                Origin::System => panic!("не очікуємо вигаданий TUI-вивід"),
+            }
+        }
+        assert!(status.success(), "помилка SENS REPL: {status}, stderr={stderr}");
+        assert!(stdout.contains("укр"), "CLI не підтвердив повну українську поверхню: {stdout}");
+        assert!(stdout.contains("(1)"), "дійсний SENS не виконав український виклик: {stdout}, stderr={stderr}");
+        assert!(stderr.is_empty(), "REPL stderr: {stderr}");
+        println!("PINNED_SENS_UKR_REPL_OK output={}", stdout.trim());
+    }
+
     #[test]
     #[ignore = "потрібен реальний SENS_PINNED_CLI; GitHub-hosted TUI CI запускає тест явно"]
     fn pinned_file_mode_smoke() {
