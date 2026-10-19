@@ -630,6 +630,8 @@ impl App {
             KeyCode::Char('n') if ctrl => {
                 if self.input.is_empty() {
                     self.input = ":новий ".to_string();
+                    self.input_cursor = self.input.len();
+                    self.history_draft = None;
                     self.pane = Pane::Console;
                     self.console_scroll_back = 0;
                 } else {
@@ -1362,6 +1364,45 @@ mod create_document_tests {
         app.submit(":новий програма.lisp");
         assert_eq!(std::fs::read_to_string(&source).unwrap(), "(атом? 'дім)\n");
         assert_eq!(app.editor_path.as_ref(), Some(&source));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ctrl_n_allows_typing_filename_then_switching_back_to_previous_tab() {
+        let root = std::env::temp_dir().join(format!(
+            "my-idea-tui-new-tab-input-{}-{}", std::process::id(),
+            NONCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir(&root).unwrap();
+        let first = root.join("початковий.lisp");
+        std::fs::write(&first, "(цитата початок)").unwrap();
+        let mut app = App::new_in(root.clone());
+        app.file_sel = app.files.iter().position(|p| p == &first).unwrap();
+        app.open_selected();
+        assert_eq!(app.tabs.len(), 1);
+
+        app.handle_key(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::CONTROL));
+        assert_eq!(app.pane, Pane::Console);
+        assert_eq!(app.input, ":новий ");
+        assert_eq!(app.input_cursor, app.input.len());
+        app.paste("наступний.lisp");
+        assert_eq!(app.input, ":новий наступний.lisp");
+        app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+        let second = root.join("наступний.lisp");
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert_eq!(app.tabs.len(), 2);
+        assert_eq!(app.active_tab, 1);
+        app.paste("(цитата другий)");
+        app.handle_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL));
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "(цитата другий)");
+
+        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::CONTROL));
+        assert_eq!(app.editor_path.as_ref(), Some(&first));
+        assert_eq!(app.editor_buf, "(цитата початок)");
+        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::CONTROL));
+        assert_eq!(app.editor_path.as_ref(), Some(&second));
+        assert_eq!(app.editor_buf, "(цитата другий)");
         std::fs::remove_dir_all(root).unwrap();
     }
 
