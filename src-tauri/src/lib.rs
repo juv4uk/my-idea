@@ -512,20 +512,36 @@ mod language_adapter_tests {
         let mut session = ReplSession::default();
         let result = evaluate_source_in_session(
             &mut session,
-            "(cons (second (quote (radio antenna))) (cons 1/3 (quote ())))",
+            "(сполучити (цитата антена) (сполучити (частка 1 3) (цитата ())))",
             Some("my-lisp"),
-        )
-        .expect("native evaluation should succeed");
-        assert_eq!(result.value, "(antenna 1/3)");
+        ).expect("точна українська D5 частка через справжній SENS");
+        assert_eq!(result.value, "(антена 1/3)");
         assert_eq!(result.engine, "SENS · Rust");
     }
 
     #[test]
     fn native_adapter_preserves_definitions_across_sequential_evaluations() {
         let mut session = ReplSession::default();
-        evaluate_source_in_session(&mut session, "(define ide-persisted #d24:000000000000000000101010)", Some("my-lisp")).unwrap();
-        let result = evaluate_source_in_session(&mut session, "(+ ide-persisted #d24:000000000000000000001000)", Some("my-lisp")).unwrap();
+        evaluate_source_in_session(&mut session, "(визначити накопичене 42)", Some("my-lisp"))
+            .expect("людське десяткове джерело");
+        let result = evaluate_source_in_session(
+            &mut session, "(додати накопичене 8)", Some("my-lisp")
+        ).expect("друге виконання з тим самим оточенням");
         assert_eq!(result.value, "50");
+    }
+
+    #[test]
+    fn native_adapter_preserves_signed_decimal_and_markdown_sources() {
+        let mut session = ReplSession::default();
+        let signed = evaluate_source_in_session(
+            &mut session, "(додати -2 3)", Some("my-lisp"),
+        ).expect("знаковий десятковий операнд D24+");
+        assert_eq!(signed.value, "1");
+
+        let literate = evaluate_source_in_session(
+            &mut session, "Текст\n\n```sens\n(додати 2 3)\n```", Some("markdown"),
+        ).expect("та сама точна проєкція всередині Markdown");
+        assert_eq!(literate.value, "5");
     }
 }
 
