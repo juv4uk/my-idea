@@ -96,9 +96,14 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     let prompt = format!("my-idea[{}]> {}", app.language, app.input);
     lines.push(Line::from(prompt).style(Style::default().fg(Color::Yellow)));
 
+    // Ratatui за замовчуванням показує перші рядки Paragraph; для REPL
+    // найважливіші останні stdout/stderr і поточний промпт.
+    let visible = area.height.saturating_sub(2) as usize; // рамка панелі
+    let scroll = lines.len().saturating_sub(visible).min(u16::MAX as usize) as u16;
     let para = Paragraph::new(lines)
         .block(pane_block(app.t("console"), app.pane == Pane::Console))
-        .wrap(Wrap { trim: false });
+        .wrap(Wrap { trim: false })
+        .scroll((scroll, 0));
     f.render_widget(para, area);
 }
 
