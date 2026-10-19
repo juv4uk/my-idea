@@ -26,8 +26,27 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Рівно зафіксований gitlink; не клонувати рухомий main SENS.
+          submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify real workspace save and build Ratatui
         run: |
           cargo test --manifest-path my-idea-tui/Cargo.toml
           cargo build --release --manifest-path my-idea-tui/Cargo.toml
+      - name: Реальний pinned SENS: перевірити SHA й зібрати file-mode CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          gitlink="$(git rev-parse HEAD:external/sens)"
+          checked_out="$(git -C external/sens rev-parse HEAD)"
+          test "$checked_out" = "$gitlink"
+          printf 'PINNED_SENS_GITLINK=%s\n' "$gitlink"
+          cargo build --release --manifest-path external/sens/Cargo.toml -p sens-cli --bin my-lisp
+      - name: Виконати через TUI Engine справжній SENS-файл і помилку синтаксису
+        shell: bash
+        env:
+          SENS_PINNED_CLI: ${{ github.workspace }}/external/sens/target/release/my-lisp
+        run: |
+          set -euo pipefail
+          cargo test --manifest-path my-idea-tui/Cargo.toml pinned_file_mode_smoke -- --ignored --nocapture
