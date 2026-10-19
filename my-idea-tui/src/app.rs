@@ -896,9 +896,15 @@ mod editor_navigation_tests {
 
     #[test]
     fn unicode_delete_and_document_navigation_preserve_utf8() {
-        let mut editor = App::new_in(std::env::temp_dir());
-        editor.pane = Pane::Editor;
-        editor.editor_buf = "абв\nїжак\nкінець".to_owned();
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let workspace = std::env::temp_dir()
+            .join(format!("my-idea-navigation-{}-{nonce}", std::process::id()));
+        std::fs::create_dir(&workspace).unwrap();
+        let source = workspace.join("програма.lisp");
+        std::fs::write(&source, "абв\nїжак\nкінець").unwrap();
+        let mut editor = App::new_in(workspace.clone());
+        editor.open_selected(); // реальний файл, а не вигаданий буфер
         editor.editor_cursor = "абв\nї".len();
         assert_eq!(editor.editor_position(), (2, 2));
         editor.handle_key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
@@ -917,16 +923,22 @@ mod editor_navigation_tests {
         editor.handle_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
         assert_eq!(editor.editor_position().0, 3);
         assert!(editor.editor_buf.is_char_boundary(editor.editor_cursor));
+        std::fs::remove_dir_all(workspace).unwrap();
     }
 
     #[test]
     fn delete_at_eof_does_not_mark_clean_buffer_dirty() {
-        let mut editor = App::new_in(std::env::temp_dir());
-        editor.pane = Pane::Editor;
-        editor.editor_buf = "лісп".to_owned();
-        editor.editor_cursor = editor.editor_buf.len();
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let workspace = std::env::temp_dir()
+            .join(format!("my-idea-eof-{}-{nonce}", std::process::id()));
+        std::fs::create_dir(&workspace).unwrap();
+        std::fs::write(workspace.join("програма.lisp"), "лісп").unwrap();
+        let mut editor = App::new_in(workspace.clone());
+        editor.open_selected();
         editor.handle_key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
         assert_eq!(editor.editor_buf, "лісп");
         assert!(!editor.dirty);
+        std::fs::remove_dir_all(workspace).unwrap();
     }
 }
