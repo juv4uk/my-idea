@@ -65,6 +65,11 @@ jobs:
         run: |
           cargo test --manifest-path my-idea-tui/Cargo.toml
           cargo build --release --manifest-path my-idea-tui/Cargo.toml
+      - name: Встановити пінований Zig (потрібен sens-cli/build.rs)
+        # wsm-guard-core/build.rs падає без пінованого Zig: build.rs вимагає Zig 0.16.0.
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: "0.16.0"
       - name: "Реальний pinned SENS: перевірити SHA й зібрати file-mode CLI"
         shell: bash
         run: |
