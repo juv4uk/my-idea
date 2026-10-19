@@ -22,7 +22,6 @@ permissions:
   contents: read
 
 # Не скасовувати ран при новому пуші: кожен push доводиться до кінця.
-# (Раніше cancel-in-progress: true витісняв попередній ран на ту саму гілку.)
 concurrency:
   group: my-idea-tui-${{ github.ref }}
   cancel-in-progress: false
