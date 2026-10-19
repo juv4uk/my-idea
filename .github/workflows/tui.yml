@@ -34,7 +34,7 @@ jobs:
         run: |
           cargo test --manifest-path my-idea-tui/Cargo.toml
           cargo build --release --manifest-path my-idea-tui/Cargo.toml
-      - name: Реальний pinned SENS: перевірити SHA й зібрати file-mode CLI
+      - name: "Реальний pinned SENS: перевірити SHA й зібрати file-mode CLI"
         shell: bash
         run: |
           set -euo pipefail
