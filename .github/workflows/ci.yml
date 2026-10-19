@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pinned="$(sed -n 's/^channel *= *"\\([^"]*\\)"/\\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          pinned="$(sed -n 's/^channel *= *"\([^\"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
           test -n "$pinned"
           rustup toolchain install "$pinned" --profile minimal
           rustup target add wasm32-unknown-unknown --toolchain "$pinned"
