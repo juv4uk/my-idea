@@ -622,7 +622,10 @@ impl App {
                     self.sys(self.t("open-file-first"));
                     return;
                 }
-                let normalized = text.replace("\r\n", "\n");
+                // Paste може надходити з CRLF (Windows) або CR (старий Mac).
+                // Вміст Lisp зберігаємо як LF, не залишаючи невидимих CR
+                // у редакторі та не змінюючи жодних SENS-символів.
+                let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
                 self.remember_edit();
                 self.editor_buf.insert_str(self.editor_cursor, &normalized);
                 self.editor_cursor += normalized.len();
@@ -1033,6 +1036,14 @@ mod paste_tests {
         assert_eq!(app.editor_path.as_ref(), Some(&source));
         app.editor_cursor = "(цитата ".len();
         app.paste("б\r\nв");
+        assert_eq!(app.editor_buf, "(цитата б\nва)");
+        // Поодинокий CR не повинен непомітно залишатись у вихідному Lisp.
+        app.paste("г\rґ");
+        assert_eq!(app.editor_buf, "(цитата б\nвг\nґа)");
+        assert!(!app.editor_buf.contains('\r'));
+        assert!(app.editor_buf.is_char_boundary(app.editor_cursor));
+        // Undo повертає лише останню вставку (одна дія), навіть для CR-переносу.
+        app.undo_edit();
         assert_eq!(app.editor_buf, "(цитата б\nва)");
         assert!(app.editor_buf.is_char_boundary(app.editor_cursor));
         assert!(app.dirty);
