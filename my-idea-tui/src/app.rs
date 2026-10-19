@@ -29,6 +29,8 @@ pub struct App {
     pub file_sel: usize,
     pub editor_path: Option<PathBuf>,
     pub editor_buf: String,
+    // Текст відкритого файла на диску при останньому Open/Save.
+    pub editor_original: String,
     pub editor_cursor: usize, // UTF-8 byte offset, завжди на межі символу
     pub dirty: bool,
     pub quit_armed: bool,
@@ -56,6 +58,7 @@ impl App {
             file_sel: 0,
             editor_path: None,
             editor_buf: String::new(),
+            editor_original: String::new(),
             editor_cursor: 0,
             dirty: false,
             quit_armed: false,
@@ -116,6 +119,7 @@ impl App {
             }
             match std::fs::read_to_string(&p) {
                 Ok(text) => {
+                    self.editor_original = text.clone();
                     self.editor_buf = text;
                     self.editor_cursor = self.editor_buf.len();
                     self.editor_path = Some(p.clone());
@@ -129,19 +133,33 @@ impl App {
     }
 
     fn save(&mut self) {
-        if let Some(p) = self.editor_path.clone() {
-            let result = p.strip_prefix(&self.cwd)
-                .map_err(|error| format!("файл поза workspace: {error}"))
-                .and_then(|relative| {
-                    workspace_save::save_existing_workspace_file(&self.cwd, relative, &self.editor_buf)
-                });
-            match result {
-                Ok(()) => {
-                    self.dirty = false;
-                    self.status = format!("saved {}", p.display());
+        let Some(path) = self.editor_path.clone() else { return; };
+        if !self.dirty { return; }
+        // Спільний механізм GUI/TUI забезпечує атомарну заміну, але TUI
+        // додатково не має права мовчки втрачати зміни іншого процесу.
+        let result = std::fs::read_to_string(&path)
+            .map_err(|error| format!("неможливо перевірити поточний файл: {error}"))
+            .and_then(|disk| {
+                if disk != self.editor_original {
+                    Err("файл змінено ззовні після Open/Save; нові дані не перезаписано".to_string())
+                } else {
+                    path.strip_prefix(&self.cwd)
+                        .map_err(|error| format!("файл поза workspace: {error}"))
+                        .and_then(|relative| {
+                            workspace_save::save_existing_workspace_file(&self.cwd, relative, &self.editor_buf)
+                        })
                 }
-                Err(error) => self.sys(&format!("не вдалось зберегти {}: {error}", p.display())),
+            });
+        match result {
+            Ok(()) => {
+                self.editor_original = self.editor_buf.clone();
+                self.dirty = false;
+                self.status = format!("saved {}", path.display());
             }
+            Err(error) => self.sys(&format!(
+                "Не збережено {}: {error}. Буфер редактора не втрачено.",
+                path.display()
+            )),
         }
     }
 
