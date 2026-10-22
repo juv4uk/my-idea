@@ -301,7 +301,7 @@ mod pinned_file_mode_smoke {
 
         let mut engine = Engine::spawn_repl(&binary, root)
             .expect("SENS REPL --surface=укр має запуститися");
-        engine.send_line("(атом? 'мама)").expect("надсилання української форми");
+        engine.send_line("(атом? (як-є мама))").expect("надсилання української форми");
         // Закрити stdin: rustyline/REPL отримує EOF та завершується самостійно.
         engine.stdin.take();
         let status = engine.child.wait().expect("REPL завершився після EOF");
