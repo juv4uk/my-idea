@@ -301,7 +301,7 @@ mod pinned_file_mode_smoke {
 
         let mut engine = Engine::spawn_repl(&binary, root)
             .expect("SENS REPL --surface=укр має запуститися");
-        engine.send_line("(атом? (як-є мама))").expect("надсилання української форми");
+        engine.send_line("(атом? (як-є ()))").expect("надсилання української форми");
         // Новий REPL робить важкий Zig-T5M крок на кожну форму, а негайний EOF
         // обриває його до обчислення (гонка). Спершу чекаємо на реальну відповідь,
         // і лише потім закриваємо stdin.
