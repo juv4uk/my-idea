@@ -60,7 +60,7 @@ fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_docum
 
     // Only canonical Ukrainian D3 QUOTE is executable in new source.
     process.write_line(":мова ук").expect("write_line should succeed");
-    process.write_line("(атом? (як-є мама))").expect("write_line should succeed");
+    process.write_line("(атом? (як-є ()))").expect("write_line should succeed");
 
     // After reading the first banner line, four more introductory lines are
     // still buffered. Counting exactly four messages consumed only those,
