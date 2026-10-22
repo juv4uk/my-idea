@@ -77,6 +77,9 @@ pub struct App {
     pub status: String,
     /// Точний pinned SENS gitlink (provenance), якщо відомий.
     pub pinned_sha: Option<String>,
+    /// Довідка клавіш (F1) — лише перелік, без другої семантики.
+    pub help_visible: bool,
+    pub help_scroll: usize,
     pub ast_visible: bool,
     pub ast_scroll: usize,
     pub ast_lines: Vec<String>,
@@ -92,6 +95,22 @@ const PALETTE: [&str; 15] = [
     "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
     "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-ui-uk", "cmd-ui-de",
     "cmd-ui-en", "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
+];
+
+/// Клавіші для F1: (підпис, i18n-ключ). Той самий набір, що в палітрі.
+const HELP_KEYS: [(&str, &str); 12] = [
+    ("Ctrl+S", "cmd-save"),
+    ("F5", "cmd-run"),
+    ("F9", "cmd-stop"),
+    ("F6", "cmd-toggle-ast"),
+    ("Ctrl+N", "cmd-new"),
+    ("Ctrl+W", "cmd-close-tab"),
+    ("Ctrl+Z", "cmd-undo"),
+    ("Ctrl+Y", "cmd-redo"),
+    ("Ctrl+P", "cmd-palette"),
+    ("Tab", "cmd-cycle-pane"),
+    ("Ctrl+Tab", "cmd-cycle-tab"),
+    ("Ctrl+Q", "cmd-quit"),
 ];
 
 impl App {
@@ -131,6 +150,8 @@ impl App {
             quit: false,
             status: String::new(),
             pinned_sha: engine::pinned_revision().ok(),
+            help_visible: false,
+            help_scroll: 0,
             ast_visible: false,
             ast_scroll: 0,
             ast_lines: Vec::new(),
@@ -224,6 +245,22 @@ impl App {
             Some(sha) => self.sys(&format!("SENS pinned gitlink={sha}")),
             None => self.sys(self.t("provenance-unknown")),
         }
+    }
+
+    fn help_toggle(&mut self) {
+        self.help_visible = !self.help_visible;
+        self.help_scroll = 0;
+    }
+
+    /// Рядки довідки F1: підпис клавіші + локалізована назва дії.
+    pub fn help_lines(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for (key, label) in HELP_KEYS {
+            out.push(format!("{:<12} {}", key, self.t(label)));
+        }
+        out.push(String::new());
+        out.push(self.t("help-meta").to_string());
+        out
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -767,6 +804,17 @@ impl App {
         if !(ctrl && matches!(key.code, KeyCode::Char('q' | 'c'))) {
             self.quit_armed = false;
         }
+        if self.help_visible {
+            match key.code {
+                KeyCode::Esc | KeyCode::F(1) => self.help_toggle(),
+                KeyCode::Up => self.help_scroll = self.help_scroll.saturating_sub(1),
+                KeyCode::Down => self.help_scroll = self.help_scroll.saturating_add(1),
+                KeyCode::PageUp => self.help_scroll = self.help_scroll.saturating_sub(6),
+                KeyCode::PageDown => self.help_scroll = self.help_scroll.saturating_add(6),
+                _ => {}
+            }
+            return false;
+        }
         if self.palette_visible {
             match key.code {
                 KeyCode::Esc => self.palette_toggle(),
@@ -824,6 +872,7 @@ impl App {
                 }
             },
             KeyCode::Esc => self.pane = Pane::Explorer,
+            KeyCode::F(1) => self.help_toggle(),
             KeyCode::F(5) => self.run_current(),
             KeyCode::F(6) => {
                 self.ast_visible = !self.ast_visible;

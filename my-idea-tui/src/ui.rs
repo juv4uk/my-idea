@@ -23,6 +23,9 @@ pub fn draw(f: &mut Frame, app: &App) {
     if app.palette_visible {
         draw_palette(f, app);
     }
+    if app.help_visible {
+        draw_help(f, app);
+    }
 }
 
 fn draw_body(f: &mut Frame, app: &App, area: Rect) {
@@ -438,4 +441,41 @@ fn draw_palette(f: &mut Frame, app: &App) {
         )
         .highlight_symbol("> ");
     f.render_stateful_widget(list, rows[1], &mut state);
+}
+
+/// Довідка клавіш (F1): оверлей із тим самим набором дій, що й палітра.
+fn draw_help(f: &mut Frame, app: &App) {
+    let lines = app.help_lines();
+    let area = f.area();
+    let width = area.width.saturating_sub(4).min(64).max(24);
+    let height = area
+        .height
+        .saturating_sub(2)
+        .min(lines.len() as u16 + 4)
+        .max(4);
+    let rect = Rect {
+        x: area.x + area.width.saturating_sub(width) / 2,
+        y: area.y + area.height.saturating_sub(height) / 2,
+        width,
+        height,
+    };
+    let inner = Rect {
+        x: rect.x + 1,
+        y: rect.y + 1,
+        width: rect.width.saturating_sub(2),
+        height: rect.height.saturating_sub(2),
+    };
+    let title = format!("{} \u{b7} {}", app.t("help"), app.t("help-hint"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .border_style(Style::default().fg(Color::Green));
+    f.render_widget(block, rect);
+
+    let body: Vec<Line> = lines
+        .iter()
+        .skip(app.help_scroll)
+        .map(|s| Line::from(s.clone()))
+        .collect();
+    f.render_widget(Paragraph::new(body), inner);
 }
