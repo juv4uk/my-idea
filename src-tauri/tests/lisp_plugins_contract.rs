@@ -64,7 +64,7 @@ fn init_lisp_loads_before_any_plugin_and_its_definitions_are_visible_to_plugins(
     config.write_init("(define plugin-shared-base 10)");
     config.write_plugin(
         "uses-init.lisp",
-        "(define plugin-shared-derived (+ plugin-shared-base 5))",
+        "(define plugin-shared-derived (додати plugin-shared-base 5))",
     );
 
     let mut repl = ReplSession::default();
