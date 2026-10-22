@@ -13,17 +13,17 @@ test('macOS universal release stages sidecars for both architecture sub-builds a
 
   assert.match(
     workflow,
-    /src-tauri\/binaries\/my-lisp-x86_64-apple-darwin/,
+    /src-tauri\/binaries\/sens-x86_64-apple-darwin/,
     'Tauri universal build invokes an x86_64 sub-build and requires the x86_64 sidecar name',
   );
   assert.match(
     workflow,
-    /src-tauri\/binaries\/my-lisp-aarch64-apple-darwin/,
+    /src-tauri\/binaries\/sens-aarch64-apple-darwin/,
     'Tauri universal build invokes an aarch64 sub-build and requires the aarch64 sidecar name',
   );
   assert.match(
     workflow,
-    /src-tauri\/binaries\/my-lisp-universal-apple-darwin/,
+    /src-tauri\/binaries\/sens-universal-apple-darwin/,
     'The final universal bundle still requires the universal sidecar name',
   );
 });
@@ -34,11 +34,11 @@ test('Windows ARM64 sidecar build pins Cargo to the verified MSVC linker', async
     /  build-windows-arm64:[\s\S]*?(?=\n  build-flatpak:)/,
   )?.[0] ?? '';
   const sidecarStep = windowsArm64Job.match(
-    /      - name: Build my-lisp CLI sidecar[\s\S]*?(?=\n      - name: Build native Windows ARM64)/,
+    /      - name: Build sens CLI sidecar[\s\S]*?(?=\n      - name: Build native Windows ARM64)/,
   )?.[0] ?? '';
 
   assert.notEqual(windowsArm64Job, '', 'Windows ARM64 release job must exist');
-  assert.notEqual(sidecarStep, '', 'Windows ARM64 my-lisp sidecar step must exist');
+  assert.notEqual(sidecarStep, '', 'Windows ARM64 sens sidecar step must exist');
   assert.match(
     sidecarStep,
     /shell: pwsh/,

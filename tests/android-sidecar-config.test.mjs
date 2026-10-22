@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const androidConfigPath = new URL('../src-tauri/tauri.android.conf.json', import.meta.url);
 const workflowPath = new URL('../.github/workflows/publish-release.yml', import.meta.url);
 
-test('Android config disables the desktop-only external my-lisp sidecar', async () => {
+test('Android config disables the desktop-only external sens sidecar', async () => {
   const config = JSON.parse(await readFile(androidConfigPath, 'utf8'));
   assert.deepEqual(
     config.bundle?.externalBin,
