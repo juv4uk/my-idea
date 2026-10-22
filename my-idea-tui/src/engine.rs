@@ -230,7 +230,7 @@ pub fn resolve_bin() -> Result<ResolvedBin, String> {
             checkout_sha, pinned_sha
         ));
     }
-    let binary = if cfg!(windows) { ["sens.exe", "my-lisp.exe"] } else { ["sens", "my-lisp"] };
+    let binary = if cfg!(windows) { ["sens.exe"] } else { ["sens"] };
     for profile in ["release", "debug"] {
         for name in binary {
             let path = submodule.join("target").join(profile).join(name);
@@ -292,7 +292,7 @@ mod pinned_file_mode_smoke {
     #[ignore = "реальний SENS_PINNED_CLI потрібен; CI перевіряє разом із file-mode"]
     fn pinned_ukr_repl_smoke() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-        let expected = root.join("external/sens/target/release/my-lisp")
+        let expected = root.join("external/sens/target/release/sens")
             .canonicalize().expect("бінарник із pinned external/sens");
         let binary = PathBuf::from(std::env::var_os("SENS_PINNED_CLI")
             .expect("SENS_PINNED_CLI вказує на точний gitlink"));
@@ -356,7 +356,7 @@ mod pinned_file_mode_smoke {
     #[ignore = "потрібен реальний SENS_PINNED_CLI; GitHub-hosted TUI CI запускає тест явно"]
     fn pinned_file_mode_smoke() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-        let expected = root.join("external/sens/target/release/my-lisp")
+        let expected = root.join("external/sens/target/release/sens")
             .canonicalize().expect("збірка pinned sens-cli має існувати");
         let selected = PathBuf::from(std::env::var_os("SENS_PINNED_CLI")
             .expect("SENS_PINNED_CLI обов'язковий для реального smoke"));
