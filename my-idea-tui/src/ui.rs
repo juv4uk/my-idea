@@ -26,6 +26,9 @@ pub fn draw(f: &mut Frame, app: &App) {
     if app.help_visible {
         draw_help(f, app);
     }
+    if app.eco_visible {
+        draw_eco(f, app);
+    }
 }
 
 fn draw_body(f: &mut Frame, app: &App, area: Rect) {
@@ -478,4 +481,52 @@ fn draw_help(f: &mut Frame, app: &App) {
         .map(|s| Line::from(s.clone()))
         .collect();
     f.render_widget(Paragraph::new(body), inner);
+}
+
+/// Панель «Екосистема» (Ctrl+E): сусідні репозиторії та їхні repo.lisp.
+fn draw_eco(f: &mut Frame, app: &App) {
+    let lines = app.eco_lines();
+    let area = f.area();
+    let width = area.width.saturating_sub(4).min(76).max(28);
+    let height = area
+        .height
+        .saturating_sub(2)
+        .min(lines.len() as u16 + 4)
+        .max(4);
+    let rect = Rect {
+        x: area.x + area.width.saturating_sub(width) / 2,
+        y: area.y + area.height.saturating_sub(height) / 2,
+        width,
+        height,
+    };
+    let inner = Rect {
+        x: rect.x + 1,
+        y: rect.y + 1,
+        width: rect.width.saturating_sub(2),
+        height: rect.height.saturating_sub(2),
+    };
+    let title = format!("{} \u{b7} {}", app.t("eco"), app.t("eco-hint"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .border_style(Style::default().fg(Color::Yellow));
+    f.render_widget(block, rect);
+
+    let items: Vec<ListItem> = lines
+        .iter()
+        .map(|s| ListItem::new(Line::from(s.clone())))
+        .collect();
+    let mut state = ListState::default();
+    if !app.siblings.is_empty() {
+        state.select(Some(app.eco_sel.min(lines.len().saturating_sub(1))));
+    }
+    let list = List::new(items)
+        .highlight_style(
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("> ");
+    f.render_stateful_widget(list, inner, &mut state);
 }

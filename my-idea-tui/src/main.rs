@@ -7,6 +7,7 @@
 
 mod app;
 mod ast;
+mod eco;
 mod engine;
 mod i18n;
 mod ui;

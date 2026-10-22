@@ -9,6 +9,7 @@ use std::fs::OpenOptions;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::engine::{self, Engine, Line, Origin};
+use crate::eco;
 use crate::i18n;
 use crate::ast;
 
@@ -80,6 +81,10 @@ pub struct App {
     /// Довідка клавіш (F1) — лише перелік, без другої семантики.
     pub help_visible: bool,
     pub help_scroll: usize,
+    /// Сусідні репозиторії екосистеми (їхні repo.lisp через pinned SENS).
+    pub siblings: Vec<eco::Sibling>,
+    pub eco_visible: bool,
+    pub eco_sel: usize,
     pub ast_visible: bool,
     pub ast_scroll: usize,
     pub ast_lines: Vec<String>,
@@ -91,10 +96,10 @@ pub struct App {
 }
 
 /// Команди палітри (Ctrl+P). Ключі ті самі, що в i18n; жодної другої семантики.
-const PALETTE: [&str; 15] = [
+const PALETTE: [&str; 16] = [
     "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
-    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-ui-uk", "cmd-ui-de",
-    "cmd-ui-en", "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
+    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-eco", "cmd-ui-uk",
+    "cmd-ui-de", "cmd-ui-en", "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
 ];
 
 /// Клавіші для F1: (підпис, i18n-ключ). Той самий набір, що в палітрі.
@@ -152,6 +157,9 @@ impl App {
             pinned_sha: engine::pinned_revision().ok(),
             help_visible: false,
             help_scroll: 0,
+            siblings: Vec::new(),
+            eco_visible: false,
+            eco_sel: 0,
             ast_visible: false,
             ast_scroll: 0,
             ast_lines: Vec::new(),
@@ -205,6 +213,7 @@ impl App {
             }
             "cmd-cycle-tab" => self.cycle_tab(false),
             "cmd-provenance" => self.show_provenance(),
+            "cmd-eco" => self.eco_toggle(),
             "cmd-ui-uk" => self.set_ui_language("uk"),
             "cmd-ui-de" => self.set_ui_language("de"),
             "cmd-ui-en" => self.set_ui_language("en"),
@@ -261,6 +270,39 @@ impl App {
         out.push(String::new());
         out.push(self.t("help-meta").to_string());
         out
+    }
+
+    fn eco_toggle(&mut self) {
+        self.eco_visible = !self.eco_visible;
+        self.eco_sel = 0;
+        if self.eco_visible {
+            self.refresh_siblings();
+        }
+    }
+
+    /// Перечитати сусідні репозиторії з їхніх `repo.lisp` (reader pinned SENS).
+    pub fn refresh_siblings(&mut self) {
+        self.siblings = engine::repo_root()
+            .map(|root| eco::siblings(&root))
+            .unwrap_or_default();
+    }
+
+    /// Рядки панелі «Екосистема»: ім'я, роль (або стан), id.
+    pub fn eco_lines(&self) -> Vec<String> {
+        if self.siblings.is_empty() {
+            return vec![self.t("eco-empty").to_string()];
+        }
+        self.siblings
+            .iter()
+            .map(|s| {
+                let status = if s.note.is_empty() {
+                    s.role.clone()
+                } else {
+                    self.t(s.note).to_string()
+                };
+                format!("{:<18} {:<26} {}", s.name, status, s.id)
+            })
+            .collect()
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -804,6 +846,20 @@ impl App {
         if !(ctrl && matches!(key.code, KeyCode::Char('q' | 'c'))) {
             self.quit_armed = false;
         }
+        if self.eco_visible {
+            match key.code {
+                KeyCode::Esc => self.eco_toggle(),
+                KeyCode::Char('e') if ctrl => self.eco_toggle(),
+                KeyCode::Up => self.eco_sel = self.eco_sel.saturating_sub(1),
+                KeyCode::Down => {
+                    if self.eco_sel + 1 < self.siblings.len() {
+                        self.eco_sel += 1;
+                    }
+                }
+                _ => {}
+            }
+            return false;
+        }
         if self.help_visible {
             match key.code {
                 KeyCode::Esc | KeyCode::F(1) => self.help_toggle(),
@@ -872,6 +928,7 @@ impl App {
                 }
             },
             KeyCode::Esc => self.pane = Pane::Explorer,
+            KeyCode::Char('e') if ctrl => self.eco_toggle(),
             KeyCode::F(1) => self.help_toggle(),
             KeyCode::F(5) => self.run_current(),
             KeyCode::F(6) => {
