@@ -20,6 +20,9 @@ pub fn draw(f: &mut Frame, app: &App) {
         .split(f.area());
     draw_body(f, app, outer[0]);
     draw_status(f, app, outer[1]);
+    if app.palette_visible {
+        draw_palette(f, app);
+    }
 }
 
 fn draw_body(f: &mut Frame, app: &App, area: Rect) {
@@ -372,4 +375,63 @@ mod adaptive_layout_tests {
             assert!(output.contains("Консоль"), "Console {width}x{height}");
         }
     }
+}
+
+/// Палітра команд (Ctrl+P): оверлей по центру з тими самими діями, що й клавіші.
+fn draw_palette(f: &mut Frame, app: &App) {
+    let items = app.palette_items();
+    let area = f.area();
+    let width = area.width.saturating_sub(4).min(64).max(20);
+    let height = (items.len() as u16 + 4).min(area.height.saturating_sub(2)).max(4);
+    let rect = Rect {
+        x: area.x + area.width.saturating_sub(width) / 2,
+        y: area.y + area.height.saturating_sub(height) / 2,
+        width,
+        height,
+    };
+    // Рахуємо внутрішню область вручну (Block::inner у різних версіях бере self за значенням).
+    let inner = Rect {
+        x: rect.x + 1,
+        y: rect.y + 1,
+        width: rect.width.saturating_sub(2),
+        height: rect.height.saturating_sub(2),
+    };
+
+    let title = format!("{} \u{b7} {}", app.t("palette"), app.t("palette-hint"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .border_style(Style::default().fg(Color::Cyan));
+    f.render_widget(block, rect);
+
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(1)])
+        .split(inner);
+
+    f.render_widget(
+        Paragraph::new(Line::from(format!("> {}", app.palette_query))),
+        rows[0],
+    );
+
+    if items.is_empty() {
+        f.render_widget(Paragraph::new(Line::from(app.t("palette-empty"))), rows[1]);
+        return;
+    }
+
+    let list_items: Vec<ListItem> = items
+        .iter()
+        .map(|id| ListItem::new(Line::from(app.t(*id))))
+        .collect();
+    let mut state = ListState::default();
+    state.select(Some(app.palette_sel.min(items.len().saturating_sub(1))));
+    let list = List::new(list_items)
+        .highlight_style(
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("> ");
+    f.render_stateful_widget(list, rows[1], &mut state);
 }

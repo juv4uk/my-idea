@@ -79,7 +79,18 @@ pub struct App {
     pub ast_scroll: usize,
     pub ast_lines: Vec<String>,
     ast_cached_source: String,
+    /// Палітра команд (Ctrl+P): той самий набір дій, що й клавіші.
+    pub palette_visible: bool,
+    pub palette_query: String,
+    pub palette_sel: usize,
 }
+
+/// Команди палітри (Ctrl+P). Ключі ті самі, що в i18n; жодної другої семантики.
+const PALETTE: [&str; 14] = [
+    "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
+    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en",
+    "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
+];
 
 impl App {
     pub fn new() -> App {
@@ -121,6 +132,9 @@ impl App {
             ast_scroll: 0,
             ast_lines: Vec::new(),
             ast_cached_source: String::new(),
+            palette_visible: false,
+            palette_query: String::new(),
+            palette_sel: 0,
         };
         app.sys(i18n::t(&app.language, "banner"));
         app.reload_files();
@@ -129,6 +143,72 @@ impl App {
 
     pub fn t<'a>(&self, key: &'a str) -> &'a str {
         i18n::t(&self.language, key)
+    }
+
+    /// Відфільтровані команди палітри за запитом (підрядок без регістру).
+    pub fn palette_items(&self) -> Vec<&'static str> {
+        let q = self.palette_query.to_lowercase();
+        PALETTE
+            .iter()
+            .copied()
+            .filter(|id| {
+                q.is_empty() || self.t(*id).to_lowercase().contains(q.as_str()) || id.contains(q.as_str())
+            })
+            .collect()
+    }
+
+    fn palette_toggle(&mut self) {
+        self.palette_visible = !self.palette_visible;
+        self.palette_query.clear();
+        self.palette_sel = 0;
+    }
+
+    /// Виконати команду палітри за її i18n-ключем.
+    fn palette_run(&mut self, id: &str) {
+        self.palette_visible = false;
+        self.palette_query.clear();
+        self.palette_sel = 0;
+        match id {
+            "cmd-save" => self.save(),
+            "cmd-run" => self.run_current(),
+            "cmd-stop" => self.stop(),
+            "cmd-close-tab" => self.close_current_tab(),
+            "cmd-undo" => self.undo_edit(),
+            "cmd-redo" => self.redo_edit(),
+            "cmd-toggle-ast" => {
+                self.ast_visible = !self.ast_visible;
+                self.refresh_ast();
+            }
+            "cmd-cycle-tab" => self.cycle_tab(false),
+            "cmd-ui-uk" => self.set_ui_language("uk"),
+            "cmd-ui-de" => self.set_ui_language("de"),
+            "cmd-ui-en" => self.set_ui_language("en"),
+            "cmd-surface-укр" => self.meta("мова укр"),
+            "cmd-surface-en" => self.meta("мова en"),
+            "cmd-quit" => {
+                if self.has_unsaved_changes() && !self.quit_armed {
+                    self.quit_armed = true;
+                    self.sys(self.t("quit-dirty"));
+                } else {
+                    self.quit = true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Мова інтерфейсу з інвалідацією локалізованого AST-кеша (як `:інтерфейс`).
+    fn set_ui_language(&mut self, lang: &str) {
+        if !i18n::LANGUAGES.contains(&lang) {
+            return;
+        }
+        if self.language != lang {
+            self.language = lang.to_string();
+            self.ast_lines.clear();
+            self.ast_cached_source.clear();
+            self.ast_scroll = 0;
+        }
+        self.sys(&format!("{} {lang}", self.t("ui-lang-set")));
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -671,6 +751,38 @@ impl App {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         if !(ctrl && matches!(key.code, KeyCode::Char('q' | 'c'))) {
             self.quit_armed = false;
+        }
+        if self.palette_visible {
+            match key.code {
+                KeyCode::Esc => self.palette_toggle(),
+                KeyCode::Enter => {
+                    let chosen = self.palette_items().get(self.palette_sel).copied();
+                    if let Some(id) = chosen {
+                        self.palette_run(id);
+                    }
+                }
+                KeyCode::Up => self.palette_sel = self.palette_sel.saturating_sub(1),
+                KeyCode::Down => {
+                    if self.palette_sel + 1 < self.palette_items().len() {
+                        self.palette_sel += 1;
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.palette_query.pop();
+                    self.palette_sel = 0;
+                }
+                KeyCode::Char(c) if !ctrl => {
+                    self.palette_query.push(c);
+                    self.palette_sel = 0;
+                }
+                KeyCode::Char('p') if ctrl => self.palette_toggle(),
+                _ => {}
+            }
+            return false;
+        }
+        if ctrl && matches!(key.code, KeyCode::Char('p')) {
+            self.palette_toggle();
+            return false;
         }
         match key.code {
             KeyCode::Char('n') if ctrl => {
