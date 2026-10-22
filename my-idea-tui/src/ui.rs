@@ -5,8 +5,8 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::Line,
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    text::{Line, Span},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
 
@@ -79,19 +79,36 @@ fn draw_body(f: &mut Frame, app: &App, area: Rect) {
     draw_console(f, app, right[1]);
 }
 
-fn pane_block<'a>(title: &'a str, active: bool) -> Block<'a> {
-    let mut b = Block::default().borders(Borders::ALL).title(title);
-    if active {
-        b = b.border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-    }
-    b
+/// Рамка панелі: округлі кути, акцент на активній панелі, неактивні — приглушені.
+fn pane_block(title: String, active: bool) -> Block<'static> {
+    let (colour, modifier) = if active {
+        (Color::Cyan, Modifier::BOLD)
+    } else {
+        (Color::DarkGray, Modifier::empty())
+    };
+    Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(colour))
+        .title(Span::styled(format!(" {title} "), Style::default().fg(colour).add_modifier(modifier)))
 }
 
 fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = app
         .files
         .iter()
-        .map(|p| ListItem::new(if p.is_dir() { format!("{}/", display_name(p)) } else { display_name(p) }))
+        .map(|p| {
+            let name = display_name(p);
+            let (text, style) = if p.is_dir() {
+                (
+                    format!("{name}/"),
+                    Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD),
+                )
+            } else {
+                (name, Style::default())
+            };
+            ListItem::new(Line::styled(text, style))
+        })
         .collect();
     let mut state = ListState::default();
     if !app.files.is_empty() {
@@ -99,8 +116,13 @@ fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
     }
     let heading = format!("{} · {}", app.t("files"), app.explorer_dir.display());
     let list = List::new(items)
-        .block(pane_block(&heading, app.pane == Pane::Explorer))
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+        .block(pane_block(heading, app.pane == Pane::Explorer))
+        .highlight_style(
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .highlight_symbol("› ");
     f.render_stateful_widget(list, area, &mut state);
 }
@@ -122,7 +144,7 @@ fn draw_editor(f: &mut Frame, app: &App, area: Rect) {
         &app.editor_buf, app.editor_cursor, area.height, area.width,
     );
     let para = Paragraph::new(shown)
-        .block(pane_block(&title, app.pane == Pane::Editor))
+        .block(pane_block(title, app.pane == Pane::Editor))
         .scroll((vertical, horizontal));
     f.render_widget(para, area);
 }
@@ -188,7 +210,7 @@ fn draw_ast(f: &mut Frame, app: &App, area: Rect) {
         .cloned().collect::<Vec<_>>().join("\n");
     f.render_widget(
         Paragraph::new(lines)
-            .block(pane_block(app.t("ast"), false)),
+            .block(pane_block(app.t("ast").to_string(), false)),
         area,
     );
 }
@@ -230,7 +252,7 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     let visible = area.height.saturating_sub(2) as usize;
     let scroll = console_scroll_start(lines.len(), visible, app.console_scroll_back);
     let para = Paragraph::new(lines)
-        .block(pane_block(app.t("console"), app.pane == Pane::Console))
+        .block(pane_block(app.t("console").to_string(), app.pane == Pane::Console))
         .scroll((scroll, 0));
     f.render_widget(para, area);
 }
@@ -244,15 +266,15 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
         String::new()
     };
     let provenance = match &app.pinned_sha {
-        Some(sha) if sha.len() >= 8 => format!("SENS {} | ", &sha[..8]),
+        Some(sha) if sha.len() >= 8 => format!("SENS {} \u{2502} ", &sha[..8]),
         _ => String::new(),
     };
     let text = if area.width < 76 {
-        format!(" {}{} | {} | {}{} | Ctrl+S  F5  F6 AST  F9",
+        format!(" my-idea-tui \u{2502} {}{} \u{2502} {} \u{2502} {}{} \u{2502} Ctrl+S F5 F6 F9",
             provenance, app.pane_label(), app.language, run, position)
     } else {
         format!(
-            " {}{} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F6 AST  F9 {} ",
+            " my-idea-tui \u{2502} {}{} \u{2502} {} \u{2502} {}{} \u{2502} :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F6 AST  F9 {} ",
             provenance, app.pane_label(), app.language, run, position, app.t("save"), app.t("run"), app.t("stop")
         )
     };
@@ -410,7 +432,8 @@ fn draw_palette(f: &mut Frame, app: &App) {
     let title = format!("{} \u{b7} {}", app.t("palette"), app.t("palette-hint"));
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(title)
+        .title(format!(" {title} "))
+        .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Cyan));
     f.render_widget(block, rect);
 
@@ -471,7 +494,8 @@ fn draw_help(f: &mut Frame, app: &App) {
     let title = format!("{} \u{b7} {}", app.t("help"), app.t("help-hint"));
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(title)
+        .title(format!(" {title} "))
+        .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Green));
     f.render_widget(block, rect);
 
@@ -508,7 +532,8 @@ fn draw_eco(f: &mut Frame, app: &App) {
     let title = format!("{} \u{b7} {}", app.t("eco"), app.t("eco-hint"));
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(title)
+        .title(format!(" {title} "))
+        .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Yellow));
     f.render_widget(block, rect);
 
