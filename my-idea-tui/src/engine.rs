@@ -302,12 +302,28 @@ mod pinned_file_mode_smoke {
         let mut engine = Engine::spawn_repl(&binary, root)
             .expect("SENS REPL --surface=укр має запуститися");
         engine.send_line("(атом? (як-є мама))").expect("надсилання української форми");
-        // Закрити stdin: rustyline/REPL отримує EOF та завершується самостійно.
+        // Новий REPL робить важкий Zig-T5M крок на кожну форму, а негайний EOF
+        // обриває його до обчислення (гонка). Спершу чекаємо на реальну відповідь,
+        // і лише потім закриваємо stdin.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        while std::time::Instant::now() < deadline {
+            match engine.rx.recv_timeout(std::time::Duration::from_millis(250)) {
+                Ok(line) => {
+                    match line.origin {
+                        Origin::Stdout => { stdout.push_str(&line.text); stdout.push('\n'); }
+                        Origin::Stderr => { stderr.push_str(&line.text); stderr.push('\n'); }
+                        Origin::System => panic!("не очікуємо вигаданий TUI-вивід"),
+                    }
+                    if stdout.lines().any(|l| l.trim() == "ТАК") { break; }
+                }
+                Err(_) => {}
+            }
+        }
         engine.stdin.take();
         let status = engine.child.wait().expect("REPL завершився після EOF");
         engine.finish_readers();
-        let mut stdout = String::new();
-        let mut stderr = String::new();
         for line in engine.rx.try_iter() {
             match line.origin {
                 Origin::Stdout => { stdout.push_str(&line.text); stdout.push('\n'); }
