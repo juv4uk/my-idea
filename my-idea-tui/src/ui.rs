@@ -237,13 +237,17 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
     } else {
         String::new()
     };
+    let provenance = match &app.pinned_sha {
+        Some(sha) if sha.len() >= 8 => format!("SENS {} | ", &sha[..8]),
+        _ => String::new(),
+    };
     let text = if area.width < 76 {
-        format!(" {} | {} | {}{} | Ctrl+S  F5  F6 AST  F9",
-            app.pane_label(), app.language, run, position)
+        format!(" {}{} | {} | {}{} | Ctrl+S  F5  F6 AST  F9",
+            provenance, app.pane_label(), app.language, run, position)
     } else {
         format!(
-            " {} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F6 AST  F9 {} ",
-            app.pane_label(), app.language, run, position, app.t("save"), app.t("run"), app.t("stop")
+            " {}{} | {} | {}{} | :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F6 AST  F9 {} ",
+            provenance, app.pane_label(), app.language, run, position, app.t("save"), app.t("run"), app.t("stop")
         )
     };
     let para = Paragraph::new(text).style(Style::default().add_modifier(Modifier::REVERSED));

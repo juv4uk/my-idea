@@ -81,6 +81,8 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("uk", "cmd-surface-укр") => "SENS: українська (повна)",
         ("uk", "cmd-surface-en") => "SENS: English",
         ("uk", "cmd-quit") => "Вихід",
+        ("uk", "cmd-provenance") => "Показати pinned SENS (provenance)",
+        ("uk", "provenance-unknown") => "pinned SENS не визначено (немає checkout з .gitmodules)",
         ("de", "files") => "Explorer",
         ("de", "ast") => "AST / SENS",
         ("de", "ast-empty") => "Leere Datei",
@@ -154,6 +156,8 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("de", "cmd-surface-укр") => "SENS: Ukrainisch (voll)",
         ("de", "cmd-surface-en") => "SENS: English",
         ("de", "cmd-quit") => "Beenden",
+        ("de", "cmd-provenance") => "Pinned SENS anzeigen (Provenance)",
+        ("de", "provenance-unknown") => "Pinned SENS nicht ermittelt (kein Checkout mit .gitmodules)",
         ("en", "files") => "Explorer",
         ("en", "ast") => "AST / SENS",
         ("en", "ast-empty") => "Empty file",
@@ -227,6 +231,8 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("en", "cmd-surface-укр") => "SENS: Ukrainian (full)",
         ("en", "cmd-surface-en") => "SENS: English",
         ("en", "cmd-quit") => "Quit",
+        ("en", "cmd-provenance") => "Show pinned SENS (provenance)",
+        ("en", "provenance-unknown") => "pinned SENS not determined (no checkout with .gitmodules)",
         _ => key,
     }
 }

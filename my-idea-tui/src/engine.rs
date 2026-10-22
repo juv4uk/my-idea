@@ -244,6 +244,15 @@ pub fn resolve_bin() -> Result<ResolvedBin, String> {
     ))
 }
 
+/// Точний pinned gitlink SENS БЕЗ вимоги зібраного CLI — для provenance у UI.
+pub fn pinned_revision() -> Result<String, String> {
+    let root = std::env::current_exe().ok()
+        .and_then(|exe| repository_root(&exe))
+        .or_else(|| std::env::current_dir().ok().and_then(|cwd| repository_root(&cwd)))
+        .ok_or_else(|| "не знайдено checkout my-idea з .gitmodules поруч із TUI".to_string())?;
+    revision(&root, "HEAD:external/sens")
+}
+
 #[cfg(test)]
 mod repository_tests {
     use super::repository_root;

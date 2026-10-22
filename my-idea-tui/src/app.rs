@@ -75,6 +75,8 @@ pub struct App {
     pub engine_running: bool,
     pub quit: bool,
     pub status: String,
+    /// Точний pinned SENS gitlink (provenance), якщо відомий.
+    pub pinned_sha: Option<String>,
     pub ast_visible: bool,
     pub ast_scroll: usize,
     pub ast_lines: Vec<String>,
@@ -86,10 +88,10 @@ pub struct App {
 }
 
 /// Команди палітри (Ctrl+P). Ключі ті самі, що в i18n; жодної другої семантики.
-const PALETTE: [&str; 14] = [
+const PALETTE: [&str; 15] = [
     "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
-    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en",
-    "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
+    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-ui-uk", "cmd-ui-de",
+    "cmd-ui-en", "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
 ];
 
 impl App {
@@ -128,6 +130,7 @@ impl App {
             engine_running: false,
             quit: false,
             status: String::new(),
+            pinned_sha: engine::pinned_revision().ok(),
             ast_visible: false,
             ast_scroll: 0,
             ast_lines: Vec::new(),
@@ -180,6 +183,7 @@ impl App {
                 self.refresh_ast();
             }
             "cmd-cycle-tab" => self.cycle_tab(false),
+            "cmd-provenance" => self.show_provenance(),
             "cmd-ui-uk" => self.set_ui_language("uk"),
             "cmd-ui-de" => self.set_ui_language("de"),
             "cmd-ui-en" => self.set_ui_language("en"),
@@ -209,6 +213,17 @@ impl App {
             self.ast_scroll = 0;
         }
         self.sys(&format!("{} {lang}", self.t("ui-lang-set")));
+    }
+
+    /// Provenance: точний pinned SENS на вимогу (паритет із GUI).
+    fn show_provenance(&mut self) {
+        let sha = self.pinned_sha.clone().or_else(|| engine::pinned_revision().ok());
+        self.pinned_sha = sha.clone();
+        self.pane = Pane::Console;
+        match sha {
+            Some(sha) => self.sys(&format!("SENS pinned gitlink={sha}")),
+            None => self.sys(self.t("provenance-unknown")),
+        }
     }
 
     pub fn pane_label(&self) -> &'static str {
