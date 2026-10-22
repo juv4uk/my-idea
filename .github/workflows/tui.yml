@@ -61,15 +61,16 @@ jobs:
           test "$checked_out" = "$gitlink"
           printf 'PINNED_SENS_GITLINK=%s\n' "$gitlink"
       - uses: dtolnay/rust-toolchain@stable
+      - name: Встановити пінований Zig (потрібен build.rs SENS)
+        # build.rs крейтів sens/wsm-guard-core вимагає пінований Zig 0.16.0.
+        # Ставимо ДО першої збірки, бо my-idea-tui залежить від sens (path-dep).
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: "0.16.0"
       - name: Verify real workspace save and build Ratatui
         run: |
           cargo test --manifest-path my-idea-tui/Cargo.toml
           cargo build --release --manifest-path my-idea-tui/Cargo.toml
-      - name: Встановити пінований Zig (потрібен sens-cli/build.rs)
-        # wsm-guard-core/build.rs падає без пінованого Zig: build.rs вимагає Zig 0.16.0.
-        uses: ./external/sens/.github/actions/install-zig
-        with:
-          version: "0.16.0"
       - name: "Реальний pinned SENS: перевірити SHA й зібрати file-mode CLI"
         shell: bash
         run: |
