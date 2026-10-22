@@ -2,7 +2,7 @@
 """Не допускає повернення другого (git) каналу поряд із pinned submodule.
 
 SUBMODULE-DEPENDENCY-MODEL-2026-09-16 (ecosystem docs/): для одного
-upstream (my-lisp) у цьому репо має бути рівно один pin-механізм —
+upstream (sens) у цьому репо має бути рівно один pin-механізм —
 `external/sens` git submodule, споживаний через Cargo `path`-залежність
 (`src-tauri/Cargo.toml`). Раніше тут порівнювались два незалежні pins
 (submodule SHA vs. floating `git branch = "main"` у Cargo.lock); тепер
@@ -102,9 +102,9 @@ def release_sidecar_uses_submodule() -> tuple[bool, str]:
             )
 
     step_blocks = text.split("\n      - name:")
-    sidecar_steps = [block for block in step_blocks if "sens-cli --bin my-lisp" in block]
+    sidecar_steps = [block for block in step_blocks if "sens-cli --bin sens" in block]
     if not sidecar_steps:
-        return False, "release recipe has no identifiable my-lisp sidecar build steps"
+        return False, "release recipe has no identifiable sens sidecar build steps"
 
     offenders: list[str] = []
     for index, block in enumerate(sidecar_steps, start=1):
@@ -207,5 +207,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
-        print(f"my-lisp single-channel check failed: {error}", file=sys.stderr)
+        print(f"sens single-channel check failed: {error}", file=sys.stderr)
         raise SystemExit(1)

@@ -79,11 +79,11 @@ jobs:
           checked_out="$(git -C external/sens rev-parse HEAD)"
           test "$checked_out" = "$gitlink"
           printf 'PINNED_SENS_GITLINK=%s\n' "$gitlink"
-          cargo build --release --manifest-path external/sens/Cargo.toml -p sens-cli --bin my-lisp
+          cargo build --release --manifest-path external/sens/Cargo.toml -p sens-cli --bin sens
       - name: Виконати через TUI Engine справжній SENS-файл і помилку синтаксису
         shell: bash
         env:
-          SENS_PINNED_CLI: ${{ github.workspace }}/external/sens/target/release/my-lisp
+          SENS_PINNED_CLI: ${{ github.workspace }}/external/sens/target/release/sens
         run: |
           set -euo pipefail
           # Не дозволяємо успіху з 0 виконаних тестів після паралельного редагування.

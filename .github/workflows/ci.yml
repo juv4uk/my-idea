@@ -31,7 +31,7 @@ jobs:
         with:
           token: ${{ secrets.SUBMODULE_READ_TOKEN || secrets.SENS_READ_TOKEN || github.token }}
           submodules: recursive
-      - name: Verify single my-lisp pin channel · Перевірити єдиний канал pin my-lisp · Einzelnen my-lisp-Pin-Kanal prüfen
+      - name: Verify single sens pin channel · Перевірити єдиний канал pin sens · Einzelnen sens-Pin-Kanal prüfen
         run: python3 scripts/check-my-lisp-sync.py
       - uses: oven-sh/setup-bun@v2
         with:
@@ -63,6 +63,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev patchelf pkg-config
       - run: bun install --frozen-lockfile
+      # SENS build.rs (sens / wsm-guard-core) requires pinned Zig; also used by
+      # the WASM build (sens-wasm) and the CLI sidecar. Must precede any Rust build.
+      - name: Встановити Zig із точного SENS gitlink
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: "0.16.0"
       - run: bun run build
       - run: node scripts/make-portable-web.mjs dist/index.html my-idea-web.html
       - name: Publish portable web artifact
@@ -76,13 +82,7 @@ jobs:
         run: bunx playwright install chromium --with-deps
       - run: bun run test
       - run: bun run check
-      # CLI Guard transports sources exclusively through the Zig compiler
-      # pinned in the *same* external/sens gitlink (SHA256-checked action).
-      - name: Встановити Zig із точного SENS gitlink для sidecar
-        uses: ./external/sens/.github/actions/install-zig
-        with:
-          version: "0.16.0"
-      - name: Build my-lisp CLI sidecar for tests · Зібрати sidecar my-lisp для тестів
+      - name: Build sens CLI sidecar for tests · Зібрати sidecar sens для тестів
         run: bash scripts/build-repl-sidecar.sh
       - name: Checkout exact CML witness source
         if: ${{ github.event_name == 'workflow_dispatch' }}

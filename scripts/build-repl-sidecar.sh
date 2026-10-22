@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Builds the my-lisp CLI sidecar for local dev · Збирає sidecar my-lisp для
-# локальної розробки · Baut den my-lisp-CLI-Sidecar für die lokale
+# Builds the sens CLI sidecar for local dev · Збирає sidecar sens для
+# локальної розробки · Baut den sens-CLI-Sidecar für die lokale
 # Entwicklung.
 #
 # Tauri's `externalBin` (tauri.conf.json) requires the sidecar binary to
-# already exist at `src-tauri/binaries/my-lisp-<host-triple>` before
+# already exist at `src-tauri/binaries/sens-<host-triple>` before
 # `cargo build`/`cargo tauri dev` will even compile — this is a one-time
 # (or "whenever external/sens moves") local setup step, not something
 # that happens automatically. Release builds use the same
@@ -36,14 +36,14 @@ if [[ -z "$HOST_TRIPLE" ]]; then
   exit 1
 fi
 
-cargo build --release --manifest-path external/sens/Cargo.toml -p sens-cli --bin my-lisp
+cargo build --release --manifest-path external/sens/Cargo.toml -p sens-cli --bin sens
 
 mkdir -p src-tauri/binaries
-BINARY_NAME="my-lisp"
+BINARY_NAME="sens"
 if [[ "$HOST_TRIPLE" == *windows* ]]; then
-  BINARY_NAME="my-lisp.exe"
+  BINARY_NAME="sens.exe"
 fi
-DEST="src-tauri/binaries/my-lisp-${HOST_TRIPLE}"
+DEST="src-tauri/binaries/sens-${HOST_TRIPLE}"
 if [[ "$HOST_TRIPLE" == *windows* ]]; then
   DEST="${DEST}.exe"
 fi
