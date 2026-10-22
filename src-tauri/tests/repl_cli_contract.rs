@@ -29,7 +29,7 @@ fn console_launch_rejects_ambiguous_extra_paths() {
 fn repl_keeps_one_environment_across_evaluations() {
     let mut repl = ReplSession::default();
     repl.evaluate("(define repl-x 41)").unwrap();
-    let result = repl.evaluate("(+ repl-x 1)").unwrap();
+    let result = repl.evaluate("(додати repl-x 1)").unwrap();
     assert_eq!(result.value, "42");
 }
 
@@ -37,7 +37,7 @@ fn repl_keeps_one_environment_across_evaluations() {
 fn managed_repl_session_evaluates_and_persists_state() {
     let managed = ManagedReplSession::default();
     managed.evaluate("(define x 99)", None).unwrap();
-    let res = managed.evaluate("(+ x 1)", None).unwrap();
+    let res = managed.evaluate("(додати x 1)", None).unwrap();
     assert_eq!(res.value, "100");
 }
 
