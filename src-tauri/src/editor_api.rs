@@ -101,7 +101,7 @@ fn state_for(token: u64) -> Rc<RefCell<RegistryState>> {
 
 fn token_from_environment(environment: &Environment, span: Span) -> Result<u64, LanguageError> {
     match environment.get(TOKEN_ENV_KEY).as_ref() {
-        Some(Value::HostHandle { kind, token }) if &**kind == HANDLE_KIND => Ok(*token),
+        Some(Value::HostHandle { kind, token, .. }) if &**kind == HANDLE_KIND => Ok(*token),
         _ => Err(LanguageError::new(
             ErrorKind::UnknownSymbol,
             "editor API used outside an EditorCommandRegistry-installed session",
@@ -351,10 +351,7 @@ impl EditorCommandRegistry {
         ensure_capabilities_installed();
         repl.environment().define(
             TOKEN_ENV_KEY,
-            Value::HostHandle {
-                kind: Rc::from(HANDLE_KIND),
-                token: self.token,
-            },
+            Value::host_handle(HANDLE_KIND, self.token),
         );
     }
 
