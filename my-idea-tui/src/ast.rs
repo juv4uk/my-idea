@@ -27,14 +27,16 @@ pub fn render(source: &str, lang: &str) -> Vec<String> {
 /// Той самий обхід, але зі спанами вузлів (щоб підсвітити форму під курсором).
 pub fn render_spans(source: &str, lang: &str) -> Vec<AstLine> {
     match parse(source) {
-        Ok(forms) if forms.is_empty() => vec![AstLine::plain(i18n::t(lang, "ast-empty").to_owned())],
-        Ok(forms) => {
-            let mut lines = Vec::new();
-            for expr in &forms {
-                append_expr(expr, source, lang, 0, &mut lines);
-            }
-            lines
+        Ok(forms) if forms.is_empty() => {
+            vec![AstLine::plain(i18n::t(lang, "ast-empty").to_owned())]
         }
+        Ok(forms) => sens::ast_nodes(source, &forms)
+            .into_iter()
+            .map(|node| AstLine {
+                text: format!("{}{}", "  ".repeat(node.depth.saturating_sub(1)), ast_text(lang, &node)),
+                span: Some(node.span),
+            })
+            .collect(),
         Err(error) => {
             let (line, column) = error.line_col(source);
             let mut lines = vec![AstLine::plain(format!(
@@ -52,6 +54,28 @@ pub fn render_spans(source: &str, lang: &str) -> Vec<AstLine> {
             lines
         }
     }
+}
+
+/// Підпис вузла — UI-мова хоста (uk→de→en); класифікацію дає SENS.
+fn ast_text(lang: &str, node: &sens::AstNode) -> String {
+    match &node.kind {
+        sens::AstNodeKind::List { items, head } => match head {
+            Some(head) if !head.is_empty() => {
+                format!("{} ({}) \u{b7} {}", i18n::t(lang, "ast-list"), items, clip(head))
+            }
+            _ => format!("{} ({})", i18n::t(lang, "ast-list"), items),
+        },
+        sens::AstNodeKind::Pair => i18n::t(lang, "ast-pair").to_owned(),
+        sens::AstNodeKind::Call { arguments, .. }
+        | sens::AstNodeKind::DomainCall { arguments, .. } => {
+            format!("{} ({})", i18n::t(lang, "ast-call"), arguments)
+        }
+        _ => clip(&node.excerpt),
+    }
+}
+
+fn clip(raw: &str) -> String {
+    raw.chars().take(80).collect::<String>().replace('\n', "\u{21b5}")
 }
 
 /// Голова найглибшої форми, що містить байтовий зсув курсора (живий AST).
@@ -88,64 +112,6 @@ fn visit_at_cursor(expr: &Expr, source: &str, cursor: usize, found: &mut Option<
             visit_at_cursor(tail, source, cursor, found);
         }
         _ => {}
-    }
-}
-
-fn append_expr(expr: &Expr, source: &str, lang: &str, depth: usize, lines: &mut Vec<AstLine>) {
-    if lines.len() >= 2500 {
-        return;
-    }
-    let span = Some((expr.span.start, expr.span.end));
-    let indent = "  ".repeat(depth.min(24));
-    match &expr.kind {
-        ExprKind::List(items) => {
-            // Reader уже визначив межі першого елемента. Беремо написання
-            // виключно з оригінального .lisp, не вигадуємо SENS/доменний код.
-            // Це важливо для українських назв функцій і вкладених форм.
-            let head = items
-                .first()
-                .and_then(|first| source.get(first.span.start..first.span.end))
-                .map(|raw| raw.chars().take(48).collect::<String>().replace('\n', "\u{21b5}"));
-            let label = match head {
-                Some(head) if !head.is_empty() => {
-                    format!("{} ({}) \u{b7} {head}", i18n::t(lang, "ast-list"), items.len())
-                }
-                _ => format!("{} ({})", i18n::t(lang, "ast-list"), items.len()),
-            };
-            lines.push(AstLine {
-                text: format!("{indent}{label}"),
-                span,
-            });
-            for item in items.iter() {
-                append_expr(item, source, lang, depth + 1, lines);
-            }
-        }
-        ExprKind::Pair(head, tail) => {
-            lines.push(AstLine {
-                text: format!("{indent}{}", i18n::t(lang, "ast-pair")),
-                span,
-            });
-            append_expr(head, source, lang, depth + 1, lines);
-            append_expr(tail, source, lang, depth + 1, lines);
-        }
-        ExprKind::Call(_, args) | ExprKind::DomainCall(_, args) => {
-            lines.push(AstLine {
-                text: format!("{indent}{} ({})", i18n::t(lang, "ast-call"), args.len()),
-                span,
-            });
-            for arg in args.iter() {
-                append_expr(arg, source, lang, depth + 1, lines);
-            }
-        }
-        _ => {
-            // Показуємо оригінальну українську проєкцію, а не видумані доменні коди.
-            let raw = source.get(expr.span.start..expr.span.end).unwrap_or("");
-            let label: String = raw.chars().take(80).collect::<String>().replace('\n', "\u{21b5}");
-            lines.push(AstLine {
-                text: format!("{indent}{label}"),
-                span,
-            });
-        }
     }
 }
 
