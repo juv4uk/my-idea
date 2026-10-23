@@ -6,7 +6,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::fs::OpenOptions;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use crate::engine::{self, Engine, Line, Origin};
 use crate::eco;
@@ -467,6 +467,57 @@ impl App {
     /// Перемкнути тему оформлення (світла/темна).
     pub fn toggle_theme(&mut self) {
         self.theme = self.theme.toggle();
+    }
+
+    /// Миша: клік фокусує панель (дерево — ще й вибирає рядок під курсором),
+    /// колесо прокручує активну панель. Семантики SENS це не торкається.
+    pub fn handle_mouse(&mut self, event: MouseEvent, area: ratatui::layout::Rect) {
+        let rects = crate::ui::pane_rects(area, self.ast_visible);
+        match event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                match crate::ui::pane_at(&rects, event.column, event.row) {
+                    Some(Pane::Explorer) => {
+                        self.pane = Pane::Explorer;
+                        if let Some(index) = crate::ui::explorer_index_at(
+                            self.files.len(),
+                            self.file_sel,
+                            rects.explorer,
+                            event.row,
+                        ) {
+                            self.file_sel = index;
+                        }
+                    }
+                    Some(pane) => self.pane = pane,
+                    None => {}
+                }
+            }
+            MouseEventKind::ScrollUp => self.mouse_scroll(-1),
+            MouseEventKind::ScrollDown => self.mouse_scroll(1),
+            _ => {}
+        }
+    }
+
+    fn mouse_scroll(&mut self, direction: i32) {
+        match self.pane {
+            Pane::Explorer => {
+                let last = self.files.len().saturating_sub(1) as i32;
+                self.file_sel = (self.file_sel as i32 + direction).clamp(0, last.max(0)) as usize;
+            }
+            Pane::Editor => {
+                if direction < 0 {
+                    self.up();
+                } else {
+                    self.down();
+                }
+            }
+            Pane::Console => {
+                if direction < 0 {
+                    self.console_scroll_back = self.console_scroll_back.saturating_add(3);
+                } else {
+                    self.console_scroll_back = self.console_scroll_back.saturating_sub(3);
+                }
+            }
+        }
     }
 
     /// Знімок сесії: мова, тема й вкладки з поточним текстом і курсором.
@@ -2241,6 +2292,46 @@ mod session_tests {
         assert_eq!(second.editor_buf, "(додати 2 3)\n");
         assert_eq!(second.theme, crate::theme::Theme::Light);
         assert!(!second.dirty);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod mouse_tests {
+    use super::*;
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::layout::Rect;
+
+    #[test]
+    fn clicking_the_explorer_focuses_it_and_selects_the_row_under_the_pointer() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "my-idea-tui-mouse-{}-{nonce}", std::process::id(),
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::write(dir.join("а.лісп"), "(додати 1 1)\n").unwrap();
+        std::fs::write(dir.join("б.лісп"), "(додати 2 2)\n").unwrap();
+
+        let area = Rect::new(0, 0, 120, 40);
+        let mut app = App::new_in(dir.clone());
+        assert!(app.files.len() >= 2, "очікували щонайменше два записи дерева");
+
+        let rects = crate::ui::pane_rects(area, app.ast_visible);
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: rects.explorer.x + 1,
+            row: rects.explorer.y + 2, // другий рядок усередині рамки
+            modifiers: KeyModifiers::empty(),
+        };
+        app.handle_mouse(click, area);
+        assert_eq!(app.pane, Pane::Explorer);
+        assert_eq!(app.file_sel, 1);
+
+        // Колесо в консолі змінює лише прокрутку виводу, не вміст.
+        app.pane = Pane::Console;
+        app.handle_mouse(MouseEvent { kind: MouseEventKind::ScrollUp, ..click }, area);
+        assert_eq!(app.console_scroll_back, 3);
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

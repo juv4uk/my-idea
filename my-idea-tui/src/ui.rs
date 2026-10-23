@@ -40,52 +40,95 @@ pub fn draw(f: &mut Frame, app: &App) {
     }
 }
 
-fn draw_body(f: &mut Frame, app: &App, area: Rect) {
-    // Вузький термінал: не стискати редактор до кількох символів.
-    // Всі три складники тієї самої IDE лишаються видимими.
+/// Прямокутники панелей тіла — ОДНА розкладка і для малювання, і для влучання
+/// мишею: координати кліку не можуть розійтися з картинкою.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PaneRects {
+    pub explorer: Rect,
+    pub editor: Rect,
+    pub ast: Option<Rect>,
+    pub console: Rect,
+}
+
+pub fn pane_rects(area: Rect, ast_visible: bool) -> PaneRects {
     if area.width < 76 {
-        if app.ast_visible {
+        // Вузький термінал: не стискати редактор до кількох символів.
+        if ast_visible {
             let rows = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Length(5), Constraint::Percentage(45),
                     Constraint::Percentage(25), Constraint::Min(4)])
                 .split(area);
-            draw_explorer(f, app, rows[0]);
-            draw_editor(f, app, rows[1]);
-            draw_ast(f, app, rows[2]);
-            draw_console(f, app, rows[3]);
+            PaneRects { explorer: rows[0], editor: rows[1], ast: Some(rows[2]), console: rows[3] }
         } else {
             let rows = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Length(5), Constraint::Percentage(55), Constraint::Min(4)])
                 .split(area);
-            draw_explorer(f, app, rows[0]);
-            draw_editor(f, app, rows[1]);
-            draw_console(f, app, rows[2]);
+            PaneRects { explorer: rows[0], editor: rows[1], ast: None, console: rows[2] }
         }
-        return;
-    }
-
-    let cols = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(28), Constraint::Min(1)])
-        .split(area);
-    let right = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(cols[1]);
-
-    draw_explorer(f, app, cols[0]);
-    if app.ast_visible {
-        let editor_ast = Layout::default().direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
-            .split(right[0]);
-        draw_editor(f, app, editor_ast[0]);
-        draw_ast(f, app, editor_ast[1]);
     } else {
-        draw_editor(f, app, right[0]);
+        let cols = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Length(28), Constraint::Min(1)])
+            .split(area);
+        let right = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+            .split(cols[1]);
+        if ast_visible {
+            let editor_ast = Layout::default().direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
+                .split(right[0]);
+            PaneRects { explorer: cols[0], editor: editor_ast[0], ast: Some(editor_ast[1]), console: right[1] }
+        } else {
+            PaneRects { explorer: cols[0], editor: right[0], ast: None, console: right[1] }
+        }
     }
-    draw_console(f, app, right[1]);
+}
+
+fn inside(rect: Rect, column: u16, row: u16) -> bool {
+    column >= rect.x && column < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height
+}
+
+/// Яка панель під точкою. Панель AST належить контексту редактора.
+pub fn pane_at(rects: &PaneRects, column: u16, row: u16) -> Option<Pane> {
+    if inside(rects.explorer, column, row) {
+        return Some(Pane::Explorer);
+    }
+    if inside(rects.editor, column, row) {
+        return Some(Pane::Editor);
+    }
+    if rects.ast.map(|ast| inside(ast, column, row)).unwrap_or(false) {
+        return Some(Pane::Editor);
+    }
+    if inside(rects.console, column, row) {
+        return Some(Pane::Console);
+    }
+    None
+}
+
+/// Індекс рядка дерева під точкою. ratatui List щоразу будується з нульовим
+/// відступом і тримає вибір у видимій зоні, тож відступ = вибір + 1 − висота.
+pub fn explorer_index_at(files: usize, selected: usize, rect: Rect, row: u16) -> Option<usize> {
+    if row <= rect.y || row + 1 >= rect.y + rect.height {
+        return None; // рамка
+    }
+    let inner_row = (row - rect.y - 1) as usize;
+    let inner_height = rect.height.saturating_sub(2) as usize;
+    let offset = selected.saturating_add(1).saturating_sub(inner_height);
+    let index = offset + inner_row;
+    (index < files).then_some(index)
+}
+
+fn draw_body(f: &mut Frame, app: &App, area: Rect) {
+    let rects = pane_rects(area, app.ast_visible);
+    draw_explorer(f, app, rects.explorer);
+    draw_editor(f, app, rects.editor);
+    if let Some(ast) = rects.ast {
+        draw_ast(f, app, ast);
+    }
+    draw_console(f, app, rects.console);
 }
 
 /// Рамка панелі: округлі кути, акцент на активній панелі, неактивні — приглушені.
@@ -149,10 +192,9 @@ fn draw_editor(f: &mut Frame, app: &App, area: Rect) {
     } else {
         app.t("editor").to_string()
     };
-    let mut shown = app.editor_buf.clone();
-    if shown.is_char_boundary(app.editor_cursor) {
-        shown.insert(app.editor_cursor, '▏');
-    }
+    // Підсвічування — display-only підказка (як пошук): маркер курсора
+    // малюється стилем теми, а не вставкою символу в текст.
+    let shown = crate::highlight::editor_lines(&app.editor_buf, app.editor_cursor, app.theme);
     // Без word-wrap курсор і прокрутка мають однозначні екранні координати.
     // Раніше довгі рядки (особливо з кирилицею) переносилися поза видимим
     // курсором: вертикальний scroll рахував лише '\n', а не переноси.
@@ -710,4 +752,43 @@ fn draw_search(f: &mut Frame, app: &App) {
 
     let body: Vec<Line> = lines.iter().map(|s| Line::from(s.clone())).collect();
     f.render_widget(Paragraph::new(body), inner);
+}
+
+#[cfg(test)]
+mod mouse_hit_tests {
+    use super::{explorer_index_at, pane_at, pane_rects};
+    use crate::app::Pane;
+    use ratatui::layout::Rect;
+
+    #[test]
+    fn clicks_land_on_the_pane_that_is_drawn_there() {
+        let area = Rect::new(0, 0, 120, 40);
+        let rects = pane_rects(area, true);
+        assert_eq!(pane_at(&rects, rects.explorer.x + 1, rects.explorer.y + 1), Some(Pane::Explorer));
+        assert_eq!(pane_at(&rects, rects.editor.x + 1, rects.editor.y + 1), Some(Pane::Editor));
+        assert_eq!(pane_at(&rects, rects.console.x + 1, rects.console.y + 1), Some(Pane::Console));
+        // Панель AST належить контексту редактора.
+        let ast = rects.ast.expect("AST видимий");
+        assert_eq!(pane_at(&rects, ast.x + 1, ast.y + 1), Some(Pane::Editor));
+        // Поза панелями — нічого.
+        assert_eq!(pane_at(&rects, 0, 0), Some(Pane::Explorer));
+    }
+
+    #[test]
+    fn explorer_row_maps_to_index_and_respects_the_border() {
+        let rect = Rect::new(0, 0, 28, 10);
+        // Вибір на початку: відступ 0, рядок 1 усередині рамки → індекс 0.
+        assert_eq!(explorer_index_at(20, 0, rect, 1), Some(0));
+        assert_eq!(explorer_index_at(20, 0, rect, 4), Some(3));
+        // Рамка й поза межами файлів — нічого.
+        assert_eq!(explorer_index_at(20, 0, rect, 0), None);
+        assert_eq!(explorer_index_at(2, 0, rect, 9), None);
+    }
+
+    #[test]
+    fn explorer_click_accounts_for_the_list_scroll_offset() {
+        let rect = Rect::new(0, 0, 28, 6); // внутрішня висота 4
+        // Вибір 9 при висоті 4 → відступ 6; перший видимий рядок — це індекс 6.
+        assert_eq!(explorer_index_at(50, 9, rect, 1), Some(6));
+    }
 }

@@ -9,6 +9,7 @@ mod app;
 mod ast;
 mod eco;
 mod engine;
+mod highlight;
 mod session;
 mod theme;
 // Той самий клієнт swarm-node, що й у GUI — жодної другої реалізації.
@@ -21,7 +22,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use crossterm::{
-    event::{self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyEventKind},
+    event::{self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste,
+        EnableMouseCapture, Event, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -30,7 +32,10 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use app::App;
 
 /// Гарантоване відновлення термінала (raw/alternate-screen) навіть при помилці.
-struct TerminalGuard { bracketed_paste: bool }
+struct TerminalGuard {
+    bracketed_paste: bool,
+    mouse_capture: bool,
+}
 
 impl TerminalGuard {
     fn enter() -> io::Result<Self> {
@@ -43,12 +48,17 @@ impl TerminalGuard {
         }
         // Legacy Windows terminals may not support bracketed paste.
         let bracketed_paste = execute!(io::stdout(), EnableBracketedPaste).is_ok();
-        Ok(TerminalGuard { bracketed_paste })
+        // Миша — щоб термінальна поверхня поводилась як GUI (клік/колесо).
+        let mouse_capture = execute!(io::stdout(), EnableMouseCapture).is_ok();
+        Ok(TerminalGuard { bracketed_paste, mouse_capture })
     }
 }
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
+        if self.mouse_capture {
+            let _ = execute!(io::stdout(), DisableMouseCapture);
+        }
         if self.bracketed_paste {
             let _ = execute!(io::stdout(), DisableBracketedPaste);
         }
@@ -141,6 +151,10 @@ fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> 
         if event::poll(std::time::Duration::from_millis(200))? {
             match event::read()? {
                 Event::Paste(text) => app.paste(&text),
+                Event::Mouse(mouse) => {
+                    let size = terminal.size()?;
+                    app.handle_mouse(mouse, ratatui::layout::Rect::new(0, 0, size.width, size.height));
+                }
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
                     if app.handle_key(key) {
                         return Ok(());
