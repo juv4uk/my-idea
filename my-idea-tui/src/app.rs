@@ -101,14 +101,19 @@ pub struct App {
     pub palette_visible: bool,
     pub palette_query: String,
     pub palette_sel: usize,
+    /// Пошук у редакторі (Ctrl+F): запит, знайдені зсуви, вибір.
+    pub search_visible: bool,
+    pub search_query: String,
+    pub search_hits: Vec<usize>,
+    pub search_sel: usize,
 }
 
 /// Команди палітри (Ctrl+P). Ключі ті самі, що в i18n; жодної другої семантики.
-const PALETTE: [&str; 18] = [
+const PALETTE: [&str; 19] = [
     "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
-    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-eco", "cmd-graph",
-    "cmd-swarm", "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en", "cmd-surface-укр",
-    "cmd-surface-en", "cmd-quit",
+    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-find", "cmd-eco",
+    "cmd-graph", "cmd-swarm", "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en",
+    "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
 ];
 
 /// Клавіші для F1: (підпис, i18n-ключ). Той самий набір, що в палітрі.
@@ -126,6 +131,29 @@ const HELP_KEYS: [(&str, &str); 12] = [
     ("Ctrl+Tab", "cmd-cycle-tab"),
     ("Ctrl+Q", "cmd-quit"),
 ];
+
+/// Усі входження `needle` у `haystack` (без урахування регістру) як байтові зсуви.
+fn find_all(haystack: &str, needle: &str) -> Vec<usize> {
+    let needle: Vec<char> = needle.chars().flat_map(char::to_lowercase).collect();
+    if needle.is_empty() {
+        return Vec::new();
+    }
+    let hay: Vec<char> = haystack.chars().collect();
+    let offsets: Vec<usize> = haystack.char_indices().map(|(b, _)| b).collect();
+    let mut hits = Vec::new();
+    if needle.len() > hay.len() {
+        return hits;
+    }
+    for start in 0..=(hay.len() - needle.len()) {
+        let same = needle.iter().enumerate().all(|(i, nc)| {
+            hay[start + i].to_lowercase().next().unwrap_or(hay[start + i]) == *nc
+        });
+        if same {
+            hits.push(offsets[start]);
+        }
+    }
+    hits
+}
 
 impl App {
     pub fn new() -> App {
@@ -181,6 +209,10 @@ impl App {
             palette_visible: false,
             palette_query: String::new(),
             palette_sel: 0,
+            search_visible: false,
+            search_query: String::new(),
+            search_hits: Vec::new(),
+            search_sel: 0,
         };
         app.sys(i18n::t(&app.language, "banner"));
         app.reload_files();
@@ -229,6 +261,7 @@ impl App {
             "cmd-provenance" => self.show_provenance(),
             "cmd-eco" => self.eco_toggle(),
             "cmd-graph" => self.graph_toggle(),
+            "cmd-find" => self.search_toggle(),
             "cmd-swarm" => self.swarm_toggle(),
             "cmd-ui-uk" => self.set_ui_language("uk"),
             "cmd-ui-de" => self.set_ui_language("de"),
@@ -367,6 +400,51 @@ impl App {
                 self.swarm_lines.push(format!("{}: {error}", self.t("swarm-unavailable")));
             }
         }
+    }
+
+    fn search_toggle(&mut self) {
+        self.search_visible = !self.search_visible;
+        if self.search_visible {
+            self.search_query.clear();
+            self.search_recompute();
+        }
+    }
+
+    fn search_recompute(&mut self) {
+        self.search_hits = find_all(&self.editor_buf, &self.search_query);
+        self.search_sel = 0;
+        self.search_jump();
+    }
+
+    fn search_jump(&mut self) {
+        if let Some(offset) = self.search_hits.get(self.search_sel) {
+            self.editor_cursor = *offset;
+        }
+    }
+
+    /// Рядки результатів пошуку: маркер, номер рядка, вміст рядка.
+    pub fn search_lines(&self) -> Vec<String> {
+        if self.search_query.is_empty() {
+            return vec![self.t("find-prompt").to_string()];
+        }
+        if self.search_hits.is_empty() {
+            return vec![self.t("find-none").to_string()];
+        }
+        let text = &self.editor_buf;
+        self.search_hits
+            .iter()
+            .enumerate()
+            .map(|(index, offset)| {
+                let line = text[..*offset].matches('\n').count() + 1;
+                let start = text[..*offset].rfind('\n').map(|p| p + 1).unwrap_or(0);
+                let end = text[*offset..]
+                    .find('\n')
+                    .map(|p| *offset + p)
+                    .unwrap_or(text.len());
+                let marker = if index == self.search_sel { "\u{203a}" } else { " " };
+                format!("{marker} {line:>4}: {}", text[start..end].trim_end())
+            })
+            .collect()
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -959,6 +1037,33 @@ impl App {
             }
             return false;
         }
+        if self.search_visible {
+            match key.code {
+                KeyCode::Esc => self.search_toggle(),
+                KeyCode::Char('f') if ctrl => self.search_toggle(),
+                KeyCode::Enter => self.search_jump(),
+                KeyCode::Up => {
+                    self.search_sel = self.search_sel.saturating_sub(1);
+                    self.search_jump();
+                }
+                KeyCode::Down => {
+                    if self.search_sel + 1 < self.search_hits.len() {
+                        self.search_sel += 1;
+                        self.search_jump();
+                    }
+                }
+                KeyCode::Backspace => {
+                    self.search_query.pop();
+                    self.search_recompute();
+                }
+                KeyCode::Char(c) if !ctrl => {
+                    self.search_query.push(c);
+                    self.search_recompute();
+                }
+                _ => {}
+            }
+            return false;
+        }
         if self.palette_visible {
             match key.code {
                 KeyCode::Esc => self.palette_toggle(),
@@ -992,6 +1097,7 @@ impl App {
             return false;
         }
         match key.code {
+            KeyCode::Char('f') if ctrl => self.search_toggle(),
             KeyCode::Char('n') if ctrl => {
                 if self.input.is_empty() {
                     self.input = ":новий ".to_string();
@@ -1952,5 +2058,23 @@ mod actual_dirty_state_tests {
         assert_eq!(std::fs::read_to_string(&path).unwrap(), original,
             "ручне скасування не перезаписує файл");
         std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::find_all;
+
+    #[test]
+    fn finds_utf8_offsets_case_insensitively_without_splitting_chars() {
+        assert_eq!(find_all("abcABC", "a"), vec![0, 3]);
+        assert_eq!(find_all("їжак їжак", "їж"), vec![0, 9]);
+        assert_eq!(find_all("abc", "abc"), vec![0]);
+        assert_eq!(find_all("abc", "x"), Vec::<usize>::new());
+        assert_eq!(find_all("abc", ""), Vec::<usize>::new());
+        // Кожен зсув — межа символу, тож зріз тексту безпечний.
+        for offset in find_all("їжак їжак", "їж") {
+            assert!("їжак їжак".is_char_boundary(offset));
+        }
     }
 }
