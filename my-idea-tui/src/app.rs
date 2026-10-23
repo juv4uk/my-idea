@@ -10,6 +10,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::engine::{self, Engine, Line, Origin};
 use crate::eco;
+use crate::swarm;
 use crate::i18n;
 use crate::ast;
 
@@ -88,6 +89,10 @@ pub struct App {
     /// Граф знань: звʼязки сусідів за спільними можливостями.
     pub graph_visible: bool,
     pub graph_scroll: usize,
+    /// Спостереження власного swarm-node (той самий клієнт, що в GUI).
+    pub swarm_visible: bool,
+    pub swarm_scroll: usize,
+    pub swarm_lines: Vec<String>,
     pub ast_visible: bool,
     pub ast_scroll: usize,
     pub ast_lines: Vec<String>,
@@ -99,11 +104,11 @@ pub struct App {
 }
 
 /// Команди палітри (Ctrl+P). Ключі ті самі, що в i18n; жодної другої семантики.
-const PALETTE: [&str; 17] = [
+const PALETTE: [&str; 18] = [
     "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
     "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-eco", "cmd-graph",
-    "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en", "cmd-surface-укр", "cmd-surface-en",
-    "cmd-quit",
+    "cmd-swarm", "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en", "cmd-surface-укр",
+    "cmd-surface-en", "cmd-quit",
 ];
 
 /// Клавіші для F1: (підпис, i18n-ключ). Той самий набір, що в палітрі.
@@ -166,6 +171,9 @@ impl App {
             eco_sel: 0,
             graph_visible: false,
             graph_scroll: 0,
+            swarm_visible: false,
+            swarm_scroll: 0,
+            swarm_lines: Vec::new(),
             ast_visible: false,
             ast_scroll: 0,
             ast_lines: Vec::new(),
@@ -221,6 +229,7 @@ impl App {
             "cmd-provenance" => self.show_provenance(),
             "cmd-eco" => self.eco_toggle(),
             "cmd-graph" => self.graph_toggle(),
+            "cmd-swarm" => self.swarm_toggle(),
             "cmd-ui-uk" => self.set_ui_language("uk"),
             "cmd-ui-de" => self.set_ui_language("de"),
             "cmd-ui-en" => self.set_ui_language("en"),
@@ -334,6 +343,30 @@ impl App {
                 format!("{:<26} {} \u{2192} {}", edge.name, exporters, importers)
             })
             .collect()
+    }
+
+    fn swarm_toggle(&mut self) {
+        self.swarm_visible = !self.swarm_visible;
+        self.swarm_scroll = 0;
+        if self.swarm_visible {
+            self.refresh_swarm();
+        }
+    }
+
+    /// Спитати власний swarm-node `(status)` і показати сиру відповідь + розбір SENS.
+    pub fn refresh_swarm(&mut self) {
+        self.swarm_lines.clear();
+        self.swarm_lines.push(format!("{} 127.0.0.1:9104", self.t("swarm-endpoint")));
+        match swarm::query("(status)", None) {
+            Ok(raw) => {
+                self.swarm_lines.push(raw.clone());
+                self.swarm_lines.push(String::new());
+                self.swarm_lines.extend(ast::render(&raw, &self.language));
+            }
+            Err(error) => {
+                self.swarm_lines.push(format!("{}: {error}", self.t("swarm-unavailable")));
+            }
+        }
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -877,6 +910,18 @@ impl App {
         if !(ctrl && matches!(key.code, KeyCode::Char('q' | 'c'))) {
             self.quit_armed = false;
         }
+        if self.swarm_visible {
+            match key.code {
+                KeyCode::Esc => self.swarm_toggle(),
+                KeyCode::Char('r') if ctrl => self.swarm_toggle(),
+                KeyCode::Up => self.swarm_scroll = self.swarm_scroll.saturating_sub(1),
+                KeyCode::Down => self.swarm_scroll = self.swarm_scroll.saturating_add(1),
+                KeyCode::PageUp => self.swarm_scroll = self.swarm_scroll.saturating_sub(6),
+                KeyCode::PageDown => self.swarm_scroll = self.swarm_scroll.saturating_add(6),
+                _ => {}
+            }
+            return false;
+        }
         if self.graph_visible {
             match key.code {
                 KeyCode::Esc => self.graph_toggle(),
@@ -973,6 +1018,7 @@ impl App {
             KeyCode::Esc => self.pane = Pane::Explorer,
             KeyCode::Char('e') if ctrl => self.eco_toggle(),
             KeyCode::Char('g') if ctrl => self.graph_toggle(),
+            KeyCode::Char('r') if ctrl => self.swarm_toggle(),
             KeyCode::F(1) => self.help_toggle(),
             KeyCode::F(5) => self.run_current(),
             KeyCode::F(6) => {

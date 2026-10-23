@@ -9,6 +9,9 @@ mod app;
 mod ast;
 mod eco;
 mod engine;
+// Той самий клієнт swarm-node, що й у GUI — жодної другої реалізації.
+#[path = "../../src-tauri/src/swarm.rs"]
+mod swarm;
 mod i18n;
 mod ui;
 
