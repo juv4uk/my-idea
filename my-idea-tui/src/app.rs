@@ -10,6 +10,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::engine::{self, Engine, Line, Origin};
 use crate::eco;
+use crate::session;
 use crate::swarm;
 use crate::theme::Theme;
 use crate::i18n;
@@ -466,6 +467,44 @@ impl App {
     /// Перемкнути тему оформлення (світла/темна).
     pub fn toggle_theme(&mut self) {
         self.theme = self.theme.toggle();
+    }
+
+    /// Знімок сесії: мова, тема й вкладки з поточним текстом і курсором.
+    pub fn session(&mut self) -> session::Session {
+        self.store_active_tab();
+        session::Session {
+            language: self.language.clone(),
+            theme: self.theme,
+            active: self.active_tab,
+            tabs: self.tabs.iter().map(|tab| session::SessionTab {
+                path: tab.path.clone(),
+                text: tab.text.clone(),
+                cursor: tab.cursor,
+            }).collect(),
+        }
+    }
+
+    /// Відновити сесію. `original` читаємо з диска, тож збережені незбережені
+    /// правки лишаються «брудними», а не тихо зникають.
+    pub fn restore(&mut self, snapshot: session::Session) {
+        self.language = snapshot.language;
+        self.theme = snapshot.theme;
+        if snapshot.tabs.is_empty() {
+            return;
+        }
+        self.tabs = snapshot.tabs.into_iter().map(|tab| {
+            let original = std::fs::read_to_string(&tab.path).unwrap_or_default();
+            OpenDocument {
+                path: tab.path,
+                text: tab.text,
+                cursor: tab.cursor,
+                original,
+                undo: Vec::new(),
+                redo: Vec::new(),
+            }
+        }).collect();
+        self.active_tab = snapshot.active.min(self.tabs.len() - 1);
+        self.show_tab(self.active_tab);
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -2169,5 +2208,39 @@ mod tree_tests {
             .expect("дитина розгорнутого каталогу");
         assert_eq!(depths[index], 1);
         let _ = std::fs::remove_dir_all(&base);
+    }
+}
+
+#[cfg(test)]
+mod session_tests {
+    use super::*;
+
+    #[test]
+    fn session_restores_open_tabs_and_theme_into_a_fresh_app() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "my-idea-tui-session-{}-{nonce}", std::process::id(),
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let file = dir.join("програма.лісп");
+        std::fs::write(&file, "(додати 2 3)\n").unwrap();
+
+        let mut first = App::new_in(dir.clone());
+        let index = first.files.iter().position(|entry| entry == &file).expect("файл у Explorer");
+        first.file_sel = index;
+        first.open_selected();
+        first.toggle_theme();
+        let snapshot = first.session();
+        assert_eq!(snapshot.tabs.len(), 1);
+        assert_eq!(snapshot.theme, crate::theme::Theme::Light);
+
+        let mut second = App::new_in(dir.clone());
+        second.restore(snapshot);
+        assert_eq!(second.editor_path.as_deref(), Some(file.as_path()));
+        assert_eq!(second.editor_buf, "(додати 2 3)\n");
+        assert_eq!(second.theme, crate::theme::Theme::Light);
+        assert!(!second.dirty);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

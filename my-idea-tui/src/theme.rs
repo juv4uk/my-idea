@@ -89,6 +89,14 @@ impl Theme {
             Theme::Light => "light",
         }
     }
+
+    /// Тема за машинною назвою (невідома → темна).
+    pub fn from_name(name: &str) -> Theme {
+        match name {
+            "light" => Theme::Light,
+            _ => Theme::Dark,
+        }
+    }
 }
 
 #[cfg(test)]

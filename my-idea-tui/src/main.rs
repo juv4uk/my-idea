@@ -9,6 +9,7 @@ mod app;
 mod ast;
 mod eco;
 mod engine;
+mod session;
 mod theme;
 // Той самий клієнт swarm-node, що й у GUI — жодної другої реалізації.
 #[path = "../../src-tauri/src/swarm.rs"]
@@ -109,6 +110,11 @@ fn open_startup_file(app: &mut App, file: &Path) -> io::Result<()> {
 fn main() -> io::Result<()> {
     let startup = workspace_from_args()?;
     let mut app = App::new_in(startup.workspace);
+    // Сесія — стан хоста: спершу відновлюємо вкладки, потім відкриваємо явно
+    // вказаний файл (він перемагає).
+    if let Some(snapshot) = session::session_path().and_then(|path| session::Session::load(&path)) {
+        app.restore(snapshot);
+    }
     if let Some(file) = startup.file {
         open_startup_file(&mut app, &file)?;
     }
@@ -117,7 +123,13 @@ fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
-    run(&mut terminal, &mut app)
+    let result = run(&mut terminal, &mut app);
+    // Зберігаємо сесію на виході (і штатному, і після помилки); невдача запису
+    // не має закривати застосунок із помилкою.
+    if let Some(path) = session::session_path() {
+        let _ = app.session().save(&path);
+    }
+    result
 }
 
 fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> io::Result<()> {
