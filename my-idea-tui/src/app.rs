@@ -95,7 +95,7 @@ pub struct App {
     pub swarm_lines: Vec<String>,
     pub ast_visible: bool,
     pub ast_scroll: usize,
-    pub ast_lines: Vec<String>,
+    pub ast_lines: Vec<ast::AstLine>,
     ast_cached_source: String,
     /// Палітра команд (Ctrl+P): той самий набір дій, що й клавіші.
     pub palette_visible: bool,
@@ -445,6 +445,11 @@ impl App {
                 format!("{marker} {line:>4}: {}", text[start..end].trim_end())
             })
             .collect()
+    }
+
+    /// Голова найглибшої форми під курсором (живий AST, reader pinned SENS).
+    pub fn cursor_head(&self) -> Option<String> {
+        ast::head_at_cursor(&self.editor_buf, self.editor_cursor)
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -976,7 +981,7 @@ impl App {
             self.ast_cached_source.clear();
             self.ast_scroll = 0;
         } else if self.ast_lines.is_empty() || self.ast_cached_source != self.editor_buf {
-            self.ast_lines = ast::render(&self.editor_buf, &self.language);
+            self.ast_lines = ast::render_spans(&self.editor_buf, &self.language);
             self.ast_cached_source.clone_from(&self.editor_buf);
             self.ast_scroll = 0;
         }
@@ -1966,13 +1971,17 @@ mod ast_visibility_tests {
         app.open_selected();
         app.ast_visible = true;
         app.refresh_ast();
-        assert!(app.ast_lines.iter().any(|s| s.contains("Список (3) · умова")));
+        assert!(app.ast_lines.iter().any(|line| line.text.contains("Список (3) · умова")));
         app.submit(":інтерфейс de");
         app.refresh_ast();
-        assert!(app.ast_lines.iter().any(|s| s.contains("Liste (3) · умова")), "{:?}", app.ast_lines);
+        assert!(
+            app.ast_lines.iter().any(|line| line.text.contains("Liste (3) · умова")),
+            "{:?}",
+            app.ast_lines
+        );
         app.submit(":інтерфейс en");
         app.refresh_ast();
-        assert!(app.ast_lines.iter().any(|s| s.contains("List (3) · умова")), "{:?}", app.ast_lines);
+        assert!(app.ast_lines.iter().any(|l| l.text.contains("List (3) · умова")), "{:?}", app.ast_lines);
         assert_eq!(app.editor_buf, source);
         assert_eq!(std::fs::read_to_string(&file).unwrap(), source);
         assert!(app.repl_engine.is_none(), "UI-only switch cannot invoke SENS");
@@ -1995,7 +2004,7 @@ mod ast_visibility_tests {
 
         let _ = app.handle_key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
         assert!(app.ast_visible);
-        assert!(app.ast_lines.iter().any(|l| l.contains("мама")), "{:?}", app.ast_lines);
+        assert!(app.ast_lines.iter().any(|l| l.text.contains("мама")), "{:?}", app.ast_lines);
         let cached = app.ast_cached_source.clone();
 
         let _ = app.handle_key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
@@ -2004,7 +2013,7 @@ mod ast_visibility_tests {
         assert_eq!(app.ast_cached_source, cached, "прихований AST не перепарсить джерело");
 
         let _ = app.handle_key(KeyEvent::new(KeyCode::F(6), KeyModifiers::NONE));
-        assert!(app.ast_lines.iter().any(|l| l.contains("батько")), "{:?}", app.ast_lines);
+        assert!(app.ast_lines.iter().any(|l| l.text.contains("батько")), "{:?}", app.ast_lines);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

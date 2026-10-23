@@ -215,11 +215,30 @@ fn console_visual_rows(text: &str, width: usize) -> Vec<String> {
 fn draw_ast(f: &mut Frame, app: &App, area: Rect) {
     let visible = area.height.saturating_sub(2) as usize;
     let start = app.ast_scroll.min(app.ast_lines.len().saturating_sub(visible));
-    let lines = app.ast_lines.iter().skip(start).take(visible)
-        .cloned().collect::<Vec<_>>().join("\n");
+    // Живий AST: рядок, чий вузол містить курсор редактора, підсвічується.
+    let body: Vec<Line> = app
+        .ast_lines
+        .iter()
+        .skip(start)
+        .take(visible)
+        .map(|line| {
+            let here = line
+                .span
+                .map(|(begin, end)| begin <= app.editor_cursor && app.editor_cursor <= end)
+                .unwrap_or(false);
+            let style = if here {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            Line::styled(line.text.clone(), style)
+        })
+        .collect();
     f.render_widget(
-        Paragraph::new(lines)
-            .block(pane_block(app.t("ast").to_string(), false)),
+        Paragraph::new(body).block(pane_block(app.t("ast").to_string(), false)),
         area,
     );
 }
@@ -278,12 +297,16 @@ fn draw_status(f: &mut Frame, app: &App, area: Rect) {
         Some(sha) if sha.len() >= 8 => format!("SENS {} \u{2502} ", &sha[..8]),
         _ => String::new(),
     };
+    let head = match app.cursor_head() {
+        Some(head) => format!("\u{2316} {head} \u{2502} "),
+        None => String::new(),
+    };
     let text = if area.width < 76 {
         format!(" my-idea-tui \u{2502} {}{} \u{2502} {} \u{2502} {}{} \u{2502} Ctrl+S F5 F6 F9",
             provenance, app.pane_label(), app.language, run, position)
     } else {
         format!(
-            " my-idea-tui \u{2502} {}{} \u{2502} {} \u{2502} {}{} \u{2502} :інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F6 AST  F9 {} ",
+            " my-idea-tui \u{2502} {}{} \u{2502} {} \u{2502} {}{} \u{2502} {head}:інтерфейс uk|de|en  :мова укр|ук|en|sa|core  Ctrl+S {}  F5 {}  F6 AST  F9 {} ",
             provenance, app.pane_label(), app.language, run, position, app.t("save"), app.t("run"), app.t("stop")
         )
     };

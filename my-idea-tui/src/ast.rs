@@ -3,9 +3,31 @@
 use sens::{parse, Expr, ExprKind};
 use crate::i18n;
 
+/// Рядок AST разом зі спаном вузла, який його породив, — для «живого» підсвічування.
+#[derive(Clone, Debug)]
+pub struct AstLine {
+    pub text: String,
+    pub span: Option<(usize, usize)>,
+}
+
+impl AstLine {
+    fn plain(text: String) -> Self {
+        AstLine { text, span: None }
+    }
+}
+
+/// Текстове подання AST (панель, розбір відповідей swarm-node).
 pub fn render(source: &str, lang: &str) -> Vec<String> {
+    render_spans(source, lang)
+        .into_iter()
+        .map(|line| line.text)
+        .collect()
+}
+
+/// Той самий обхід, але зі спанами вузлів (щоб підсвітити форму під курсором).
+pub fn render_spans(source: &str, lang: &str) -> Vec<AstLine> {
     match parse(source) {
-        Ok(forms) if forms.is_empty() => vec![i18n::t(lang, "ast-empty").to_owned()],
+        Ok(forms) if forms.is_empty() => vec![AstLine::plain(i18n::t(lang, "ast-empty").to_owned())],
         Ok(forms) => {
             let mut lines = Vec::new();
             for expr in &forms {
@@ -15,45 +37,114 @@ pub fn render(source: &str, lang: &str) -> Vec<String> {
         }
         Err(error) => {
             let (line, column) = error.line_col(source);
-            let mut lines = vec![format!("{}: {}:{}", i18n::t(lang, "ast-syntax"), line, column)];
-            lines.extend(error.render(source).lines().map(str::to_owned));
+            let mut lines = vec![AstLine::plain(format!(
+                "{}: {}:{}",
+                i18n::t(lang, "ast-syntax"),
+                line,
+                column
+            ))];
+            lines.extend(
+                error
+                    .render(source)
+                    .lines()
+                    .map(|raw| AstLine::plain(raw.to_owned())),
+            );
             lines
         }
     }
 }
 
-fn append_expr(expr: &Expr, source: &str, lang: &str, depth: usize, lines: &mut Vec<String>) {
-    if lines.len() >= 2500 { return; }
+/// Голова найглибшої форми, що містить байтовий зсув курсора (живий AST).
+pub fn head_at_cursor(source: &str, cursor: usize) -> Option<String> {
+    let forms = parse(source).ok()?;
+    let mut found = None;
+    for expr in &forms {
+        visit_at_cursor(expr, source, cursor, &mut found);
+    }
+    found
+}
+
+fn visit_at_cursor(expr: &Expr, source: &str, cursor: usize, found: &mut Option<String>) {
+    if !(expr.span.start <= cursor && cursor <= expr.span.end) {
+        return;
+    }
+    match &expr.kind {
+        ExprKind::List(items) | ExprKind::Call(_, items) | ExprKind::DomainCall(_, items) => {
+            if let Some(raw) = items
+                .first()
+                .and_then(|first| source.get(first.span.start..first.span.end))
+            {
+                let head = raw.trim();
+                if !head.is_empty() {
+                    *found = Some(head.chars().take(48).collect());
+                }
+            }
+            for item in items.iter() {
+                visit_at_cursor(item, source, cursor, found);
+            }
+        }
+        ExprKind::Pair(head, tail) => {
+            visit_at_cursor(head, source, cursor, found);
+            visit_at_cursor(tail, source, cursor, found);
+        }
+        _ => {}
+    }
+}
+
+fn append_expr(expr: &Expr, source: &str, lang: &str, depth: usize, lines: &mut Vec<AstLine>) {
+    if lines.len() >= 2500 {
+        return;
+    }
+    let span = Some((expr.span.start, expr.span.end));
     let indent = "  ".repeat(depth.min(24));
     match &expr.kind {
         ExprKind::List(items) => {
             // Reader уже визначив межі першого елемента. Беремо написання
             // виключно з оригінального .lisp, не вигадуємо SENS/доменний код.
             // Це важливо для українських назв функцій і вкладених форм.
-            let head = items.first()
+            let head = items
+                .first()
                 .and_then(|first| source.get(first.span.start..first.span.end))
-                .map(|raw| raw.chars().take(48).collect::<String>().replace('\n', "↵"));
+                .map(|raw| raw.chars().take(48).collect::<String>().replace('\n', "\u{21b5}"));
             let label = match head {
-                Some(head) if !head.is_empty() => format!("{} ({}) · {head}", i18n::t(lang, "ast-list"), items.len()),
+                Some(head) if !head.is_empty() => {
+                    format!("{} ({}) \u{b7} {head}", i18n::t(lang, "ast-list"), items.len())
+                }
                 _ => format!("{} ({})", i18n::t(lang, "ast-list"), items.len()),
             };
-            lines.push(format!("{indent}{label}"));
-            for item in items.iter() { append_expr(item, source, lang, depth + 1, lines); }
+            lines.push(AstLine {
+                text: format!("{indent}{label}"),
+                span,
+            });
+            for item in items.iter() {
+                append_expr(item, source, lang, depth + 1, lines);
+            }
         }
         ExprKind::Pair(head, tail) => {
-            lines.push(format!("{indent}{}", i18n::t(lang, "ast-pair")));
+            lines.push(AstLine {
+                text: format!("{indent}{}", i18n::t(lang, "ast-pair")),
+                span,
+            });
             append_expr(head, source, lang, depth + 1, lines);
             append_expr(tail, source, lang, depth + 1, lines);
         }
         ExprKind::Call(_, args) | ExprKind::DomainCall(_, args) => {
-            lines.push(format!("{indent}{} ({})", i18n::t(lang, "ast-call"), args.len()));
-            for arg in args.iter() { append_expr(arg, source, lang, depth + 1, lines); }
+            lines.push(AstLine {
+                text: format!("{indent}{} ({})", i18n::t(lang, "ast-call"), args.len()),
+                span,
+            });
+            for arg in args.iter() {
+                append_expr(arg, source, lang, depth + 1, lines);
+            }
         }
         _ => {
             // Показуємо оригінальну українську проєкцію, а не видумані доменні коди.
             let raw = source.get(expr.span.start..expr.span.end).unwrap_or("");
-            let label: String = raw.chars().take(80).collect::<String>().replace('\n', "↵");
-            lines.push(format!("{indent}{label}"));
+            let label: String = raw.chars().take(80).collect::<String>().replace('\n', "\u{21b5}");
+            lines.push(AstLine {
+                text: format!("{indent}{label}"),
+                span,
+            });
         }
     }
 }
@@ -102,5 +193,20 @@ mod tests {
         assert_eq!(render("", "en"), vec!["Empty file"]);
         assert!(render("(атом? 'мама)\n(", "en")
             .iter().any(|s| s.starts_with("SENS syntax: 2:1")));
+    }
+}
+
+#[cfg(test)]
+mod cursor_tests {
+    use super::head_at_cursor;
+
+    #[test]
+    fn finds_innermost_form_head_at_cursor() {
+        let source = "(визначити площа (добуток 3 4))\n";
+        let inner = source.find("добуток").unwrap() + 1;
+        assert_eq!(head_at_cursor(source, inner).as_deref(), Some("добуток"));
+        let outer = source.find("визначити").unwrap() + 1;
+        assert_eq!(head_at_cursor(source, outer).as_deref(), Some("визначити"));
+        assert_eq!(head_at_cursor("   ", 1), None);
     }
 }
