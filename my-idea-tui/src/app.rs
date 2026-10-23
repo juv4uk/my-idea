@@ -85,6 +85,9 @@ pub struct App {
     pub siblings: Vec<eco::Sibling>,
     pub eco_visible: bool,
     pub eco_sel: usize,
+    /// Граф знань: звʼязки сусідів за спільними можливостями.
+    pub graph_visible: bool,
+    pub graph_scroll: usize,
     pub ast_visible: bool,
     pub ast_scroll: usize,
     pub ast_lines: Vec<String>,
@@ -96,10 +99,11 @@ pub struct App {
 }
 
 /// Команди палітри (Ctrl+P). Ключі ті самі, що в i18n; жодної другої семантики.
-const PALETTE: [&str; 16] = [
+const PALETTE: [&str; 17] = [
     "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
-    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-eco", "cmd-ui-uk",
-    "cmd-ui-de", "cmd-ui-en", "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
+    "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-eco", "cmd-graph",
+    "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en", "cmd-surface-укр", "cmd-surface-en",
+    "cmd-quit",
 ];
 
 /// Клавіші для F1: (підпис, i18n-ключ). Той самий набір, що в палітрі.
@@ -160,6 +164,8 @@ impl App {
             siblings: Vec::new(),
             eco_visible: false,
             eco_sel: 0,
+            graph_visible: false,
+            graph_scroll: 0,
             ast_visible: false,
             ast_scroll: 0,
             ast_lines: Vec::new(),
@@ -214,6 +220,7 @@ impl App {
             "cmd-cycle-tab" => self.cycle_tab(false),
             "cmd-provenance" => self.show_provenance(),
             "cmd-eco" => self.eco_toggle(),
+            "cmd-graph" => self.graph_toggle(),
             "cmd-ui-uk" => self.set_ui_language("uk"),
             "cmd-ui-de" => self.set_ui_language("de"),
             "cmd-ui-en" => self.set_ui_language("en"),
@@ -301,6 +308,30 @@ impl App {
                     self.t(s.note).to_string()
                 };
                 format!("{:<18} {:<26} {}", s.name, status, s.id)
+            })
+            .collect()
+    }
+
+    fn graph_toggle(&mut self) {
+        self.graph_visible = !self.graph_visible;
+        self.graph_scroll = 0;
+        if self.graph_visible {
+            self.refresh_siblings();
+        }
+    }
+
+    /// Рядки графа знань: можливість, експортери, імпортери.
+    pub fn graph_lines(&self) -> Vec<String> {
+        let edges = eco::capabilities(&self.siblings);
+        if edges.is_empty() {
+            return vec![self.t("graph-empty").to_string()];
+        }
+        edges
+            .iter()
+            .map(|edge| {
+                let exporters = if edge.exporters.is_empty() { "\u{2014}".to_string() } else { edge.exporters.join(", ") };
+                let importers = if edge.importers.is_empty() { "\u{2014}".to_string() } else { edge.importers.join(", ") };
+                format!("{:<26} {} \u{2192} {}", edge.name, exporters, importers)
             })
             .collect()
     }
@@ -846,6 +877,18 @@ impl App {
         if !(ctrl && matches!(key.code, KeyCode::Char('q' | 'c'))) {
             self.quit_armed = false;
         }
+        if self.graph_visible {
+            match key.code {
+                KeyCode::Esc => self.graph_toggle(),
+                KeyCode::Char('g') if ctrl => self.graph_toggle(),
+                KeyCode::Up => self.graph_scroll = self.graph_scroll.saturating_sub(1),
+                KeyCode::Down => self.graph_scroll = self.graph_scroll.saturating_add(1),
+                KeyCode::PageUp => self.graph_scroll = self.graph_scroll.saturating_sub(6),
+                KeyCode::PageDown => self.graph_scroll = self.graph_scroll.saturating_add(6),
+                _ => {}
+            }
+            return false;
+        }
         if self.eco_visible {
             match key.code {
                 KeyCode::Esc => self.eco_toggle(),
@@ -929,6 +972,7 @@ impl App {
             },
             KeyCode::Esc => self.pane = Pane::Explorer,
             KeyCode::Char('e') if ctrl => self.eco_toggle(),
+            KeyCode::Char('g') if ctrl => self.graph_toggle(),
             KeyCode::F(1) => self.help_toggle(),
             KeyCode::F(5) => self.run_current(),
             KeyCode::F(6) => {

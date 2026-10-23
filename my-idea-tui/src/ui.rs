@@ -29,6 +29,9 @@ pub fn draw(f: &mut Frame, app: &App) {
     if app.eco_visible {
         draw_eco(f, app);
     }
+    if app.graph_visible {
+        draw_graph(f, app);
+    }
 }
 
 fn draw_body(f: &mut Frame, app: &App, area: Rect) {
@@ -554,4 +557,42 @@ fn draw_eco(f: &mut Frame, app: &App) {
         )
         .highlight_symbol("> ");
     f.render_stateful_widget(list, inner, &mut state);
+}
+
+/// Граф знань (Ctrl+G): можливість, хто експортує, хто імпортує.
+fn draw_graph(f: &mut Frame, app: &App) {
+    let lines = app.graph_lines();
+    let area = f.area();
+    let width = area.width.saturating_sub(4).min(80).max(28);
+    let height = area
+        .height
+        .saturating_sub(2)
+        .min(lines.len() as u16 + 4)
+        .max(4);
+    let rect = Rect {
+        x: area.x + area.width.saturating_sub(width) / 2,
+        y: area.y + area.height.saturating_sub(height) / 2,
+        width,
+        height,
+    };
+    let inner = Rect {
+        x: rect.x + 1,
+        y: rect.y + 1,
+        width: rect.width.saturating_sub(2),
+        height: rect.height.saturating_sub(2),
+    };
+    let title = format!("{} \u{b7} {}", app.t("graph"), app.t("graph-hint"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .title(format!(" {title} "))
+        .border_style(Style::default().fg(Color::Magenta));
+    f.render_widget(block, rect);
+
+    let body: Vec<Line> = lines
+        .iter()
+        .skip(app.graph_scroll)
+        .map(|s| Line::from(s.clone()))
+        .collect();
+    f.render_widget(Paragraph::new(body), inner);
 }
