@@ -110,6 +110,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("uk", "find-prompt") => "введіть рядок пошуку…",
         ("uk", "find-none") => "нічого не знайдено",
         ("uk", "find-hits") => "збігів",
+        ("uk", "cmd-theme") => "Тема: світла/темна",
         ("de", "files") => "Explorer",
         ("de", "ast") => "AST / SENS",
         ("de", "ast-empty") => "Leere Datei",
@@ -212,6 +213,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("de", "find-prompt") => "Suchtext eingeben…",
         ("de", "find-none") => "nichts gefunden",
         ("de", "find-hits") => "Treffer",
+        ("de", "cmd-theme") => "Thema: hell/dunkel",
         ("en", "files") => "Explorer",
         ("en", "ast") => "AST / SENS",
         ("en", "ast-empty") => "Empty file",
@@ -314,6 +316,7 @@ pub fn t<'a>(lang: &str, key: &'a str) -> &'a str {
         ("en", "find-prompt") => "type to search…",
         ("en", "find-none") => "no matches",
         ("en", "find-hits") => "matches",
+        ("en", "cmd-theme") => "Theme: light/dark",
         _ => key,
     }
 }

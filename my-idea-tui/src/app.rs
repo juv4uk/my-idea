@@ -11,6 +11,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::engine::{self, Engine, Line, Origin};
 use crate::eco;
 use crate::swarm;
+use crate::theme::Theme;
 use crate::i18n;
 use crate::ast;
 
@@ -110,13 +111,15 @@ pub struct App {
     pub search_query: String,
     pub search_hits: Vec<usize>,
     pub search_sel: usize,
+    /// Тема оформлення (світла/темна) — лише палітра, семантику не чіпає.
+    pub theme: Theme,
 }
 
 /// Команди палітри (Ctrl+P). Ключі ті самі, що в i18n; жодної другої семантики.
-const PALETTE: [&str; 19] = [
+const PALETTE: [&str; 20] = [
     "cmd-save", "cmd-run", "cmd-stop", "cmd-close-tab", "cmd-undo", "cmd-redo",
     "cmd-toggle-ast", "cmd-cycle-tab", "cmd-provenance", "cmd-find", "cmd-eco",
-    "cmd-graph", "cmd-swarm", "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en",
+    "cmd-graph", "cmd-swarm", "cmd-theme", "cmd-ui-uk", "cmd-ui-de", "cmd-ui-en",
     "cmd-surface-укр", "cmd-surface-en", "cmd-quit",
 ];
 
@@ -219,6 +222,7 @@ impl App {
             search_query: String::new(),
             search_hits: Vec::new(),
             search_sel: 0,
+            theme: Theme::Dark,
         };
         app.sys(i18n::t(&app.language, "banner"));
         app.reload_files();
@@ -267,6 +271,7 @@ impl App {
             "cmd-provenance" => self.show_provenance(),
             "cmd-eco" => self.eco_toggle(),
             "cmd-graph" => self.graph_toggle(),
+            "cmd-theme" => self.toggle_theme(),
             "cmd-find" => self.search_toggle(),
             "cmd-swarm" => self.swarm_toggle(),
             "cmd-ui-uk" => self.set_ui_language("uk"),
@@ -456,6 +461,11 @@ impl App {
     /// Голова найглибшої форми під курсором (живий AST, reader pinned SENS).
     pub fn cursor_head(&self) -> Option<String> {
         ast::head_at_cursor(&self.editor_buf, self.editor_cursor)
+    }
+
+    /// Перемкнути тему оформлення (світла/темна).
+    pub fn toggle_theme(&mut self) {
+        self.theme = self.theme.toggle();
     }
 
     pub fn pane_label(&self) -> &'static str {
@@ -1118,6 +1128,7 @@ impl App {
         }
         match key.code {
             KeyCode::Char('f') if ctrl => self.search_toggle(),
+            KeyCode::Char('t') if ctrl => self.toggle_theme(),
             KeyCode::Char('n') if ctrl => {
                 if self.input.is_empty() {
                     self.input = ":новий ".to_string();

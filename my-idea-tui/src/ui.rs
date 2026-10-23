@@ -4,7 +4,7 @@
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
     Frame,
@@ -89,11 +89,11 @@ fn draw_body(f: &mut Frame, app: &App, area: Rect) {
 }
 
 /// Рамка панелі: округлі кути, акцент на активній панелі, неактивні — приглушені.
-fn pane_block(title: String, active: bool) -> Block<'static> {
+fn pane_block(title: String, active: bool, theme: crate::theme::Theme) -> Block<'static> {
     let (colour, modifier) = if active {
-        (Color::Cyan, Modifier::BOLD)
+        (theme.accent(), Modifier::BOLD)
     } else {
-        (Color::DarkGray, Modifier::empty())
+        (theme.inactive(), Modifier::empty())
     };
     Block::default()
         .borders(Borders::ALL)
@@ -118,7 +118,7 @@ fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
                 };
                 (
                     format!("{indent}{marker} {name}/"),
-                    Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD),
+                    Style::default().fg(app.theme.info()).add_modifier(Modifier::BOLD),
                 )
             } else {
                 (format!("{indent}   {name}"), Style::default())
@@ -132,11 +132,11 @@ fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
     }
     let heading = format!("{} · {}", app.t("files"), app.explorer_dir.display());
     let list = List::new(items)
-        .block(pane_block(heading, app.pane == Pane::Explorer))
+        .block(pane_block(heading, app.pane == Pane::Explorer, app.theme))
         .highlight_style(
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
+                .fg(app.theme.accent_fg())
+                .bg(app.theme.accent())
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("› ");
@@ -160,7 +160,7 @@ fn draw_editor(f: &mut Frame, app: &App, area: Rect) {
         &app.editor_buf, app.editor_cursor, area.height, area.width,
     );
     let para = Paragraph::new(shown)
-        .block(pane_block(title, app.pane == Pane::Editor))
+        .block(pane_block(title, app.pane == Pane::Editor, app.theme))
         .scroll((vertical, horizontal));
     f.render_widget(para, area);
 }
@@ -235,8 +235,8 @@ fn draw_ast(f: &mut Frame, app: &App, area: Rect) {
                 .unwrap_or(false);
             let style = if here {
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Cyan)
+                    .fg(app.theme.accent_fg())
+                    .bg(app.theme.accent())
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
@@ -245,7 +245,7 @@ fn draw_ast(f: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
     f.render_widget(
-        Paragraph::new(body).block(pane_block(app.t("ast").to_string(), false)),
+        Paragraph::new(body).block(pane_block(app.t("ast").to_string(), false, app.theme)),
         area,
     );
 }
@@ -269,8 +269,8 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     for log in &app.console {
         let style = match log.origin {
             Origin::Stdout => Style::default(),
-            Origin::Stderr => Style::default().fg(Color::Red),
-            Origin::System => Style::default().fg(Color::DarkGray),
+            Origin::Stderr => Style::default().fg(app.theme.error()),
+            Origin::System => Style::default().fg(app.theme.inactive()),
         };
         for visual in console_visual_rows(&log.text, inner_width) {
             lines.push(Line::styled(visual, style));
@@ -278,7 +278,7 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     }
     let prompt = repl_prompt(&app.input, app.input_cursor, app.pane == Pane::Console);
     for visual in console_visual_rows(&prompt, inner_width) {
-        lines.push(Line::styled(visual, Style::default().fg(Color::Yellow)));
+        lines.push(Line::styled(visual, Style::default().fg(app.theme.warn())));
     }
 
     // Після явного перенесення кожен елемент lines — один екранний рядок.
@@ -287,7 +287,7 @@ fn draw_console(f: &mut Frame, app: &App, area: Rect) {
     let visible = area.height.saturating_sub(2) as usize;
     let scroll = console_scroll_start(lines.len(), visible, app.console_scroll_back);
     let para = Paragraph::new(lines)
-        .block(pane_block(app.t("console").to_string(), app.pane == Pane::Console))
+        .block(pane_block(app.t("console").to_string(), app.pane == Pane::Console, app.theme))
         .scroll((scroll, 0));
     f.render_widget(para, area);
 }
@@ -473,7 +473,7 @@ fn draw_palette(f: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .title(format!(" {title} "))
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(Color::Cyan));
+        .border_style(Style::default().fg(app.theme.accent()));
     f.render_widget(block, rect);
 
     let rows = Layout::default()
@@ -500,8 +500,8 @@ fn draw_palette(f: &mut Frame, app: &App) {
     let list = List::new(list_items)
         .highlight_style(
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
+                .fg(app.theme.accent_fg())
+                .bg(app.theme.accent())
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("> ");
@@ -535,7 +535,7 @@ fn draw_help(f: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .title(format!(" {title} "))
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(Color::Green));
+        .border_style(Style::default().fg(app.theme.ok()));
     f.render_widget(block, rect);
 
     let body: Vec<Line> = lines
@@ -573,7 +573,7 @@ fn draw_eco(f: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .title(format!(" {title} "))
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(Color::Yellow));
+        .border_style(Style::default().fg(app.theme.warn()));
     f.render_widget(block, rect);
 
     let items: Vec<ListItem> = lines
@@ -587,8 +587,8 @@ fn draw_eco(f: &mut Frame, app: &App) {
     let list = List::new(items)
         .highlight_style(
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Yellow)
+                .fg(app.theme.accent_fg())
+                .bg(app.theme.warn())
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("> ");
@@ -622,7 +622,7 @@ fn draw_graph(f: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .title(format!(" {title} "))
-        .border_style(Style::default().fg(Color::Magenta));
+        .border_style(Style::default().fg(app.theme.graph()));
     f.render_widget(block, rect);
 
     let body: Vec<Line> = lines
@@ -659,7 +659,7 @@ fn draw_swarm(f: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .title(format!(" {title} "))
-        .border_style(Style::default().fg(Color::Blue));
+        .border_style(Style::default().fg(app.theme.info()));
     f.render_widget(block, rect);
 
     let body: Vec<Line> = app
@@ -705,7 +705,7 @@ fn draw_search(f: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .title(format!(" {title} "))
-        .border_style(Style::default().fg(Color::Cyan));
+        .border_style(Style::default().fg(app.theme.accent()));
     f.render_widget(block, rect);
 
     let body: Vec<Line> = lines.iter().map(|s| Line::from(s.clone())).collect();
