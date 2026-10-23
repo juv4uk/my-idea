@@ -52,6 +52,10 @@ pub struct App {
     pub cwd: PathBuf, // Незмінний корінь workspace, зокрема для безпечного Save
     pub explorer_dir: PathBuf, // Поточний каталог Explorer усередині workspace
     pub files: Vec<PathBuf>,
+    /// Глибина кожного видимого рядка дерева Explorer (для відступу).
+    pub depths: Vec<usize>,
+    /// Розгорнуті каталоги дерева Explorer.
+    pub expanded: std::collections::HashSet<PathBuf>,
     pub file_sel: usize,
     pub editor_path: Option<PathBuf>,
     tabs: Vec<OpenDocument>,
@@ -169,6 +173,8 @@ impl App {
             explorer_dir: cwd.clone(),
             cwd,
             files: Vec::new(),
+            depths: Vec::new(),
+            expanded: std::collections::HashSet::new(),
             file_sel: 0,
             editor_path: None,
             tabs: Vec::new(),
@@ -475,10 +481,22 @@ impl App {
     // ---- робочий простір / файли -------------------------------------------
 
     pub fn reload_files(&mut self) {
-        self.files = directory_entries(&self.explorer_dir);
+        let mut files = Vec::new();
+        let mut depths = Vec::new();
+        walk_tree(&self.explorer_dir, 0, &self.expanded, &mut files, &mut depths);
+        self.files = files;
+        self.depths = depths;
         if self.file_sel >= self.files.len() {
             self.file_sel = self.files.len().saturating_sub(1);
         }
+    }
+
+    /// Розгорнути/згорнути каталог у дереві Explorer.
+    pub(crate) fn toggle_dir(&mut self, path: PathBuf) {
+        if !self.expanded.insert(path.clone()) {
+            self.expanded.remove(&path);
+        }
+        self.reload_files();
     }
 
     /// Поточний видимий документ у вкладці синхронізується перед перемиканням.
@@ -573,10 +591,7 @@ impl App {
     pub(crate) fn open_selected(&mut self) {
         if let Some(p) = self.files.get(self.file_sel).cloned() {
             if p.is_dir() {
-                self.explorer_dir = p;
-                self.file_sel = 0;
-                self.reload_files();
-                self.status = format!("{} {}", self.t("dir"), self.explorer_dir.display());
+                self.toggle_dir(p);
                 return;
             }
             if p.extension().and_then(|ext| ext.to_str()) == Some("sens") {
@@ -1379,6 +1394,25 @@ pub fn display_name(p: &Path) -> String {
     
 /// Explorer показує звичайні каталоги і файли; символьні посилання не
 /// використовуємо як прихований шлях за межі вибраного workspace.
+/// Рекурсивно збирає видимі рядки дерева Explorer: шлях + глибина.
+/// Розгорнуті каталоги показують вміст, згорнуті — лише себе.
+fn walk_tree(
+    dir: &Path,
+    depth: usize,
+    expanded: &std::collections::HashSet<PathBuf>,
+    files: &mut Vec<PathBuf>,
+    depths: &mut Vec<usize>,
+) {
+    for entry in directory_entries(dir) {
+        let is_dir = entry.is_dir();
+        files.push(entry.clone());
+        depths.push(depth);
+        if is_dir && expanded.contains(&entry) {
+            walk_tree(&entry, depth + 1, expanded, files, depths);
+        }
+    }
+}
+
 fn directory_entries(dir: &Path) -> Vec<PathBuf> {
     let mut entries = Vec::new();
     if let Ok(read_dir) = std::fs::read_dir(dir) {
@@ -2085,5 +2119,44 @@ mod search_tests {
         for offset in find_all("їжак їжак", "їж") {
             assert!("їжак їжак".is_char_boundary(offset));
         }
+    }
+}
+
+#[cfg(test)]
+mod tree_tests {
+    use super::walk_tree;
+    use std::collections::HashSet;
+    use std::path::PathBuf;
+
+    fn temp_tree(tag: &str) -> PathBuf {
+        let base = std::env::temp_dir().join(format!("my-idea-tui-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("sub")).unwrap();
+        std::fs::write(base.join("a.lisp"), "()").unwrap();
+        std::fs::write(base.join("sub").join("b.lisp"), "()").unwrap();
+        base
+    }
+
+    #[test]
+    fn collapsed_tree_shows_top_level_and_expands_on_demand() {
+        let base = temp_tree("tree");
+        let mut files = Vec::new();
+        let mut depths = Vec::new();
+        walk_tree(&base, 0, &HashSet::new(), &mut files, &mut depths);
+        assert!(files.iter().all(|p| p.parent() == Some(base.as_path())));
+        assert!(depths.iter().all(|d| *d == 0));
+
+        let mut expanded = HashSet::new();
+        expanded.insert(base.join("sub"));
+        let mut files = Vec::new();
+        let mut depths = Vec::new();
+        walk_tree(&base, 0, &expanded, &mut files, &mut depths);
+        let child = base.join("sub").join("b.lisp");
+        let index = files
+            .iter()
+            .position(|p| p == &child)
+            .expect("дитина розгорнутого каталогу");
+        assert_eq!(depths[index], 1);
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

@@ -106,15 +106,22 @@ fn draw_explorer(f: &mut Frame, app: &App, area: Rect) {
     let items: Vec<ListItem> = app
         .files
         .iter()
-        .map(|p| {
+        .enumerate()
+        .map(|(index, p)| {
+            let indent = "  ".repeat(app.depths.get(index).copied().unwrap_or(0));
             let name = display_name(p);
             let (text, style) = if p.is_dir() {
+                let marker = if app.expanded.contains(p) {
+                    "\u{25be}"
+                } else {
+                    "\u{25b8}"
+                };
                 (
-                    format!("{name}/"),
+                    format!("{indent}{marker} {name}/"),
                     Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD),
                 )
             } else {
-                (name, Style::default())
+                (format!("{indent}   {name}"), Style::default())
             };
             ListItem::new(Line::styled(text, style))
         })
