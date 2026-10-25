@@ -2,50 +2,58 @@
 
 ## Українська
 
-**Стан: підготовлено, але NO-GO до завершення релізу SENS і повторного зеленого hosted CI. Жодного тегу чи публікації не створено.**
+**Статус: підготовлено до фінального етапу, але НЕ ГОТОВО до публікації.** Тег `v0.13.9` не створювати до проходження SENS release gate і зеленого hosted CI цього репозиторію.
 
-### Перевірена база
+### Перевірена база на 25.10.2026
 
-- Версія в `package.json` та `src-tauri/Cargo.toml`: `0.13.9`.
-- Поточний main під час аудиту: `1cc187a52895a691ff019272c5df5f8598444053`.
-- Підмодуль `external/sens`: gitlink `684e1878281835a269aca431654dccae40cd5d91`.
-- Release notes: `.github/release-notes/v0.13.9.md`, три мови (English / Українська / Deutsch).
-- Останній опублікований реліз: `v0.13.8`. Тег `v0.13.9` не існує.
-- Workflow публікації перевіряє точний gitlink через `scripts/check-my-lisp-sync.py`, а desktop-пакети, WASM і CLI sidecar мають походити з одного pin.
+- Репозиторій: juv4uk/my-idea.
+- Актуальний `main`: `32faf8361b2316c0c96039d12d4d3f499ea85465`.
+- `package.json` і `src-tauri/Cargo.toml` мають версію `0.13.9`.
+- Gitlink `external/sens`: `684e1878281835a269aca431654dccae40cd5d91`.
+- Тримовні нотатки готові: `.github/release-notes/v0.13.9.md` (English / Українська / Deutsch).
+- Embedded Rust, WASM і desktop CLI sidecar мають походити з одного точного gitlink SHA; publish workflow перевіряє його через `scripts/check-my-lisp-sync.py`.
+- Останній опублікований реліз — `v0.13.8`. Перевірка Git ref для `v0.13.9` повертає NOT_FOUND: тег ще не створений.
 
-### Блокер hosted CI на поточному SHA
+### Поточний блокер hosted CI
 
-[Run #40237456501](https://github.com/juv4uk/my-idea/actions/runs/40237456501) завершився failure на `bun run test`. Результат Node tests: 45 тестів, 25 пройшли, 20 не пройшли. Найбільша спільна причина — 18 conformance-прикладів і два WASM/standalone deep-list сценарії не можуть завантажити `time.lisp`:
+Актуальний hosted CI [#40238936867](https://github.com/juv4uk/my-idea/actions/runs/40238936867) на exact SHA `32faf8361b23` завершився failure на `bun run test`.
 
-```
-exact DEFINE target may install a language-owned mechanism only at the root frame
-physical_form_index=0 physical_word_start=0 physical_word_end=1359
-```
+- Node tests: **45 загалом, 25 пройшли, 20 впали**.
+- 18 conformance-прикладів і два WASM/standalone deep-list сценарії не можуть завантажити `time.lisp`.
+- Runtime-помилка: `exact DEFINE target may install a language-owned mechanism only at the root frame`, `physical_form_index=0`, `physical_word_start=0`, `physical_word_end=1359`.
+- Root cause — застарілий SENS gitlink `684e187`, у якому `lib/time.lisp` використовує старе визначення числових коренів через D6 LENGTH. В історії SENS є міграція констант на D24+ (`2663841d757c` та подальші зміни), однак це ще не доказ релізної готовності поточного SENS main.
 
-Це не виправляється оновленням нотаток або зниженням очікувань тестів. У pinned SENS tree `684e187` використовується старіша `lib/time.lisp`; історія SENS має пізніше виправлення `2663841d757c` (D24 constants замість D6 LENGTH у time/vector/knowledge). Його наявність саме по собі ще не є доказом, що помилку усунуто — потрібні зелений CI SENS і точний новий submodule pin.
+Не видаляти conformance cases, не вимикати deep-list tests, не послаблювати DEFINE policy й не підміняти SENS семантику в IDE. Спершу SENS має отримати зелений exact-SHA CI та канонічні фізичні пари.
 
-### Release notes і функції
+### Що вже підготовлено
 
-Нотатки v0.13.9 описують робочий SENS editing loop, portable `my-idea-web.html`, єдиний pin SENS, Editor API/plugins, опціональний Ratatui TUI й платформне пакування. Вони також чітко зазначають, що GUI Run/Stop і CML Compile не рекламуються як стабільні. Не видаляти ці межі та не називати TUI заміною GUI acceptance.
+- Версійні поля синхронізовані на `0.13.9`.
+- Release notes описують SENS editing loop, portable `my-idea-web.html`, Editor API/plugins, TUI й cross-platform sidecar pin.
+- Publish workflow має окрему валідацію тегу, точного gitlink та єдиного джерела для embedded Rust/WASM/sidecar.
+- GUI Run/Stop і CML Compile чесно залишені поза стабільними обіцянками; TUI не замінює GUI acceptance.
+- Старий успішний CI `#39988141019` на SHA `99ba5e6cf704` підтверджує лише той попередній зріз, не поточний `32faf836`.
 
-### Точний порядок релізу
+### Обов'язковий порядок релізу
 
-1. У `juv4uk/sens` довести релізний кандидат: повний нативний CI green на одному SHA, фізичні пари синхронізовані, F6 producer → physical T5M → consumer проходить; власник підтверджує SHA і дозволяє тег.
-2. У цьому репозиторії оновити тільки gitlink `external/sens` до підтвердженого коміту/тегу SENS. Не рухати gitlink на непідтверджений main і не додавати паралельний Cargo git-source.
-3. Запустити весь hosted CI для нового exact my-idea SHA. Обов’язкові кроки: `check-my-lisp-sync.py`, `bun run build`, портативний `my-idea-web.html`, `bun run test`, `bun run check`, Rust witness tests.
-4. Лише після green CI та наявності web artifact створювати тег `v0.13.9`. Publish workflow збирає Linux, macOS universal, Windows, ARM Linux та Android release assets; після публікації перевірити реальні артефакти й release page.
+1. У `juv4uk/sens` усунути RED, отримати повний нативний зелений CI на одному SHA, підтвердити F6 producer → physical T5M → consumer і фізичний паритет.
+2. Власник затверджує точний SENS release SHA/тег та дозвіл на публікацію. Поточний SENS main не має підтвердженого релізного GO.
+3. У `my-idea` змінити лише gitlink `external/sens` на підтверджений SENS SHA одним окремим комітом. Не пінити непідтверджений main і не додавати другий Cargo git-source.
+4. Запустити hosted CI для точного my-idea SHA: pin guard, Bun build, portable Web IDE artifact, `bun run test`, `bun run check`, Rust witness tests і платформні release preflights.
+5. Лише після зеленого CI створити `v0.13.9`; перевірити фактичні assets Linux, macOS universal, Windows, ARM Linux, Android і portable `my-idea-web.html`.
 
-### Checkpoint для наступного агента
+### Чекпоінт
 
-- Не створювати `v0.13.9` поки.
-- Спершу дочекатися підтвердженого SENS release SHA, потім оновити gitlink у my-idea одним комітом.
-- Якщо помилка `time.lisp` лишається після pin оновлення, виправляти SENS source/runtime, а не викидати conformance приклади чи вимикати depth tests.
-- Після кожного точкового коміту перевіряти exact-SHA CI; історичний успіх на іншому SHA не переноситься.
+- my-idea current SHA: `32faf8361b2316c0c96039d12d4d3f499ea85465`.
+- SENS gitlink: `684e1878281835a269aca431654dccae40cd5d91`.
+- Current my-idea CI: [#40238936867 — failure на bun run test](https://github.com/juv4uk/my-idea/actions/runs/40238936867).
+- SENS main під час підготовки: `63466a8a095a83dccccdaff3a2e27b46e03c2aa6`; перевірені CI містили незавершені та/або failed runs. Це не затверджений pin.
+- `v0.13.9` tag: не створений.
+- Рішення: **NO-GO до завершення SENS → pin verified SHA → повний my-idea CI**.
 
 ## Deutsch
 
-**Vorbereitet, aber noch nicht freigegeben.** Version ist `0.13.9`, Release Notes sind dreisprachig und der Publish-Workflow prüft den exakten SENS-Gitlink. Der aktuelle Hosted-CI-Lauf schlägt beim Laden von `time.lisp` fehl; deshalb kein `v0.13.9`-Tag. Erst SENS mit grünem Exact-SHA-CI und synchronisierten T5M-Artefakten veröffentlichen, danach den bestätigten Gitlink pinnen und den vollständigen my-idea-Hosted-CI erfolgreich ausführen.
+**Vorbereitet, nicht zur Veröffentlichung freigegeben.** Der aktuelle my-idea-Commit `32faf8361b23` schlägt beim `bun run test` fehl: 20 von 45 Tests können wegen der veralteten SENS-Untermodulrevision `684e187` `time.lisp` nicht laden. Version `0.13.9`, dreisprachige Release Notes und der Gitlink-Prüfpfad sind vorhanden; ein `v0.13.9`-Tag existiert noch nicht. Erst SENS mit grünem Exact-SHA-CI und synchronisierten T5M-Artefakten freigeben, danach genau diesen verifizierten SHA pinnen und my-idea vollständig testen.
 
 ## English
 
-**Prepared, not release-ready.** Version metadata is `0.13.9`; tri-lingual notes and the publish workflow are present. Current hosted CI fails while loading `time.lisp` (20 of 45 Node tests failed because the pinned SENS runtime rejects an exact DEFINE target). No `v0.13.9` tag was created. First release SENS only after exact-SHA native CI and physical T5M parity pass; then pin that verified revision in my-idea and require a clean full hosted CI plus the portable web artifact before tagging.
+**Prepared, not release-ready.** The current my-idea commit `32faf8361b23` fails `bun run test`: 20 of 45 tests cannot load `time.lisp` because the recorded SENS submodule pin `684e187` is stale. Version metadata, tri-lingual release notes, and the single-pin validation workflow are present; no `v0.13.9` tag exists. First obtain an approved SENS release SHA with green exact-SHA CI and synchronized T5M artifacts, then pin that verified SHA and require a complete green my-idea hosted CI before tagging.
