@@ -4,7 +4,7 @@
 
 ### 28.10.2026 · виправлення 100k WASM — інтеграційний кандидат
 
-- SENS gitlink `external/sens` тепер `812851edc86a3bc483d326756593c66eed345ba8` (D3 COND tail trampoline). **Це не релізний SENS тег**, тому цей commit `my-idea` призначений для CI перевірки без права публікації.
+- SENS gitlink `external/sens` тепер `c0c41183737a84eefdd27cde0c5ee873f55973ef` (D3 COND tail trampoline + O(1) arena CONS замість O(n²) рекурсивного read-back). **Це не релізний SENS тег**, тому цей commit `my-idea` призначений для CI перевірки без права публікації.
 - Раніше після SENS `s0.42.2` були **42/45 Node/Playwright tests**: три невдачі стосувалися stack overflow на 100k-list у WASM і portable Web. Перевірки залишено незмінними.
 - Тег `v0.13.9` залишається заблокованим до зеленого exact-head CI `my-idea`, повного release evidence та наступного опублікованого upstream SENS SHA.
 
