@@ -56,7 +56,7 @@ fn resolve_my_lisp_binary_builds_the_real_submodule_repl_and_it_behaves_as_docum
     let banner = rx
         .recv_timeout(Duration::from_secs(10))
         .expect("the real REPL should print its startup banner");
-    assert!(banner.line.contains("sens REPL"));
+    assert!(banner.line.starts_with("SENS REPL версії "), "неочікуваний банер pinned SENS: {:?}", banner.line);
 
     // Only canonical Ukrainian D3 QUOTE is executable in new source.
     process.write_line(":мова ук").expect("write_line should succeed");
@@ -146,7 +146,7 @@ fn resolve_or_fetch_clones_the_pinned_commit_directly_from_github_when_no_local_
     let banner = rx
         .recv_timeout(Duration::from_secs(10))
         .expect("the real REPL should print its startup banner");
-    assert!(banner.line.contains("sens REPL"));
+    assert!(banner.line.starts_with("SENS REPL версії "), "неочікуваний банер pinned SENS: {:?}", banner.line);
 
     let _ = std::fs::remove_dir_all(&cache_dir);
 }
