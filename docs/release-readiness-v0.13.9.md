@@ -2,10 +2,10 @@
 
 ## Українська
 
-### 28.10.2026 · виправлення 100k WASM — інтеграційний кандидат
+### 28.10.2026 · перевірка SENS s0.42.3 для my-idea v0.13.9
 
-- SENS gitlink `external/sens` тепер `69350846d7d6fe66f37fcf07bcaa8640b55d0d40` (D3 COND tail trampoline + O(1) arena CONS замість O(n²) рекурсивного read-back). **Це не релізний SENS тег**, тому цей commit `my-idea` призначений для CI перевірки без права публікації.
-- Раніше після SENS `s0.42.2` були **42/45 Node/Playwright tests**: три невдачі стосувалися stack overflow на 100k-list у WASM і portable Web. Перевірки залишено незмінними.
+- SENS gitlink `external/sens` тепер `9d6edae8e5ff8b7d7455f886b864f89ac415f6b2` (D3 COND tail trampoline + O(1) arena CONS замість O(n²) рекурсивного read-back). **Це ще не опублікований релізний SENS тег s0.42.3; версія Cargo — 0.42.3**, тому цей commit `my-idea` призначений для CI перевірки без права публікації.
+- На попередньому pin `69350846` [CI #40685416634](https://github.com/juv4uk/my-idea/actions/runs/40685416634) завершився **45/45 PASS**, включно з обома WASM/Web 100k-list; TUI також зелений. Для нового pin потрібен окремий hosted CI; тести не послаблювали.
 - Тег `v0.13.9` залишається заблокованим до зеленого exact-head CI `my-idea`, повного release evidence та наступного опублікованого upstream SENS SHA.
 
 ### Оновлення 28.10.2026 — SENS pin для v0.13.9

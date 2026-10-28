@@ -1,12 +1,12 @@
-# Пін SENS: перевірка виправлення WASM 100k (кандидат)
+# Пін SENS: SENS s0.42.3 кандидат для WASM 100k
 
-**28.10.2026 · інтеграційний кандидат:** пін `external/sens` → `69350846d7d6fe66f37fcf07bcaa8640b55d0d40`. Це **ще не опублікований тег**. Коміти виправляють D3 COND tail trampoline і O(1) arena CONS: більше немає рекурсивної реконструкції всіх попередніх Edge::Cell. Перевірка — незмінені 100k WASM/portable web тести `my-idea` та SENS exact-SHA CI. До зеленого CI й окремого upstream release НЕ публікувати IDE.
+**28.10.2026 · інтеграційний кандидат:** пін `external/sens` → `9d6edae8e5ff8b7d7455f886b864f89ac415f6b2`. Версія Cargo: **0.42.3**. Це **ще не опублікований тег s0.42.3**, а інтеграційний кандидат. Коміти виправляють D3 COND tail trampoline і O(1) arena CONS: більше немає рекурсивної реконструкції всіх попередніх Edge::Cell. Перевірка — незмінені 100k WASM/portable web тести `my-idea` та SENS exact-SHA CI. Попередній SENS pin 69350846 підтверджено: [my-idea CI #40685416634](https://github.com/juv4uk/my-idea/actions/runs/40685416634) 45/45 PASS, включно з WASM/Web 100k. Новий SHA потребує власного hosted CI. До опублікованого upstream release s0.42.3 і зеленого exact-head IDE CI НЕ публікувати IDE.
 
 **28.10.2026 · попередній релізний пін:** зафіксовано SENS [`s0.42.2`](https://github.com/juv4uk/sens/releases/tag/s0.42.2) на `f800db52d3f3c92d9573b8822fdf771b807aabc4` (Contract 12.0). Upstream exact-head [CI](https://github.com/juv4uk/sens/actions/runs/40644786978), [preflight](https://github.com/juv4uk/sens/actions/runs/40644419991) та [release](https://github.com/juv4uk/sens/actions/runs/40645450709) — SUCCESS. Інтеграція `my-idea` потребує власного зеленого hosted CI перед тегом `v0.13.9`.
 
 **22.10.2026 · історія:** IDE має споживати чинну доменну драбину, а не історичний SID8/Sens8 чи версію з попередньої моделі.
 
-- `external/sens` → **`69350846d7d6fe66f37fcf07bcaa8640b55d0d40`**, точний commit для hosted integration, **не реліз**. Попередній релізний gitlink SENS `s0.42.2`: `f800db52d3f3c92d9573b8822fdf771b807aabc4`.
+- `external/sens` → **`9d6edae8e5ff8b7d7455f886b864f89ac415f6b2`**, точний commit для hosted integration, **не реліз**. Попередній релізний gitlink SENS `s0.42.2`: `f800db52d3f3c92d9573b8822fdf771b807aabc4`.
 - Попередній gitlink: `684e1878281835a269aca431654dccae40cd5d91` (development-зріз від 23.10.2026).
 - **Оновлення 23.10.2026:** пін переведено на `sens/main` (`684e1878`) — там **подання дерева розбору винесено в бібліотеку `sens`** (`presentation.rs`: `render_ast`/`render_ast_node`/`AstNode`/`AstNodeKind`/`ast_nodes`). CLI (`:розбір`/`:розбір-виконати`) і TUI тепер мають **одну** реалізацію обходу й класифікації вузлів; підписи лишаються за хостом (TUI — uk→de→en), тож жодного дублю обходу. Вивід CLI ідентичний.
 - **Оновлення 22.10.2026:** пін переведено на поточний `sens/main` (`2052e3d6da9e`). Доменна драбина, Contract та єдиний gitlink лишаються чинними; `sens/main` — живий розробницький swarm, тож конкретний SHA фіксує зріз на цю дату.
