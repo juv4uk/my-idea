@@ -2962,7 +2962,7 @@ dependencies = [
 
 [[package]]
 name = "sens"
-version = "0.42.0"
+version = "0.42.2"
 dependencies = [
  "sens-host",
  "serde_json",
@@ -2970,14 +2970,15 @@ dependencies = [
 
 [[package]]
 name = "sens-host"
-version = "0.42.0"
+version = "0.42.2"
 dependencies = [
  "sens",
+ "serde_json",
 ]
 
 [[package]]
 name = "sens-literate"
-version = "0.42.0"
+version = "0.42.2"
 dependencies = [
  "pulldown-cmark",
  "sens",

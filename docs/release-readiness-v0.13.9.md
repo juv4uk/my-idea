@@ -2,6 +2,15 @@
 
 ## Українська
 
+### Оновлення 28.10.2026 — SENS pin для v0.13.9
+
+- Upstream SENS `s0.42.2` опубліковано на `f800db52d3f3c92d9573b8822fdf771b807aabc4`; [CI](https://github.com/juv4uk/sens/actions/runs/40644786978), [release-preflight](https://github.com/juv4uk/sens/actions/runs/40644419991) і [release](https://github.com/juv4uk/sens/actions/runs/40645450709) завершилися успішно на цьому SHA.
+- `external/sens` оновлено до цього exact SHA; `Cargo.lock` синхронізовано для `sens`, `sens-host`, `sens-literate` версії `0.42.2` та `sens-host → serde_json`.
+- **Реліз IDE блокується до зеленого hosted CI на точному новому SHA my-idea**; тег `v0.13.9` публікувати тільки після перевірок і комплекту артефактів.
+- Нижче збережено історичний стан на 25.10.2026, який стосувався старого gitlink `684e1878`.
+
+### Історичний стан 25.10.2026
+
 **Статус: підготовлено до фінального етапу, але НЕ ГОТОВО до публікації.** Тег `v0.13.9` не створювати до проходження SENS release gate і зеленого hosted CI цього репозиторію.
 
 ### Перевірена база на 25.10.2026
