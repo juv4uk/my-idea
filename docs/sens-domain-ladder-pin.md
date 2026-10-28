@@ -1,10 +1,12 @@
-# Пін SENS: реліз s0.42.2 і точна драбина доменів
+# Пін SENS: перевірка виправлення WASM 100k (кандидат)
 
-**28.10.2026 · поточний релізний пін:** зафіксовано SENS [`s0.42.2`](https://github.com/juv4uk/sens/releases/tag/s0.42.2) на `f800db52d3f3c92d9573b8822fdf771b807aabc4` (Contract 12.0). Upstream exact-head [CI](https://github.com/juv4uk/sens/actions/runs/40644786978), [preflight](https://github.com/juv4uk/sens/actions/runs/40644419991) та [release](https://github.com/juv4uk/sens/actions/runs/40645450709) — SUCCESS. Інтеграція `my-idea` потребує власного зеленого hosted CI перед тегом `v0.13.9`.
+**28.10.2026 · інтеграційний кандидат:** пін `external/sens` → `812851edc86a3bc483d326756593c66eed345ba8`. Це **ще не опублікований тег**. Коміт замінив рекурсивний перехід у D3 COND на `EvalStep::TailCall`; перевірка — незмінені 100k WASM/portable web тести `my-idea` та SENS exact-SHA CI. До зеленого CI й окремого upstream release НЕ публікувати IDE.
+
+**28.10.2026 · попередній релізний пін:** зафіксовано SENS [`s0.42.2`](https://github.com/juv4uk/sens/releases/tag/s0.42.2) на `f800db52d3f3c92d9573b8822fdf771b807aabc4` (Contract 12.0). Upstream exact-head [CI](https://github.com/juv4uk/sens/actions/runs/40644786978), [preflight](https://github.com/juv4uk/sens/actions/runs/40644419991) та [release](https://github.com/juv4uk/sens/actions/runs/40645450709) — SUCCESS. Інтеграція `my-idea` потребує власного зеленого hosted CI перед тегом `v0.13.9`.
 
 **22.10.2026 · історія:** IDE має споживати чинну доменну драбину, а не історичний SID8/Sens8 чи версію з попередньої моделі.
 
-- `external/sens` → **`f800db52d3f3c92d9573b8822fdf771b807aabc4`**, точний релізний gitlink SENS `s0.42.2`.
+- `external/sens` → **`812851edc86a3bc483d326756593c66eed345ba8`**, точний commit для hosted integration, **не реліз**. Попередній релізний gitlink SENS `s0.42.2`: `f800db52d3f3c92d9573b8822fdf771b807aabc4`.
 - Попередній gitlink: `684e1878281835a269aca431654dccae40cd5d91` (development-зріз від 23.10.2026).
 - **Оновлення 23.10.2026:** пін переведено на `sens/main` (`684e1878`) — там **подання дерева розбору винесено в бібліотеку `sens`** (`presentation.rs`: `render_ast`/`render_ast_node`/`AstNode`/`AstNodeKind`/`ast_nodes`). CLI (`:розбір`/`:розбір-виконати`) і TUI тепер мають **одну** реалізацію обходу й класифікації вузлів; підписи лишаються за хостом (TUI — uk→de→en), тож жодного дублю обходу. Вивід CLI ідентичний.
 - **Оновлення 22.10.2026:** пін переведено на поточний `sens/main` (`2052e3d6da9e`). Доменна драбина, Contract та єдиний gitlink лишаються чинними; `sens/main` — живий розробницький swarm, тож конкретний SHA фіксує зріз на цю дату.
@@ -19,7 +21,7 @@
 - `src-tauri/build.rs` і `scripts/build-repl-sidecar.sh` порівнюють **gitlink SHA** з checkout `external/sens` і зупиняють саме неспівпалу збірку замість мовчазного дрейфу.
 - `scripts/check-my-lisp-sync.py` надалі перевіряє єдиний dependency channel, незалежно від історичної назви скрипта.
 
-**Важлива межа:** тепер це опублікований SENS release pin, але не автоматичний дозвіл на випуск IDE. Після оновлення gitlink і Cargo.lock необхідні окремі hosted CI, Web IDE smoke, desktop sidecar та релізні перевірки саме для нового commit my-idea. Старі development-факти вище — історія.
+**Важлива межа:** це післярелізний інтеграційний кандидат SENS, а не затверджений release pin. Публікацію IDE заблоковано до нового upstream release та зеленого IDE CI. Після оновлення gitlink і Cargo.lock необхідні окремі hosted CI, Web IDE smoke, desktop sidecar та релізні перевірки саме для нового commit my-idea. Старі development-факти вище — історія.
 
 Deutsch: Der Release-Pin verwendet SENS s0.42.2 und Contract 12.0; die IDE-Freigabe benötigt eigene erfolgreiche CI.
 
