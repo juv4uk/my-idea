@@ -65,6 +65,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin,wasm32-unknown-unknown
+      - name: Install pinned SENS Rust 1.99 and WASM target
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -n 's/^channel *= *"\([^"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          test -n "$pinned"
+          rustup toolchain install "$pinned" --profile minimal
+          rustup target add wasm32-unknown-unknown aarch64-apple-darwin x86_64-apple-darwin --toolchain "$pinned"
+          rustup run "$pinned" rustc --print target-libdir --target wasm32-unknown-unknown
+      - name: Install pinned SENS Zig 0.16
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: '0.16.0'
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         uses: jetli/wasm-pack-action@v0.4.0
         with:
@@ -163,6 +176,25 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      - name: Install pinned SENS Rust 1.99 and WASM target
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -n 's/^channel *= *"\([^"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          test -n "$pinned"
+          rustup toolchain install "$pinned" --profile minimal
+          rustup target add wasm32-unknown-unknown --toolchain "$pinned"
+          rustup run "$pinned" rustc --print target-libdir --target wasm32-unknown-unknown
+      - name: Install pinned SENS Zig 0.16 (Linux ARM64, verified hash)
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/zig-aarch64-linux-0.16.0.tar.xz"
+          curl --fail --location --retry 3 --silent --show-error https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz --output "$archive"
+          echo "ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17  $archive" | sha256sum -c -
+          tar -xJf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/zig-aarch64-linux-0.16.0" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/zig-aarch64-linux-0.16.0/zig" version
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - uses: Swatinem/rust-cache@v2
@@ -215,6 +247,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-pc-windows-msvc,wasm32-unknown-unknown
+      - name: Install pinned SENS Rust 1.99 and WASM target
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -n 's/^channel *= *"\([^"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          test -n "$pinned"
+          rustup toolchain install "$pinned" --profile minimal
+          rustup target add wasm32-unknown-unknown aarch64-pc-windows-msvc --toolchain "$pinned"
+          rustup run "$pinned" rustc --print target-libdir --target wasm32-unknown-unknown
+      - name: Install pinned SENS Zig 0.16
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: '0.16.0'
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         uses: jetli/wasm-pack-action@v0.4.0
         with:
@@ -302,6 +347,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      - name: Install pinned SENS Rust 1.99 and WASM target
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -n 's/^channel *= *"\([^"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          test -n "$pinned"
+          rustup toolchain install "$pinned" --profile minimal
+          rustup target add wasm32-unknown-unknown --toolchain "$pinned"
+          rustup run "$pinned" rustc --print target-libdir --target wasm32-unknown-unknown
+      - name: Install pinned SENS Zig 0.16
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: '0.16.0'
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         uses: jetli/wasm-pack-action@v0.4.0
         with:
@@ -382,6 +440,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      - name: Install pinned SENS Rust 1.99 and WASM target
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -n 's/^channel *= *"\([^"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          test -n "$pinned"
+          rustup toolchain install "$pinned" --profile minimal
+          rustup target add wasm32-unknown-unknown --toolchain "$pinned"
+          rustup run "$pinned" rustc --print target-libdir --target wasm32-unknown-unknown
+      - name: Install pinned SENS Zig 0.16
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: '0.16.0'
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         uses: jetli/wasm-pack-action@v0.4.0
         with:
@@ -448,6 +519,21 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android,wasm32-unknown-unknown
+      - name: Install pinned SENS Rust 1.99 and WASM target
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          pinned="$(sed -n 's/^channel *= *"\([^"]*\)"/\1/p' external/sens/rust-toolchain.toml | head -n 1)"
+          test -n "$pinned"
+          rustup toolchain install "$pinned" --profile minimal
+          rustup target add wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android --toolchain "$pinned"
+          rustup run "$pinned" rustc --print target-libdir --target wasm32-unknown-unknown
+      - name: Install pinned SENS Zig 0.16
+        if: steps.signing.outputs.ready == 'true'
+        uses: ./external/sens/.github/actions/install-zig
+        with:
+          version: '0.16.0'
       - name: Install wasm-pack · Встановити wasm-pack · wasm-pack installieren
         if: steps.signing.outputs.ready == 'true'
         uses: jetli/wasm-pack-action@v0.4.0
