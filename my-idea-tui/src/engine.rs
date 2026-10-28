@@ -423,7 +423,11 @@ mod pinned_file_mode_smoke {
         fs::write(&file, "(\n").expect("записати помилкове джерело");
         let (status, stdout, stderr) = run_file(&selected, &file);
         assert!(!status.success(), "SENS прийняв синтаксичну помилку");
-        assert!(stderr.contains("Parse error"), "немає реальної діагностики: {stderr}");
+        assert!(
+            stderr.contains("Синтаксична помилка: незакритий список")
+                && stderr.contains("рядок 1, стовпець 1"),
+            "немає точної діагностики SENS: {stderr}"
+        );
         println!(
             "PINNED_SENS_FILE_MODE_OK success_stdout={} failure_exit={} failure_stderr={}",
             "9", status, stderr.trim()
